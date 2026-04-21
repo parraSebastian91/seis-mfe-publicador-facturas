@@ -1,0 +1,101 @@
+<section class="factura-view-wrapper">
+  <main class="content-area">
+    <mat-accordion>
+      <mat-expansion-panel hideToggle (opened)="panelOpenState.set(true)" (closed)="panelOpenState.set(false)">
+        <mat-expansion-panel-header>
+          <mat-panel-title>Revision de factura</mat-panel-title>
+          <mat-panel-description>
+            {{panelOpenState() ? 'Abierto' : 'Cerrado'}}
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <header class="factura-header">
+          <div>
+            <p class="header-kicker">Factura</p>
+            <h2>{{ facturaOriginal().numeroFactura }}</h2>
+            <p class="header-status">Estado: <strong>{{ estadoFactura() }}</strong></p>
+          </div>
+
+          <button type="button" class="notification-btn" aria-label="Notificaciones de esta factura">
+            <mat-icon [matBadge]="notificationCount()" matBadgeColor="warn" matBadgeSize="small">notifications</mat-icon>
+          </button>
+        </header>
+
+        <div class="panel-tools">
+          <div class="pdf-tools">
+            <label class="pdf-label" for="pdf-input">Seleccionar factura PDF</label>
+            <input id="pdf-input" type="file" accept="application/pdf" (change)="onPdfSelected($event)">
+            <p class="pdf-name" *ngIf="pdfName()">Archivo cargado: {{ pdfName() }}</p>
+          </div>
+
+          <button type="button" class="toggle-pdf-btn" (click)="togglePdfView()">
+            {{ showPdfView() ? 'Ocultar vista factura' : 'Mostrar vista factura' }}
+          </button>
+        </div>
+
+        <div class="split-layout" [class.pdf-hidden]="!showPdfView()">
+          <section class="pdf-pane" *ngIf="showPdfView()">
+            <ngx-extended-pdf-viewer
+              *ngIf="pdfSrc()"
+              [src]="pdfSrc() ?? ''"
+              [height]="'65vh'"
+              [showHandToolButton]="true"
+              [showOpenFileButton]="false"
+              [showPrintButton]="false"
+              [showDownloadButton]="false"
+              [textLayer]="false">
+            </ngx-extended-pdf-viewer>
+
+            <p *ngIf="!pdfSrc()" class="pdf-empty">Carga un PDF para visualizarlo dentro de este panel.</p>
+          </section>
+
+          <section class="compare-pane">
+            <h3>Comparacion para validacion y correccion</h3>
+
+            <div class="compare-header-row">
+              <span>Campo</span>
+              <span>Dato</span>
+              <span>Validar</span>
+            </div>
+
+            <div class="compare-row" *ngFor="let campo of camposFactura()" [class.validated]="campo.validated" (click)="editField(campo.id)">
+              <span class="label">{{ campo.label }}</span>
+              <span>
+                <ng-container *ngIf="!campo.editing; else editFieldTpl">
+                  {{ campo.value }}
+                </ng-container>
+                <ng-template #editFieldTpl>
+                  <input
+                    class="field-input"
+                    [value]="campo.draftValue"
+                    (click)="$event.stopPropagation()"
+                    (input)="updateDraftValue(campo.id, $any($event.target).value)" />
+                </ng-template>
+              </span>
+              <span class="row-actions">
+                <!-- <button type="button" class="action-btn edit" (click)="editField(campo.id)">
+                  <mat-icon>edit</mat-icon>
+                </button> -->
+                <button
+                  type="button"
+                  class="action-btn validate"
+                  [class.is-validated]="campo.validated"
+                  [title]="campo.validated ? 'Fila validada' : 'Validar fila'"
+                  (click)="validateField(campo.id, $event)">
+                  <mat-icon>check_circle</mat-icon>
+                </button>
+              </span>
+            </div>
+
+            <div class="notifications-list" *ngIf="notificationCount()">
+              <h4>Notificaciones asociadas</h4>
+              <ul>
+                <li *ngFor="let item of notificacionesFactura()">{{ item }}</li>
+              </ul>
+            </div>
+          </section>
+        </div>
+      </mat-expansion-panel>
+    </mat-accordion>
+  </main>
+</section>

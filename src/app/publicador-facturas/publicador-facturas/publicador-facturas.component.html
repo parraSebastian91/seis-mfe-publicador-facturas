@@ -1,13 +1,16 @@
 <section class="publicador-wrapper">
-  <header>
-    <h1>Publicador de Facturas</h1>
-    <p>Base inicial para carga, validacion y publicacion de comprobantes.</p>
+
+  <header class="header-row">
+    <div>
+      <h1>Publicador de Facturas</h1>
+      <p>Base inicial para carga, validacion y publicacion de comprobantes.</p>
+    </div>
+    <button type="button" class="btn-publicar" (click)="openUploadModal()">Publicar</button>
   </header>
 
   <ul class="estado-lista">
     <li *ngFor="let factura of ultimasPublicaciones">
-      <strong>{{ factura.folio }}</strong>
-      <span>{{ factura.estado }}</span>
+      <app-factura-view></app-factura-view>
     </li>
   </ul>
 </section>
