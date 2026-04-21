@@ -1,0 +1,27 @@
+:root {
+	--primary: #1976d2;
+	--secondary: #114d8a;
+	--focus-background: #5e63ff;
+	--focus-font-color: #ffffff;
+	--font-color: #000;
+	--accent: #ff4081;
+	--warn: #f44336;
+	--line-clr: #42434a;
+	--background-menu: #11121a;
+	--background-body: #11121a;
+	--background-toolbar: #ffffff;
+	--on-primary: #ffffff;
+}
+
+html,
+body {
+	width: 100%;
+	height: 100%;
+}
+
+body {
+	margin: 0;
+	font-family: Roboto, "Helvetica Neue", sans-serif;
+	background-color: #f4f7fb;
+	color: var(--font-color, #1f2937);
+}
