@@ -1,6 +1,7 @@
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { UploadModalResult, UploadModalService } from 'shared-utils';
+import { ObjectUploadService, PATH_TYPES, UploadModalResult, UploadModalService } from 'shared-utils';
+
 
 @Component({
   selector: 'app-publicador-facturas',
@@ -9,7 +10,9 @@ import { UploadModalResult, UploadModalService } from 'shared-utils';
   standalone: false
 })
 export class PublicadorFacturasComponent implements OnInit, OnDestroy {
-  private readonly uploadModalService = inject(UploadModalService);
+  // private readonly uploadModalService = inject(UploadModalService);
+  // private readonly objectUploadService = inject(ObjectUploadService);
+  private readonly apiBase = 'http://localhost:8000';
 
   ultimasPublicaciones = [
     { folio: 'FAC-2026-00121', estado: 'Publicado' },
@@ -19,10 +22,30 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
   private sub?: Subscription;
 
+  constructor(
+    private objectUploadService: ObjectUploadService,
+    private uploadModalService: UploadModalService
+  ) { }
+
   ngOnInit(): void {
-    this.sub = this.uploadModalService.fileSelected$.subscribe((result: UploadModalResult) => {
+    this.sub = this.uploadModalService.fileSelected$.subscribe(async (result: UploadModalResult) => {
       if (result.context !== 'publicador-facturas') return;
-      console.log('Factura recibida para publicar:', result.file.name);
+
+      try {
+        const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(this.apiBase, PATH_TYPES.DOCUMENT, result.file);
+
+        if (!respuesta?.objectUrl) {
+          throw new Error('Presigned URL not received from API.');
+        }
+
+        console.log('Factura subida correctamente:', {
+          fileName: result.file.name,
+          key: respuesta.key,
+          url: respuesta.objectUrl.split('?')[0]
+        });
+      } catch (err) {
+        console.error('Error al subir factura con presigned URL:', err);
+      }
     });
   }
 
