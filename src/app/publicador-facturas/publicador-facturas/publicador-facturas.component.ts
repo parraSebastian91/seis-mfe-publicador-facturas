@@ -1,6 +1,6 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, Signal } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { ObjectUploadService, PATH_TYPES, UploadModalResult, UploadModalService } from 'shared-utils';
+import { ObjectUploadService, PATH_TYPES, UploadModalResult, UploadModalService, UserStateService } from 'shared-utils';
 
 
 @Component({
@@ -21,18 +21,24 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   ];
 
   private sub?: Subscription;
+  readonly orgSelected!: Signal<string>;
 
   constructor(
     private objectUploadService: ObjectUploadService,
-    private uploadModalService: UploadModalService
-  ) { }
+    private uploadModalService: UploadModalService,
+    private userStateService: UserStateService,
+  ) {
+
+    this.orgSelected = this.userStateService.orgSelected;
+  }
 
   ngOnInit(): void {
     this.sub = this.uploadModalService.fileSelected$.subscribe(async (result: UploadModalResult) => {
       if (result.context !== 'publicador-facturas') return;
 
       try {
-        const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(this.apiBase, PATH_TYPES.DOCUMENT, result.file);
+        
+        const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(this.apiBase, PATH_TYPES.DOCUMENT, result.file, this.orgSelected());
 
         if (!respuesta?.objectUrl) {
           throw new Error('Presigned URL not received from API.');
