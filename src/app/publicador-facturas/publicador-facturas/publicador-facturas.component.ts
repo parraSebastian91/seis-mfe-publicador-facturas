@@ -28,7 +28,6 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     private uploadModalService: UploadModalService,
     private userStateService: UserStateService,
   ) {
-
     this.orgSelected = this.userStateService.orgSelected;
   }
 
@@ -37,8 +36,8 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       if (result.context !== 'publicador-facturas') return;
 
       try {
-        
-        const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(this.apiBase, PATH_TYPES.DOCUMENT, result.file, this.orgSelected());
+
+        const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(this.apiBase, PATH_TYPES.DOCUMENT, result.file, this.userStateService.userName(), this.orgSelected());
 
         if (!respuesta?.objectUrl) {
           throw new Error('Presigned URL not received from API.');
