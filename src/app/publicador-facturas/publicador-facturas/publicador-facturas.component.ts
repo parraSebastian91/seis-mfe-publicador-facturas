@@ -1,6 +1,7 @@
-import { Component, OnDestroy, OnInit, Signal } from '@angular/core';
+import { Component, EffectRef, Injector, OnDestroy, OnInit, Signal, effect } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { ObjectUploadService, PATH_TYPES, UploadModalResult, UploadModalService, UserStateService } from 'shared-utils';
+import { FacturaType, ObjectUploadService, PATH_TYPES, UploadModalResult, UploadModalService, UserStateService } from 'shared-utils';
+import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
 
 
 @Component({
@@ -14,19 +15,18 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   // private readonly objectUploadService = inject(ObjectUploadService);
   private readonly apiBase = 'http://localhost:8000';
 
-  ultimasPublicaciones = [
-    { folio: 'FAC-2026-00121', estado: 'Publicado' },
-    { folio: 'FAC-2026-00122', estado: 'En validacion' },
-    { folio: 'FAC-2026-00123', estado: 'Pendiente' }
-  ];
+  facturas: FacturaType[] = [];
 
   private sub?: Subscription;
+  private orgEffect?: EffectRef;
   readonly orgSelected!: Signal<string>;
 
   constructor(
+    private injector: Injector,
     private objectUploadService: ObjectUploadService,
     private uploadModalService: UploadModalService,
     private userStateService: UserStateService,
+    private facturasService: FacturasService
   ) {
     this.orgSelected = this.userStateService.orgSelected;
   }
@@ -34,7 +34,6 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.sub = this.uploadModalService.fileSelected$.subscribe(async (result: UploadModalResult) => {
       if (result.context !== 'publicador-facturas') return;
-
       try {
 
         const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(this.apiBase, PATH_TYPES.DOCUMENT, result.file, this.userStateService.userName(), this.orgSelected());
@@ -48,14 +47,28 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
           key: respuesta.key,
           url: respuesta.objectUrl.split('?')[0]
         });
+
+        await this.loadFacturas(this.orgSelected());
       } catch (err) {
         console.error('Error al subir factura con presigned URL:', err);
       }
     });
+
+    this.orgEffect = effect(() => {
+      const organizacionUUID = this.orgSelected();
+
+      if (!organizacionUUID) {
+        this.facturas = [];
+        return;
+      }
+
+      void this.loadFacturas(organizacionUUID);
+    }, { injector: this.injector });
   }
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    this.orgEffect?.destroy();
   }
 
   openUploadModal(): void {
@@ -65,5 +78,20 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       hint: 'Acepta PDF, XML o imagen (JPG/PNG).',
       accept: '.pdf,.xml,image/*'
     });
+  }
+
+  trackByFacturaId(index: number, factura: FacturaType): string {
+    return factura.correlationId || String(index);
+  }
+
+  private async loadFacturas(organizacionUUID: string): Promise<void> {
+    try {
+      const facturas = await this.facturasService.getFacturas(organizacionUUID);
+      this.facturas = facturas;
+      console.log('Facturas obtenidas:', facturas);
+    } catch (err) {
+      this.facturas = [];
+      console.error('Error al obtener facturas:', err);
+    }
   }
 }

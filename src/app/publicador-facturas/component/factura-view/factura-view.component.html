@@ -3,28 +3,36 @@
     <mat-accordion>
       <mat-expansion-panel hideToggle (opened)="panelOpenState.set(true)" (closed)="panelOpenState.set(false)">
         <mat-expansion-panel-header>
-          <mat-panel-title>Revision de factura</mat-panel-title>
+          <mat-panel-title>
+            <span class="panel-status" [ngClass]="panelStatusClass">{{ panelTitleStatus }}</span>
+          </mat-panel-title>
           <mat-panel-description>
-            {{panelOpenState() ? 'Abierto' : 'Cerrado'}}
+            <div class="description-row">
+              <ng-container *ngFor="let item of panelDescriptionSummary; let last = last">
+                <span class="description-item">{{ item }}</span>
+                <span class="description-separator" *ngIf="!last">|</span>
+              </ng-container>
+            </div>
           </mat-panel-description>
         </mat-expansion-panel-header>
 
         <header class="factura-header">
           <div>
             <p class="header-kicker">Factura</p>
-            <h2>{{ facturaOriginal().numeroFactura }}</h2>
-            <p class="header-status">Estado: <strong>{{ estadoFactura() }}</strong></p>
+            <h2>{{ facturaNumeroHeader }}</h2>
+            <span class="panel-status" [ngClass]="panelStatusClass">{{ panelTitleStatus }}</span>
           </div>
 
           <button type="button" class="notification-btn" aria-label="Notificaciones de esta factura">
-            <mat-icon [matBadge]="notificationCount()" matBadgeColor="warn" matBadgeSize="small">notifications</mat-icon>
+            <mat-icon [matBadge]="notificationCount()" matBadgeColor="warn"
+              matBadgeSize="small">notifications</mat-icon>
           </button>
         </header>
 
         <div class="panel-tools">
           <div class="pdf-tools">
-            <label class="pdf-label" for="pdf-input">Seleccionar factura PDF</label>
-            <input id="pdf-input" type="file" accept="application/pdf" (change)="onPdfSelected($event)">
+            <label class="pdf-label" [attr.for]="pdfInputId">Seleccionar factura PDF</label>
+            <input [id]="pdfInputId" type="file" accept="application/pdf" (change)="onPdfSelected($event)">
             <p class="pdf-name" *ngIf="pdfName()">Archivo cargado: {{ pdfName() }}</p>
           </div>
 
@@ -35,15 +43,9 @@
 
         <div class="split-layout" [class.pdf-hidden]="!showPdfView()">
           <section class="pdf-pane" *ngIf="showPdfView()">
-            <ngx-extended-pdf-viewer
-              *ngIf="pdfSrc()"
-              [src]="pdfSrc() ?? ''"
-              [height]="'65vh'"
-              [showHandToolButton]="true"
-              [showOpenFileButton]="false"
-              [showPrintButton]="false"
-              [showDownloadButton]="false"
-              [textLayer]="false">
+            <ngx-extended-pdf-viewer *ngIf="pdfSrc()" [src]="pdfSrc() ?? ''" [height]="'65vh'"
+              [showHandToolButton]="true" [showOpenFileButton]="false" [showPrintButton]="false"
+              [showDownloadButton]="false" [textLayer]="false">
             </ngx-extended-pdf-viewer>
 
             <p *ngIf="!pdfSrc()" class="pdf-empty">Carga un PDF para visualizarlo dentro de este panel.</p>
@@ -55,34 +57,39 @@
             <div class="compare-header-row">
               <span>Campo</span>
               <span>Dato</span>
-              <span>Validar</span>
+              <span>Acciones</span>
             </div>
 
-            <div class="compare-row" *ngFor="let campo of camposFactura()" [class.validated]="campo.validated" (click)="editField(campo.id)">
+            <div class="compare-row" *ngFor="let campo of camposFactura(); trackBy: trackByCampoId"
+              [class.validated]="campo.validated">
               <span class="label">{{ campo.label }}</span>
               <span>
                 <ng-container *ngIf="!campo.editing; else editFieldTpl">
                   {{ campo.value }}
                 </ng-container>
                 <ng-template #editFieldTpl>
-                  <input
-                    class="field-input"
-                    [value]="campo.draftValue"
-                    (click)="$event.stopPropagation()"
-                    (input)="updateDraftValue(campo.id, $any($event.target).value)" />
+                  <ng-container
+                    *ngIf="campo.detectedOptions.length > 1 && !campo.usingCustomValue; else manualInputTpl">
+                    <select class="field-select" [value]="campo.draftValue" (click)="$event.stopPropagation()"
+                      (change)="onDetectedOptionSelected(campo.id, $any($event.target).value)">
+                      <option *ngFor="let option of campo.detectedOptions" [value]="option">{{ option }}</option>
+                      <option [value]="otherValueOption">Otro valor</option>
+                    </select>
+                  </ng-container>
+
+                  <ng-template #manualInputTpl>
+                    <input class="field-input" [value]="campo.draftValue" (click)="$event.stopPropagation()"
+                      (input)="updateDraftValue(campo.id, $any($event.target).value)"
+                      (keydown.enter)="validateField(campo.id, $event)"
+                      (keydown.escape)="cancelField(campo.id, $event)" />
+                  </ng-template>
                 </ng-template>
               </span>
               <span class="row-actions">
-                <!-- <button type="button" class="action-btn edit" (click)="editField(campo.id)">
-                  <mat-icon>edit</mat-icon>
-                </button> -->
-                <button
-                  type="button"
-                  class="action-btn validate"
-                  [class.is-validated]="campo.validated"
-                  [title]="campo.validated ? 'Fila validada' : 'Validar fila'"
-                  (click)="validateField(campo.id, $event)">
-                  <mat-icon>check_circle</mat-icon>
+                <button type="button" class="action-btn primary" [class.is-editing]="campo.editing"
+                  [class.is-validated]="campo.validated && !campo.editing" [title]="primaryActionTitle(campo)"
+                  (click)="onPrimaryAction(campo.id, $event)">
+                  <mat-icon>{{ primaryActionIcon(campo) }}</mat-icon>
                 </button>
               </span>
             </div>

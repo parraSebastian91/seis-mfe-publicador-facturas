@@ -9,8 +9,10 @@
   </header>
 
   <ul class="estado-lista">
-    <li *ngFor="let factura of ultimasPublicaciones">
-      <app-factura-view></app-factura-view>
+    <li *ngFor="let factura of facturas; trackBy: trackByFacturaId">
+      <app-factura-view [factura]="factura"></app-factura-view>
     </li>
   </ul>
+
+  <p class="estado-vacio" *ngIf="!facturas.length">No hay facturas para la organizacion seleccionada.</p>
 </section>
