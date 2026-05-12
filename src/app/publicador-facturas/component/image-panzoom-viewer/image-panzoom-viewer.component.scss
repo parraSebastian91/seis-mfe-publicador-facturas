@@ -1,0 +1,39 @@
+.image-viewer-shell {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.toolbar {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.toolbar button {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 0.35rem 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.viewport {
+  width: 100%;
+  min-height: 65vh;
+  overflow: hidden;
+  background: #f1f5f9;
+  border: 1px solid #dbe1ea;
+  border-radius: 0.65rem;
+  position: relative;
+}
+
+.viewport img {
+  display: block;
+  max-width: none;
+  width: 100%;
+  height: auto;
+  transform-origin: center center;
+  touch-action: none;
+  user-select: none;
+}

@@ -30,28 +30,34 @@
         </header>
 
         <div class="panel-tools">
-          <div class="pdf-tools">
-            <label class="pdf-label" [attr.for]="pdfInputId">Seleccionar factura PDF</label>
-            <input [id]="pdfInputId" type="file" accept="application/pdf" (change)="onPdfSelected($event)">
-            <p class="pdf-name" *ngIf="pdfName()">Archivo cargado: {{ pdfName() }}</p>
-          </div>
+          <!-- <div class="pdf-tools">
+            <label class="pdf-label" [attr.for]="pdfInputId">Seleccionar imagen de factura (WEBP)</label>
+            <input [id]="pdfInputId" type="file" accept="image/webp,image/*" [disabled]="!isPendingValidation"
+              (change)="onImageSelected($event)">
+            <p class="pdf-name" *ngIf="imageName()">Archivo cargado: {{ imageName() }}</p>
+            <p class="pdf-empty" *ngIf="!isPendingValidation">Vista de imagen deshabilitada para este estado.</p>
+          </div> -->
 
-          <button type="button" class="toggle-pdf-btn" (click)="togglePdfView()">
+          <button type="button" class="toggle-pdf-btn" [disabled]="!isPendingValidation" (click)="togglePdfView()">
             {{ showPdfView() ? 'Ocultar vista factura' : 'Mostrar vista factura' }}
           </button>
         </div>
 
         <div class="split-layout" [class.pdf-hidden]="!showPdfView()">
-          <section class="pdf-pane" *ngIf="showPdfView()">
-            <ngx-extended-pdf-viewer *ngIf="pdfSrc()" [src]="pdfSrc() ?? ''" [height]="'65vh'"
-              [showHandToolButton]="true" [showOpenFileButton]="false" [showPrintButton]="false"
-              [showDownloadButton]="false" [textLayer]="false">
-            </ngx-extended-pdf-viewer>
-
-            <p *ngIf="!pdfSrc()" class="pdf-empty">Carga un PDF para visualizarlo dentro de este panel.</p>
+          <section class="loading-pane" *ngIf="splitLayoutLoading()">
+            <div class="spinner"></div>
+            <p>Procesando factura, esperando respuesta por WebSocket (Correlation ID).</p>
           </section>
 
-          <section class="compare-pane">
+          <ng-container *ngIf="!splitLayoutLoading()">
+            <section class="pdf-pane" *ngIf="showPdfView() && canShowPdfViewer">
+            <app-image-panzoom-viewer *ngIf="imageSrc()" [imageSrc]="imageSrc() ?? ''" [altText]="'Imagen de factura'">
+            </app-image-panzoom-viewer>
+
+            <p *ngIf="!imageSrc()" class="pdf-empty">Carga una imagen WEBP para visualizarla dentro de este panel.</p>
+            </section>
+
+            <section class="compare-pane">
             <h3>Comparacion para validacion y correccion</h3>
 
             <div class="compare-header-row">
@@ -102,7 +108,8 @@
                 <li *ngFor="let item of notificacionesFactura()">{{ item }}</li>
               </ul>
             </div>
-          </section>
+            </section>
+          </ng-container>
         </div>
 
         <footer class="confirm-footer">

@@ -1,5 +1,5 @@
-import { Component, computed, Input, OnChanges, signal, SimpleChanges } from '@angular/core';
-import { FacturaType } from 'shared-utils';
+import { Component, computed, effect, inject, Input, OnChanges, OnDestroy, signal, SimpleChanges } from '@angular/core';
+import { FacturaType, NotificationSocketService } from 'shared-utils';
 
 interface FacturaFieldEditable {
   id: string;
@@ -18,17 +18,21 @@ interface FacturaFieldEditable {
   styleUrl: './factura-view.component.scss',
   standalone: false
 })
-export class FacturaViewComponent implements OnChanges {
+export class FacturaViewComponent implements OnChanges, OnDestroy {
   readonly otherValueOption = '__other_value__';
   readonly selectPlaceholderLabel = 'Seleccione una opción';
   readonly pendingValidationLabel = 'VALIDAR DATO';
+  private readonly notificationSocketService = inject(NotificationSocketService);
+  private readonly receivedSocketCorrelationIds = new Set<string>();
+  private splitLoadingTimeout?: ReturnType<typeof setTimeout>;
 
   @Input() factura: FacturaType = {} as FacturaType;
 
   readonly panelOpenState = signal(false);
-  readonly pdfSrc = signal<Uint8Array | undefined>(undefined);
-  readonly pdfName = signal<string>('');
+  readonly imageSrc = signal<string | undefined>(undefined);
+  readonly imageName = signal<string>('');
   readonly showPdfView = signal(true);
+  readonly splitLayoutLoading = signal(false);
 
   readonly estadoFactura = signal('En validacion');
   readonly estadoConfirmado = signal(false);
@@ -51,7 +55,8 @@ export class FacturaViewComponent implements OnChanges {
     montoTotal: 0,
     fechaVencimiento: new Date(),
     status: 'PENDIENTE_VALIDACION',
-    correlationId: ''
+    correlationId: '',
+    storage_key: ''
   } as FacturaType);
 
   readonly camposFactura = signal<FacturaFieldEditable[]>([]);
@@ -60,6 +65,24 @@ export class FacturaViewComponent implements OnChanges {
 
   constructor() {
     this.camposFactura.set(this.buildFields(this.facturaOriginal()));
+
+    effect(() => {
+      const correlationId = this.facturaOriginal().correlationId;
+      const notifications = this.notificationSocketService.notifications();
+
+      if (!correlationId || !notifications.length) {
+        return;
+      }
+
+      const hasMatchingNotification = notifications.some(item => this.matchesCorrelationId(item, correlationId));
+      if (!hasMatchingNotification) {
+        return;
+      }
+
+      this.receivedSocketCorrelationIds.add(correlationId);
+      this.splitLayoutLoading.set(false);
+      this.clearSplitLoadingTimeout();
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -69,8 +92,18 @@ export class FacturaViewComponent implements OnChanges {
       this.estadoFactura.set(this.prettyStatus(updatedFactura.status));
       this.estadoConfirmado.set(false);
       this.ofertasFactura.set(this.readOffersCount(updatedFactura));
+      this.initializeSplitLayoutLoading(updatedFactura);
+      this.resolveImageSource(updatedFactura);
       this.camposFactura.set(this.buildFields(updatedFactura));
+
+      if (!this.isPendingValidation) {
+        this.showPdfView.set(false);
+      }
     }
+  }
+
+  ngOnDestroy(): void {
+    this.clearSplitLoadingTimeout();
   }
 
   get panelTitleStatus(): string {
@@ -101,6 +134,14 @@ export class FacturaViewComponent implements OnChanges {
       && this.camposFactura().every(field => field.validated && !field.editing);
   }
 
+  get isPendingValidation(): boolean {
+    return this.facturaOriginal().status === 'PENDIENTE_VALIDACION';
+  }
+
+  get canShowPdfViewer(): boolean {
+    return this.isPendingValidation && !this.splitLayoutLoading();
+  }
+
   get facturaNumeroHeader(): string {
     return this.getFieldDisplayValue('numeroFactura', this.facturaOriginal().facturaNumero || 'Sin numero');
   }
@@ -110,7 +151,7 @@ export class FacturaViewComponent implements OnChanges {
     return `pdf-input-${seed.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   }
 
-  onPdfSelected(event: Event): void {
+  onImageSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
 
@@ -118,23 +159,27 @@ export class FacturaViewComponent implements OnChanges {
       return;
     }
 
-    if (file.type !== 'application/pdf') {
-      this.pdfSrc.set(undefined);
-      this.pdfName.set('');
+    if (!file.type.startsWith('image/')) {
+      this.imageSrc.set(undefined);
+      this.imageName.set('');
       input.value = '';
       return;
     }
 
     const reader = new FileReader();
     reader.onload = () => {
-      const buffer = reader.result as ArrayBuffer;
-      this.pdfSrc.set(new Uint8Array(buffer));
-      this.pdfName.set(file.name);
+      const imageDataUrl = String(reader.result ?? '');
+      this.imageSrc.set(imageDataUrl);
+      this.imageName.set(file.name);
     };
-    reader.readAsArrayBuffer(file);
+    reader.readAsDataURL(file);
   }
 
   togglePdfView(): void {
+    if (!this.isPendingValidation) {
+      return;
+    }
+
     this.showPdfView.update(value => !value);
   }
 
@@ -445,5 +490,121 @@ export class FacturaViewComponent implements OnChanges {
 
   private formatDate(value: Date): string {
     return new Intl.DateTimeFormat('es-CL').format(value);
+  }
+
+  private initializeSplitLayoutLoading(factura: FacturaType): void {
+    if (factura.status !== 'PENDIENTE_VALIDACION') {
+      this.splitLayoutLoading.set(false);
+      this.clearSplitLoadingTimeout();
+      return;
+    }
+
+    const correlationId = factura.correlationId?.trim();
+    if (!correlationId) {
+      this.splitLayoutLoading.set(false);
+      this.clearSplitLoadingTimeout();
+      return;
+    }
+
+    if (this.receivedSocketCorrelationIds.has(correlationId)) {
+      this.splitLayoutLoading.set(false);
+      this.clearSplitLoadingTimeout();
+      return;
+    }
+
+    this.splitLayoutLoading.set(true);
+    this.clearSplitLoadingTimeout();
+    this.splitLoadingTimeout = setTimeout(() => {
+      this.splitLayoutLoading.set(false);
+    }, 15000);
+  }
+
+  private clearSplitLoadingTimeout(): void {
+    if (!this.splitLoadingTimeout) {
+      return;
+    }
+
+    clearTimeout(this.splitLoadingTimeout);
+    this.splitLoadingTimeout = undefined;
+  }
+
+  private resolveImageSource(factura: FacturaType): void {
+    const fromService = this.extractImageSourceFromFactura(factura);
+
+    if (!fromService) {
+      return;
+    }
+
+    this.imageSrc.set(fromService);
+    this.imageName.set(this.extractFileName(fromService));
+  }
+
+  private extractImageSourceFromFactura(factura: FacturaType): string | undefined {
+    const dynamicFactura = factura as FacturaType & {
+      objectUrl?: string;
+      pdfUrl?: string;
+      documentUrl?: string;
+      imageUrl?: string;
+      webpUrl?: string;
+    };
+
+    const candidates = [
+      dynamicFactura.webpUrl,
+      dynamicFactura.imageUrl,
+      dynamicFactura.objectUrl,
+      dynamicFactura.pdfUrl,
+      dynamicFactura.documentUrl,
+      factura.storage_key
+    ];
+
+    for (const candidate of candidates) {
+      const value = String(candidate ?? '').trim();
+      if (!value) {
+        continue;
+      }
+
+      const normalized = value.toLowerCase();
+      const isUrl = normalized.startsWith('http://') || normalized.startsWith('https://') || normalized.startsWith('blob:') || normalized.startsWith('data:');
+      const isPdfLike = normalized.includes('.pdf');
+      const isImageLike = normalized.includes('.webp') || normalized.includes('.png') || normalized.includes('.jpg') || normalized.includes('.jpeg') || normalized.startsWith('data:image/');
+
+      if (isUrl || isPdfLike || isImageLike) {
+        return value;
+      }
+    }
+
+    return undefined;
+  }
+
+  private extractFileName(source: string): string {
+    const cleanValue = source.split('?')[0];
+    const pieces = cleanValue.split('/').filter(part => part.length > 0);
+    if (!pieces.length) {
+      return 'factura.webp';
+    }
+
+    return pieces[pieces.length - 1];
+  }
+
+  private matchesCorrelationId(payload: unknown, correlationId: string): boolean {
+    if (!payload || typeof payload !== 'object') {
+      return false;
+    }
+
+    const record = payload as Record<string, unknown>;
+    const candidates = [record['correlationId'], record['correlation_id'], record['requestId']]
+      .map(value => String(value ?? '').trim())
+      .filter(value => value.length > 0);
+
+    if (candidates.includes(correlationId)) {
+      return true;
+    }
+
+    const nestedPayload = record['data'];
+    if (nestedPayload && typeof nestedPayload === 'object') {
+      return this.matchesCorrelationId(nestedPayload, correlationId);
+    }
+
+    return false;
   }
 }

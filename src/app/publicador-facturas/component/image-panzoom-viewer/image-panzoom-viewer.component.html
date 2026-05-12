@@ -1,0 +1,11 @@
+<section class="image-viewer-shell">
+  <div class="toolbar">
+    <button type="button" (click)="zoomOut()">-</button>
+    <button type="button" (click)="reset()">Reset</button>
+    <button type="button" (click)="zoomIn()">+</button>
+  </div>
+
+  <div class="viewport" #viewport>
+    <img #imageEl [src]="imageSrc" [alt]="altText" draggable="false" />
+  </div>
+</section>
