@@ -225,6 +225,10 @@
   background: #ffffff;
 }
 
+.close-mobile-viewer {
+  display: none;
+}
+
 .loading-pane {
   border: 1px solid #dbeafe;
   border-radius: 12px;
@@ -285,11 +289,20 @@
   font-weight: 600;
 }
 
+.mobile-caption {
+  display: none;
+}
+
+.value-cell {
+  display: grid;
+  gap: 0.35rem;
+}
+
 .field-input {
   width: 100%;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  padding: 7px 10px;
+  padding: 10px 12px;
   font-size: 0.92rem;
 }
 
@@ -297,7 +310,7 @@
   width: 100%;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  padding: 7px 10px;
+  padding: 10px 12px;
   font-size: 0.92rem;
   background: #ffffff;
 }
@@ -365,7 +378,7 @@
 .confirm-btn {
   border: 0;
   border-radius: 0.65rem;
-  padding: 0.7rem 1.1rem;
+  padding: 0.85rem 1.1rem;
   font-weight: 700;
   background: #0f766e;
   color: #ffffff;
@@ -407,23 +420,89 @@
   .compare-header-row,
   .compare-row {
     grid-template-columns: 1fr;
-    gap: 6px;
+    gap: 8px;
   }
 
   .compare-header-row {
     display: none;
   }
 
+  .compare-row {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 0.8rem;
+    margin-bottom: 0.65rem;
+    background: #ffffff;
+  }
+
+  .label {
+    font-size: 0.9rem;
+  }
+
+  .mobile-caption {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    color: #64748b;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.15rem;
+  }
+
+  .value-cell {
+    gap: 0.45rem;
+  }
+
   .row-actions {
-    justify-content: flex-start;
+    justify-content: stretch;
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .action-btn.primary {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
   }
 
   .confirm-footer {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding-top: 0.6rem;
+    padding-bottom: calc(0.45rem + env(safe-area-inset-bottom));
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    z-index: 8;
     justify-content: stretch;
   }
 
   .confirm-btn {
     width: 100%;
+    min-height: 46px;
+  }
+
+  .pdf-pane.mobile-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    border-radius: 0;
+    border: 0;
+    padding: 0.75rem;
+    background: #0f172a;
+  }
+
+  .close-mobile-viewer {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 999px;
+    padding: 0.45rem 0.8rem;
+    background: rgba(255, 255, 255, 0.9);
+    color: #0f172a;
+    font-weight: 700;
+    margin-bottom: 0.65rem;
   }
 
   .split-layout,

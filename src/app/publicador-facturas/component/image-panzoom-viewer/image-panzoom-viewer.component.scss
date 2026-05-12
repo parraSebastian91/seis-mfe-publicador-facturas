@@ -34,6 +34,16 @@
   width: 100%;
   height: auto;
   transform-origin: center center;
-  touch-action: none;
+  touch-action: pan-y;
   user-select: none;
+}
+
+.viewport.interaction-enabled img {
+  touch-action: none;
+}
+
+@media (max-width: 980px) {
+  .viewport {
+    min-height: 46vh;
+  }
 }

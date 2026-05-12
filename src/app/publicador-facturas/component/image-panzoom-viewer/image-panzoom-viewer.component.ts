@@ -10,14 +10,20 @@ import Panzoom, { PanzoomObject } from '@panzoom/panzoom';
 export class ImagePanzoomViewerComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() imageSrc = '';
   @Input() altText = 'Imagen de factura';
+  @Input() mobileMode = false;
 
   @ViewChild('imageEl', { static: true }) imageElementRef!: ElementRef<HTMLImageElement>;
   @ViewChild('viewport', { static: true }) viewportRef!: ElementRef<HTMLElement>;
 
   private panzoom?: PanzoomObject;
+  interactionEnabled = true;
 
   private readonly wheelHandler = (event: WheelEvent): void => {
     if (!this.panzoom) {
+      return;
+    }
+
+    if (this.mobileMode && !this.interactionEnabled) {
       return;
     }
 
@@ -30,6 +36,11 @@ export class ImagePanzoomViewerComponent implements AfterViewInit, OnChanges, On
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['mobileMode']) {
+      this.interactionEnabled = !this.mobileMode;
+      this.applyInteractionMode();
+    }
+
     if (!changes['imageSrc'] || !this.panzoom) {
       return;
     }
@@ -54,6 +65,11 @@ export class ImagePanzoomViewerComponent implements AfterViewInit, OnChanges, On
     this.panzoom?.reset();
   }
 
+  toggleInteraction(): void {
+    this.interactionEnabled = !this.interactionEnabled;
+    this.applyInteractionMode();
+  }
+
   private initializePanzoom(): void {
     this.panzoom = Panzoom(this.imageElementRef.nativeElement, {
       maxScale: 6,
@@ -61,6 +77,19 @@ export class ImagePanzoomViewerComponent implements AfterViewInit, OnChanges, On
       contain: 'outside'
     });
 
+    this.interactionEnabled = !this.mobileMode;
+    this.applyInteractionMode();
     this.viewportRef.nativeElement.addEventListener('wheel', this.wheelHandler, { passive: false });
+  }
+
+  private applyInteractionMode(): void {
+    if (!this.panzoom) {
+      return;
+    }
+
+    this.panzoom.setOptions({
+      disablePan: !this.interactionEnabled,
+      disableZoom: !this.interactionEnabled
+    });
   }
 }

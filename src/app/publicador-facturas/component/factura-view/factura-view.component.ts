@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, Input, OnChanges, OnDestroy, signal, SimpleChanges } from '@angular/core';
+import { Component, computed, effect, HostListener, inject, Input, OnChanges, OnDestroy, signal, SimpleChanges } from '@angular/core';
 import { FacturaType, NotificationSocketService } from 'shared-utils';
 
 interface FacturaFieldEditable {
@@ -33,6 +33,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   readonly imageName = signal<string>('');
   readonly showPdfView = signal(true);
   readonly splitLayoutLoading = signal(false);
+  readonly isMobileView = signal(false);
 
   readonly estadoFactura = signal('En validacion');
   readonly estadoConfirmado = signal(false);
@@ -64,6 +65,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   readonly notificationCount = computed(() => this.notificacionesFactura().length);
 
   constructor() {
+    this.updateViewportMode();
     this.camposFactura.set(this.buildFields(this.facturaOriginal()));
 
     effect(() => {
@@ -96,10 +98,15 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
       this.resolveImageSource(updatedFactura);
       this.camposFactura.set(this.buildFields(updatedFactura));
 
-      if (!this.isPendingValidation) {
+      if (!this.isPendingValidation || this.isMobileView()) {
         this.showPdfView.set(false);
       }
     }
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateViewportMode();
   }
 
   ngOnDestroy(): void {
@@ -516,7 +523,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     this.clearSplitLoadingTimeout();
     this.splitLoadingTimeout = setTimeout(() => {
       this.splitLayoutLoading.set(false);
-    }, 15000);
+    }, 1000);
   }
 
   private clearSplitLoadingTimeout(): void {
@@ -606,5 +613,14 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     }
 
     return false;
+  }
+
+  private updateViewportMode(): void {
+    if (typeof window === 'undefined') {
+      this.isMobileView.set(false);
+      return;
+    }
+
+    this.isMobileView.set(window.innerWidth <= 980);
   }
 }
