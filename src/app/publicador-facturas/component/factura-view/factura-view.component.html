@@ -12,6 +12,10 @@
                 <span class="description-item">{{ item }}</span>
                 <span class="description-separator" *ngIf="!last">|</span>
               </ng-container>
+              <button type="button" class="notification-btn" aria-label="Notificaciones de esta factura">
+                <mat-icon [matBadge]="notificationCount()" matBadgeColor="warn"
+                  matBadgeSize="small">rewarded_ads</mat-icon>
+              </button>
             </div>
           </mat-panel-description>
         </mat-expansion-panel-header>
@@ -20,13 +24,9 @@
           <div>
             <p class="header-kicker">Factura</p>
             <h2>{{ facturaNumeroHeader }}</h2>
-            <span class="panel-status" [ngClass]="panelStatusClass">{{ panelTitleStatus }}</span>
           </div>
 
-          <button type="button" class="notification-btn" aria-label="Notificaciones de esta factura">
-            <mat-icon [matBadge]="notificationCount()" matBadgeColor="warn"
-              matBadgeSize="small">notifications</mat-icon>
-          </button>
+
         </header>
 
         <div class="panel-tools">
@@ -65,13 +65,15 @@
               <span class="label">{{ campo.label }}</span>
               <span>
                 <ng-container *ngIf="!campo.editing; else editFieldTpl">
-                  {{ campo.value }}
+                  {{ (campo.detectedOptions.length > 1 && !campo.validated) ? pendingValidationLabel : (campo.value ||
+                  '-') }}
                 </ng-container>
                 <ng-template #editFieldTpl>
                   <ng-container
                     *ngIf="campo.detectedOptions.length > 1 && !campo.usingCustomValue; else manualInputTpl">
                     <select class="field-select" [value]="campo.draftValue" (click)="$event.stopPropagation()"
                       (change)="onDetectedOptionSelected(campo.id, $any($event.target).value)">
+                      <option value="" disabled>{{ selectPlaceholderLabel }}</option>
                       <option *ngFor="let option of campo.detectedOptions" [value]="option">{{ option }}</option>
                       <option [value]="otherValueOption">Otro valor</option>
                     </select>
@@ -102,6 +104,12 @@
             </div>
           </section>
         </div>
+
+        <footer class="confirm-footer">
+          <button type="button" class="confirm-btn" [disabled]="!canConfirmFactura" (click)="confirmFactura()">
+            Confirmar validacion y cambiar estado
+          </button>
+        </footer>
       </mat-expansion-panel>
     </mat-accordion>
   </main>

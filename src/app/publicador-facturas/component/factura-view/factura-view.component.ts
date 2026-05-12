@@ -20,6 +20,7 @@ interface FacturaFieldEditable {
 })
 export class FacturaViewComponent implements OnChanges {
   readonly otherValueOption = '__other_value__';
+  readonly selectPlaceholderLabel = 'Seleccione una opción';
   readonly pendingValidationLabel = 'VALIDAR DATO';
 
   @Input() factura: FacturaType = {} as FacturaType;
@@ -30,6 +31,7 @@ export class FacturaViewComponent implements OnChanges {
   readonly showPdfView = signal(true);
 
   readonly estadoFactura = signal('En validacion');
+  readonly estadoConfirmado = signal(false);
   readonly ofertasFactura = signal(0);
   readonly notificacionesFactura = signal<string[]>([
     'Monto total requiere revision por diferencias.',
@@ -65,6 +67,7 @@ export class FacturaViewComponent implements OnChanges {
       const updatedFactura = changes['factura'].currentValue as FacturaType;
       this.facturaOriginal.set(updatedFactura);
       this.estadoFactura.set(this.prettyStatus(updatedFactura.status));
+      this.estadoConfirmado.set(false);
       this.ofertasFactura.set(this.readOffersCount(updatedFactura));
       this.camposFactura.set(this.buildFields(updatedFactura));
     }
@@ -75,6 +78,10 @@ export class FacturaViewComponent implements OnChanges {
   }
 
   get panelStatusClass(): string {
+    if (this.estadoConfirmado()) {
+      return 'status-confirmada';
+    }
+
     return this.statusClassFromRaw(this.facturaOriginal().status);
   }
 
@@ -87,6 +94,11 @@ export class FacturaViewComponent implements OnChanges {
 
     return [`N° ${numeroFactura}`, `${deudorNombre}`, `${montoTotal}`, `Ofertas: ${ofertas}`];
 
+  }
+
+  get canConfirmFactura(): boolean {
+    return this.camposFactura().length > 0
+      && this.camposFactura().every(field => field.validated && !field.editing);
   }
 
   get facturaNumeroHeader(): string {
@@ -185,7 +197,9 @@ export class FacturaViewComponent implements OnChanges {
             ...field,
             editing: true,
             draftValue: field.value,
-            usingCustomValue: field.detectedOptions.length > 1 && !field.detectedOptions.includes(field.value),
+            usingCustomValue: field.detectedOptions.length > 1
+              ? !!field.value && !field.detectedOptions.includes(field.value)
+              : false,
             validated: false
           }
           : { ...field, editing: false, usingCustomValue: false }
@@ -217,6 +231,11 @@ export class FacturaViewComponent implements OnChanges {
   validateField(fieldId: string, event: Event): void {
     event.stopPropagation();
 
+    const targetField = this.camposFactura().find(field => field.id === fieldId);
+    if (!targetField || this.isInvalidSelectionForValidation(targetField)) {
+      return;
+    }
+
     this.camposFactura.update(fields =>
       fields.map(field =>
         field.id === fieldId && field.editing
@@ -234,6 +253,15 @@ export class FacturaViewComponent implements OnChanges {
     this.syncFacturaFromField(fieldId);
   }
 
+  confirmFactura(): void {
+    if (!this.canConfirmFactura) {
+      return;
+    }
+
+    this.estadoConfirmado.set(true);
+    this.estadoFactura.set('Validada por usuario');
+  }
+
   private buildFields(factura: FacturaType): FacturaFieldEditable[] {
     const fecha = this.toDate(factura.fechaVencimiento);
     return [
@@ -249,7 +277,7 @@ export class FacturaViewComponent implements OnChanges {
     const normalizedRaw = String(rawValue ?? '').trim();
     const detectedOptions = this.extractDetectedOptions(normalizedRaw);
     const initialValue = detectedOptions.length > 1
-      ? detectedOptions[0]
+      ? ''
       : (normalizedRaw || '-');
 
     return {
@@ -345,6 +373,12 @@ export class FacturaViewComponent implements OnChanges {
     }
 
     return field.value || fallbackValue;
+  }
+
+  private isInvalidSelectionForValidation(field: FacturaFieldEditable): boolean {
+    return field.detectedOptions.length > 1
+      && !field.usingCustomValue
+      && !field.draftValue.trim();
   }
 
   private syncFacturaFromField(fieldId: string): void {

@@ -77,6 +77,15 @@
   margin: 5px;
 }
 
+.status-confirmada {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #86efac;
+  border-radius: 5px;
+  padding: 1px 10px 1px 10px;
+  margin: 5px;
+}
+
 .status-ofertada {
   color: #1d4ed8;
   background: #eff6ff;
@@ -320,6 +329,27 @@
   border-top: 1px dashed #d1d5db;
 }
 
+.confirm-footer {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.confirm-btn {
+  border: 0;
+  border-radius: 0.65rem;
+  padding: 0.7rem 1.1rem;
+  font-weight: 700;
+  background: #0f766e;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.confirm-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .notifications-list h4 {
   margin: 0 0 8px;
 }
@@ -359,6 +389,14 @@
 
   .row-actions {
     justify-content: flex-start;
+  }
+
+  .confirm-footer {
+    justify-content: stretch;
+  }
+
+  .confirm-btn {
+    width: 100%;
   }
 
   .split-layout,
