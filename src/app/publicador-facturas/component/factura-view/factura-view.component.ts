@@ -57,12 +57,14 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     fechaVencimiento: new Date(),
     status: 'PENDIENTE_VALIDACION',
     correlationId: '',
-    storage_key: ''
+    storage_key: '',
+    ofertas: '0'
   } as FacturaType);
 
   readonly camposFactura = signal<FacturaFieldEditable[]>([]);
 
   readonly notificationCount = computed(() => this.notificacionesFactura().length);
+  readonly ofertasCount = computed(() => this.ofertasFactura());
 
   constructor() {
     this.updateViewportMode();
@@ -130,9 +132,10 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     const numeroFactura = this.getFieldDisplayValue('numeroFactura', factura.facturaNumero || 'Sin numero');
     const deudorNombre = this.getFieldDisplayValue('nombreRazonSocialDeudor', factura.deudorNombre || 'Sin deudor');
     const montoTotal = this.getFieldDisplayValue('montoTotal', this.formatCurrency(factura.montoTotal || 0));
-    const ofertas = this.ofertasFactura();
-
-    return [`N° ${numeroFactura}`, `${deudorNombre}`, `${montoTotal}`, `Ofertas: ${ofertas}`];
+    if (this.isMobileView()){
+      return [`N° ${numeroFactura}`,  `${montoTotal}`,];
+    }
+    return [`N° ${numeroFactura}`, `${deudorNombre}`, `${montoTotal}`];
 
   }
 
@@ -158,29 +161,29 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     return `pdf-input-${seed.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   }
 
-  onImageSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
+  // onImageSelected(event: Event): void {
+  //   const input = event.target as HTMLInputElement;
+  //   const file = input.files?.[0];
 
-    if (!file) {
-      return;
-    }
+  //   if (!file) {
+  //     return;
+  //   }
 
-    if (!file.type.startsWith('image/')) {
-      this.imageSrc.set(undefined);
-      this.imageName.set('');
-      input.value = '';
-      return;
-    }
+  //   if (!file.type.startsWith('image/')) {
+  //     this.imageSrc.set(undefined);
+  //     this.imageName.set('');
+  //     input.value = '';
+  //     return;
+  //   }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const imageDataUrl = String(reader.result ?? '');
-      this.imageSrc.set(imageDataUrl);
-      this.imageName.set(file.name);
-    };
-    reader.readAsDataURL(file);
-  }
+  //   const reader = new FileReader();
+  //   reader.onload = () => {
+  //     const imageDataUrl = String(reader.result ?? '');
+  //     this.imageSrc.set(imageDataUrl);
+  //     this.imageName.set(file.name);
+  //   };
+  //   reader.readAsDataURL(file);
+  // }
 
   togglePdfView(): void {
     if (!this.isPendingValidation) {
@@ -620,7 +623,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
       this.isMobileView.set(false);
       return;
     }
-
+    console.log('Window resized, updating mobile view state. Current width:', window.innerWidth);
     this.isMobileView.set(window.innerWidth <= 980);
   }
 }

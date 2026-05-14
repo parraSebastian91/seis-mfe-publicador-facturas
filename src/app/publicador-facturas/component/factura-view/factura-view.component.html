@@ -13,8 +13,8 @@
                 <span class="description-separator" *ngIf="!last">|</span>
               </ng-container>
               <button type="button" class="notification-btn" aria-label="Notificaciones de esta factura">
-                <mat-icon [matBadge]="notificationCount()" matBadgeColor="warn"
-                  matBadgeSize="small">rewarded_ads</mat-icon>
+                <mat-icon class="notification-icon" [matBadge]="ofertasCount()" [matBadgeHidden]="!ofertasCount()"
+                  matBadgeColor="warn" matBadgePosition="above after" matBadgeSize="large">price_change</mat-icon>
               </button>
             </div>
           </mat-panel-description>
