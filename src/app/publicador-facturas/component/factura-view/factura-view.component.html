@@ -90,10 +90,19 @@
                   </ng-container>
 
                   <ng-template #manualInputTpl>
-                    <input class="field-input" [value]="campo.draftValue" (click)="$event.stopPropagation()"
-                      (input)="updateDraftValue(campo.id, $any($event.target).value)"
-                      (keydown.enter)="validateField(campo.id, $event)"
-                      (keydown.escape)="cancelField(campo.id, $event)" />
+                    <ng-container *ngIf="campo.id === 'fechaVencimiento'; else textInputTpl">
+                      <input class="field-input" type="date" [value]="campo.draftValue" (click)="$event.stopPropagation()"
+                        (change)="updateDraftValue(campo.id, $any($event.target).value)"
+                        (keydown.enter)="validateField(campo.id, $event)"
+                        (keydown.escape)="cancelField(campo.id, $event)" />
+                    </ng-container>
+
+                    <ng-template #textInputTpl>
+                      <input class="field-input" [value]="campo.draftValue" (click)="$event.stopPropagation()"
+                        (input)="updateDraftValue(campo.id, $any($event.target).value)"
+                        (keydown.enter)="validateField(campo.id, $event)"
+                        (keydown.escape)="cancelField(campo.id, $event)" />
+                    </ng-template>
                   </ng-template>
                 </ng-template>
               </span>

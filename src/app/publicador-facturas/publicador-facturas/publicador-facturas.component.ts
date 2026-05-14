@@ -94,4 +94,16 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       console.error('Error al obtener facturas:', err);
     }
   }
+
+  async handleFacturaChange(event: { factura: FacturaType, campoNombre: string, value: string }): Promise<void> {
+    const { factura, campoNombre, value } = event;
+    try {
+      const response = await this.facturasService.updateFactura(factura, campoNombre, value);
+      console.log('Factura actualizada:', response);
+      //await this.loadFacturas(this.orgSelected());
+    } catch (err) {
+      console.error('Error al actualizar factura:', err);
+    }
+  }
+
 }

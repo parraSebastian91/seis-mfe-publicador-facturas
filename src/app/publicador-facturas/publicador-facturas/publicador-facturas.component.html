@@ -10,7 +10,7 @@
 
   <ul class="estado-lista">
     <li *ngFor="let factura of facturas; trackBy: trackByFacturaId">
-      <app-factura-view [factura]="factura"></app-factura-view>
+      <app-factura-view [factura]="factura" (facturaChange)="handleFacturaChange($event)"></app-factura-view>
     </li>
   </ul>
 

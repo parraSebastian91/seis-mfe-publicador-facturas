@@ -168,17 +168,21 @@
 
 :host ::ng-deep .notification-icon .mat-badge-content,
 :host ::ng-deep .notification-icon .mat-mdc-badge-content {
-  min-width: 18px;
-  width: auto;
-  height: 18px;
-  line-height: 18px;
+  line-height: 22px;
   padding: 0 4px;
-  border-radius: 999px;
-  font-size: 11px;
+  border-radius: 50%;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0;
-  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-family: Roboto, Helvetica Neue, sans-serif;
   white-space: nowrap;
+}
+
+:host ::ng-deep .notification-icon.mat-badge-above .mat-badge-content,
+:host ::ng-deep .notification-icon.mat-badge-above .mat-mdc-badge-content {
+  top: 2px;
+  width: 15px;
+  height: 15px;
 }
 
 .panel-tools {
@@ -417,6 +421,26 @@
 }
 
 @media (max-width: 980px) {
+  .notification-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  // :host ::ng-deep .notification-icon .mat-badge-content,
+  // :host ::ng-deep .notification-icon .mat-mdc-badge-content {
+  //   min-width: 17px;
+  //   height: 17px;
+  //   line-height: 17px;
+  //   font-size: 10px;
+  //   padding: 0 4px;
+  // }
+
+  :host ::ng-deep .notification-icon.mat-badge-above .mat-badge-content,
+  :host ::ng-deep .notification-icon.mat-badge-above .mat-mdc-badge-content {
+    width: 5px;
+    height: 5px;
+  }
+
   .description-row {
     flex-wrap: wrap;
     justify-content: flex-start;

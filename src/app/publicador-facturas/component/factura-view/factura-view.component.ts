@@ -1,4 +1,4 @@
-import { Component, computed, effect, HostListener, inject, Input, OnChanges, OnDestroy, signal, SimpleChanges } from '@angular/core';
+import { Component, computed, effect, EventEmitter, HostListener, inject, Input, OnChanges, OnDestroy, Output, signal, SimpleChanges } from '@angular/core';
 import { FacturaType, NotificationSocketService } from 'shared-utils';
 
 interface FacturaFieldEditable {
@@ -27,6 +27,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   private splitLoadingTimeout?: ReturnType<typeof setTimeout>;
 
   @Input() factura: FacturaType = {} as FacturaType;
+  @Output() facturaChange = new EventEmitter<{ factura: FacturaType, campoNombre: string, value: string }>();
 
   readonly panelOpenState = signal(false);
   readonly imageSrc = signal<string | undefined>(undefined);
@@ -45,6 +46,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   ]);
 
   readonly facturaOriginal = signal<FacturaType>({
+    facturaId: '',
     assetId: '',
     ownerUUID: '',
     gestor: '',
@@ -133,7 +135,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     const deudorNombre = this.getFieldDisplayValue('nombreRazonSocialDeudor', factura.deudorNombre || 'Sin deudor');
     const montoTotal = this.getFieldDisplayValue('montoTotal', this.formatCurrency(factura.montoTotal || 0));
     if (this.isMobileView()){
-      return [`N° ${numeroFactura}`,  `${montoTotal}`,];
+      return [`N° ${numeroFactura}`,  `${montoTotal}`];
     }
     return [`N° ${numeroFactura}`, `${deudorNombre}`, `${montoTotal}`];
 
@@ -251,7 +253,9 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
           ? {
             ...field,
             editing: true,
-            draftValue: field.value,
+            draftValue: field.id === 'fechaVencimiento'
+              ? this.toDateInputValue(field.value)
+              : field.value,
             usingCustomValue: field.detectedOptions.length > 1
               ? !!field.value && !field.detectedOptions.includes(field.value)
               : false,
@@ -296,7 +300,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
         field.id === fieldId && field.editing
           ? {
             ...field,
-            value: field.draftValue.trim() || field.value,
+            value: this.resolveValidatedValue(field),
             editing: false,
             validated: true,
             usingCustomValue: false
@@ -304,6 +308,8 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
           : field
       )
     );
+
+
 
     this.syncFacturaFromField(fieldId);
   }
@@ -441,10 +447,13 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     if (!field || !field.validated) {
       return;
     }
+    // Nota: aqui es donde se enviara la actuyalizacion del campo al backend.  
+    
+    this.facturaChange.emit({factura: this.facturaOriginal(), campoNombre: fieldId, value: field.value});
 
     this.facturaOriginal.update(currentFactura => {
       switch (fieldId) {
-        case 'numeroFactura':
+        case 'numeroFactura':          
           return { ...currentFactura, facturaNumero: field.value };
         case 'rutDeudor':
           return { ...currentFactura, deudorRut: field.value };
@@ -472,6 +481,11 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   }
 
   private parseDateFromDisplay(value: string): Date {
+    const inputLikeDate = this.parseDateFromInput(value);
+    if (inputLikeDate) {
+      return inputLikeDate;
+    }
+
     const dateParts = value.split(/[\/\-.]/).map(part => part.trim());
     if (dateParts.length === 3) {
       const day = Number.parseInt(dateParts[0], 10);
@@ -484,6 +498,59 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     }
 
     return this.toDate(value);
+  }
+
+  private resolveValidatedValue(field: FacturaFieldEditable): string {
+    const draft = field.draftValue.trim();
+    if (!draft) {
+      return field.value;
+    }
+
+    if (field.id === 'fechaVencimiento') {
+      return this.formatDate(this.parseDateFromDisplay(draft));
+    }
+
+    return draft;
+  }
+
+  private toDateInputValue(displayValue: string): string {
+    const trimmed = String(displayValue ?? '').trim();
+    if (!trimmed || trimmed === '-') {
+      return '';
+    }
+
+    const parsedDate = this.parseDateFromDisplay(trimmed);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return '';
+    }
+
+    return this.formatDateForInput(parsedDate);
+  }
+
+  private parseDateFromInput(value: string): Date | null {
+    const normalized = String(value ?? '').trim();
+    const inputMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!inputMatch) {
+      return null;
+    }
+
+    const year = Number.parseInt(inputMatch[1], 10);
+    const month = Number.parseInt(inputMatch[2], 10) - 1;
+    const day = Number.parseInt(inputMatch[3], 10);
+    const date = new Date(year, month, day);
+
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+
+    return date;
+  }
+
+  private formatDateForInput(value: Date): string {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   private formatCurrency(number: number | string): string {
