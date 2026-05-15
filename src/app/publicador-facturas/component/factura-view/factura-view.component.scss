@@ -336,6 +336,14 @@
   background: #ffffff;
 }
 
+.date-field {
+  width: 100%;
+}
+
+:host ::ng-deep .date-field .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
 .row-actions {
   display: flex;
   align-items: center;
@@ -382,6 +390,10 @@
   font-size: 18px;
   width: 18px;
   height: 18px;
+}
+
+.action-btn.primary mat-icon.spin {
+  animation: rotation 0.9s linear infinite;
 }
 
 .notifications-list {

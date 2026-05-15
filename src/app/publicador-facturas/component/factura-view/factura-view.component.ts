@@ -1,5 +1,5 @@
 import { Component, computed, effect, EventEmitter, HostListener, inject, Input, OnChanges, OnDestroy, Output, signal, SimpleChanges } from '@angular/core';
-import { FacturaType, NotificationSocketService } from 'shared-utils';
+import { FacturaResponseUpdateDTO, FacturaType, NotificationSocketService } from 'shared-utils';
 
 interface FacturaFieldEditable {
   id: string;
@@ -10,6 +10,14 @@ interface FacturaFieldEditable {
   usingCustomValue: boolean;
   editing: boolean;
   validated: boolean;
+}
+
+interface FacturaFieldUpdateEvent {
+  factura: FacturaType;
+  campoNombre: string;
+  value: string;
+  onResponse: (response: FacturaResponseUpdateDTO) => void;
+  onError: () => void;
 }
 
 @Component({
@@ -27,7 +35,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   private splitLoadingTimeout?: ReturnType<typeof setTimeout>;
 
   @Input() factura: FacturaType = {} as FacturaType;
-  @Output() facturaChange = new EventEmitter<{ factura: FacturaType, campoNombre: string, value: string }>();
+  @Output() facturaChange = new EventEmitter<FacturaFieldUpdateEvent>();
 
   readonly panelOpenState = signal(false);
   readonly imageSrc = signal<string | undefined>(undefined);
@@ -35,6 +43,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   readonly showPdfView = signal(true);
   readonly splitLayoutLoading = signal(false);
   readonly isMobileView = signal(false);
+  readonly pendingFieldId = signal<string | null>(null);
 
   readonly estadoFactura = signal('En validacion');
   readonly estadoConfirmado = signal(false);
@@ -201,6 +210,11 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
 
   onPrimaryAction(fieldId: string, event: Event): void {
     event.stopPropagation();
+
+    if (this.pendingFieldId() === fieldId) {
+      return;
+    }
+
     const field = this.camposFactura().find(item => item.id === fieldId);
     if (!field) {
       return;
@@ -215,11 +229,23 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   }
 
   primaryActionTitle(field: FacturaFieldEditable): string {
+    if (this.isFieldSaving(field)) {
+      return 'Esperando respuesta del backend';
+    }
+
     return field.editing ? 'Guardar y validar fila' : 'Editar fila';
   }
 
   primaryActionIcon(field: FacturaFieldEditable): string {
+    if (this.isFieldSaving(field)) {
+      return 'autorenew';
+    }
+
     return field.editing ? 'check_circle' : 'edit';
+  }
+
+  isFieldSaving(field: FacturaFieldEditable): boolean {
+    return this.pendingFieldId() === field.id;
   }
 
   onDetectedOptionSelected(fieldId: string, selectedValue: string): void {
@@ -287,31 +313,58 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     );
   }
 
+  getDatepickerValue(value: string): Date | null {
+    const normalizedValue = String(value ?? '').trim();
+    if (!normalizedValue || normalizedValue === '-') {
+      return null;
+    }
+
+    const parsedDate = this.parseDateFromDisplay(normalizedValue);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return null;
+    }
+
+    return parsedDate;
+  }
+
+  onDatePickerChange(fieldId: string, value: Date | null): void {
+    if (!value) {
+      this.updateDraftValue(fieldId, '');
+      return;
+    }
+
+    this.updateDraftValue(fieldId, this.formatDateForInput(value));
+  }
+
   validateField(fieldId: string, event: Event): void {
     event.stopPropagation();
+
+    if (this.pendingFieldId() === fieldId) {
+      return;
+    }
 
     const targetField = this.camposFactura().find(field => field.id === fieldId);
     if (!targetField || this.isInvalidSelectionForValidation(targetField)) {
       return;
     }
 
+    const resolvedValue = this.resolveValidatedValue(targetField);
+    this.pendingFieldId.set(fieldId);
+
     this.camposFactura.update(fields =>
       fields.map(field =>
         field.id === fieldId && field.editing
           ? {
             ...field,
-            value: this.resolveValidatedValue(field),
             editing: false,
-            validated: true,
+            validated: false,
             usingCustomValue: false
           }
           : field
       )
     );
 
-
-
-    this.syncFacturaFromField(fieldId);
+    this.syncFacturaFromField(fieldId, resolvedValue);
   }
 
   confirmFactura(): void {
@@ -367,6 +420,21 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   }
 
   private toDate(value: Date | string): Date {
+    if (typeof value === 'string') {
+      const fromDateOnlyText = this.parseDateFromInput(value);
+      if (fromDateOnlyText) {
+        return fromDateOnlyText;
+      }
+
+      const isoDateMatch = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})[T\s]/);
+      if (isoDateMatch) {
+        const year = Number.parseInt(isoDateMatch[1], 10);
+        const month = Number.parseInt(isoDateMatch[2], 10) - 1;
+        const day = Number.parseInt(isoDateMatch[3], 10);
+        return this.createSafeLocalDate(year, month, day);
+      }
+    }
+
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
       return new Date();
@@ -442,31 +510,117 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
       && !field.draftValue.trim();
   }
 
-  private syncFacturaFromField(fieldId: string): void {
+  private syncFacturaFromField(fieldId: string, resolvedValue: string): void {
     const field = this.camposFactura().find(item => item.id === fieldId);
     if (!field || !field.validated) {
+      // Continua con el request porque el campo queda no validado mientras espera respuesta.
+    }
+    this.facturaChange.emit({
+      factura: this.facturaOriginal(),
+      campoNombre: fieldId,
+      value: resolvedValue,
+      onResponse: (response: FacturaResponseUpdateDTO) => this.onFieldUpdateSuccess(fieldId, resolvedValue, response),
+      onError: () => this.onFieldUpdateError(fieldId)
+    });
+  }
+
+  private onFieldUpdateSuccess(fieldId: string, requestedValue: string, response: FacturaResponseUpdateDTO): void {
+    const responseAccepted = this.isUpdateAccepted(response);
+    if (!responseAccepted) {
+      this.onFieldUpdateError(fieldId);
       return;
     }
-    // Nota: aqui es donde se enviara la actuyalizacion del campo al backend.  
-    
-    this.facturaChange.emit({factura: this.facturaOriginal(), campoNombre: fieldId, value: field.value});
+
+    const responseFieldId = this.normalizeBackendFieldId(String(response?.campo ?? ''));
+    const targetFieldId = responseFieldId || fieldId;
+    const responseValue = (response as unknown as Record<string, unknown>)['valor'];
+    const displayValue = this.formatFieldDisplayValue(targetFieldId, responseValue, requestedValue);
+
+    this.applyFieldValue(targetFieldId, displayValue);
+    this.pendingFieldId.set(null);
+  }
+
+  private onFieldUpdateError(fieldId: string): void {
+    this.pendingFieldId.set(null);
+    this.camposFactura.update(fields =>
+      fields.map(field =>
+        field.id === fieldId
+          ? { ...field, editing: true, validated: false }
+          : field
+      )
+    );
+  }
+
+  private applyFieldValue(fieldId: string, displayValue: string): void {
+    this.camposFactura.update(fields =>
+      fields.map(field =>
+        field.id === fieldId
+          ? {
+            ...field,
+            value: displayValue,
+            draftValue: fieldId === 'fechaVencimiento' ? this.toDateInputValue(displayValue) : displayValue,
+            editing: false,
+            validated: true,
+            usingCustomValue: false
+          }
+          : field
+      )
+    );
 
     this.facturaOriginal.update(currentFactura => {
       switch (fieldId) {
-        case 'numeroFactura':          
-          return { ...currentFactura, facturaNumero: field.value };
+        case 'numeroFactura':
+          return { ...currentFactura, facturaNumero: displayValue };
         case 'rutDeudor':
-          return { ...currentFactura, deudorRut: field.value };
+          return { ...currentFactura, deudorRut: displayValue };
         case 'nombreRazonSocialDeudor':
-          return { ...currentFactura, deudorNombre: field.value };
+          return { ...currentFactura, deudorNombre: displayValue };
         case 'montoTotal':
-          return { ...currentFactura, montoTotal: this.parseCurrencyToNumber(field.value) };
+          return { ...currentFactura, montoTotal: this.parseCurrencyToNumber(displayValue) };
         case 'fechaVencimiento':
-          return { ...currentFactura, fechaVencimiento: this.parseDateFromDisplay(field.value) };
+          return { ...currentFactura, fechaVencimiento: this.parseDateFromDisplay(displayValue) };
         default:
           return currentFactura;
       }
     });
+  }
+
+  private isUpdateAccepted(response: FacturaResponseUpdateDTO | undefined): boolean {
+    if (!response) {
+      return false;
+    }
+
+    return response.isUpdate === true || response.isUpdate === 'true' || response.isUpdate === 1 || response.isUpdate === '1';
+  }
+
+  private normalizeBackendFieldId(rawField: string): string {
+    const normalized = rawField.trim();
+    const mapping: Record<string, string> = {
+      numeroFactura: 'numeroFactura',
+      facturaNumero: 'numeroFactura',
+      rutDeudor: 'rutDeudor',
+      deudorRut: 'rutDeudor',
+      nombreRazonSocialDeudor: 'nombreRazonSocialDeudor',
+      deudorNombre: 'nombreRazonSocialDeudor',
+      montoTotal: 'montoTotal',
+      fechaVencimiento: 'fechaVencimiento'
+    };
+
+    return mapping[normalized] || '';
+  }
+
+  private formatFieldDisplayValue(fieldId: string, rawValue: unknown, fallbackValue: string): string {
+    const rawText = String(rawValue ?? '').trim();
+    const value = rawText || fallbackValue;
+
+    switch (fieldId) {
+      case 'montoTotal':
+        return this.formatCurrency(value);
+      case 'fechaVencimiento':
+        return this.formatDate(this.parseDateFromDisplay(value));
+      default:
+        return value;
+    }
   }
 
   private parseCurrencyToNumber(value: string): number {
@@ -481,23 +635,36 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   }
 
   private parseDateFromDisplay(value: string): Date {
-    const inputLikeDate = this.parseDateFromInput(value);
+    const normalizedValue = String(value ?? '').trim();
+
+    const inputLikeDate = this.parseDateFromInput(normalizedValue);
     if (inputLikeDate) {
       return inputLikeDate;
     }
 
-    const dateParts = value.split(/[\/\-.]/).map(part => part.trim());
+    const isoDateMatch = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})[T\s]/);
+    if (isoDateMatch) {
+      const year = Number.parseInt(isoDateMatch[1], 10);
+      const month = Number.parseInt(isoDateMatch[2], 10) - 1;
+      const day = Number.parseInt(isoDateMatch[3], 10);
+
+      if (!Number.isNaN(day) && !Number.isNaN(month) && !Number.isNaN(year)) {
+        return this.createSafeLocalDate(year, month, day);
+      }
+    }
+
+    const dateParts = normalizedValue.split(/[\/\-.]/).map(part => part.trim());
     if (dateParts.length === 3) {
       const day = Number.parseInt(dateParts[0], 10);
       const month = Number.parseInt(dateParts[1], 10) - 1;
       const year = Number.parseInt(dateParts[2], 10);
 
       if (!Number.isNaN(day) && !Number.isNaN(month) && !Number.isNaN(year)) {
-        return new Date(year, month, day);
+        return this.createSafeLocalDate(year, month, day);
       }
     }
 
-    return this.toDate(value);
+    return this.toDate(normalizedValue);
   }
 
   private resolveValidatedValue(field: FacturaFieldEditable): string {
@@ -537,13 +704,18 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     const year = Number.parseInt(inputMatch[1], 10);
     const month = Number.parseInt(inputMatch[2], 10) - 1;
     const day = Number.parseInt(inputMatch[3], 10);
-    const date = new Date(year, month, day);
+    const date = this.createSafeLocalDate(year, month, day);
 
     if (Number.isNaN(date.getTime())) {
       return null;
     }
 
     return date;
+  }
+
+  private createSafeLocalDate(year: number, month: number, day: number): Date {
+    // Use noon local time to avoid day shifts caused by timezone/UTC serialization.
+    return new Date(year, month, day, 12, 0, 0, 0);
   }
 
   private formatDateForInput(value: Date): string {

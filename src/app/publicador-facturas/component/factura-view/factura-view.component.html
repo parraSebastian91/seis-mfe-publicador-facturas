@@ -51,77 +51,80 @@
 
           <ng-container *ngIf="!splitLayoutLoading()">
             <section class="pdf-pane" *ngIf="showPdfView() && canShowPdfViewer">
-            <app-image-panzoom-viewer *ngIf="imageSrc()" [imageSrc]="imageSrc() ?? ''" [altText]="'Imagen de factura'" [mobileMode]="isMobileView()">
-            </app-image-panzoom-viewer>
+              <app-image-panzoom-viewer *ngIf="imageSrc()" [imageSrc]="imageSrc() ?? ''" [altText]="'Imagen de factura'"
+                [mobileMode]="isMobileView()">
+              </app-image-panzoom-viewer>
 
-            <p *ngIf="!imageSrc()" class="pdf-empty">Carga una imagen WEBP para visualizarla dentro de este panel.</p>
+              <p *ngIf="!imageSrc()" class="pdf-empty">Carga una imagen WEBP para visualizarla dentro de este panel.</p>
             </section>
 
             <section class="compare-pane">
-            <h3>Comparacion para validacion y correccion</h3>
+              <h3>Comparacion para validacion y correccion</h3>
 
-            <div class="compare-header-row">
-              <span>Campo</span>
-              <span>Dato</span>
-              <span>Acciones</span>
-            </div>
+              <div class="compare-header-row">
+                <span>Campo</span>
+                <span>Dato</span>
+                <span>Acciones</span>
+              </div>
 
-            <div class="compare-row" *ngFor="let campo of camposFactura(); trackBy: trackByCampoId"
-              [class.validated]="campo.validated">
-              <span class="label">
-                <small class="mobile-caption">Campo</small>
-                {{ campo.label }}
-              </span>
-              <span class="value-cell">
-                <small class="mobile-caption">Dato</small>
-                <ng-container *ngIf="!campo.editing; else editFieldTpl">
-                  {{ (campo.detectedOptions.length > 1 && !campo.validated) ? pendingValidationLabel : (campo.value ||
-                  '-') }}
-                </ng-container>
-                <ng-template #editFieldTpl>
-                  <ng-container
-                    *ngIf="campo.detectedOptions.length > 1 && !campo.usingCustomValue; else manualInputTpl">
-                    <select class="field-select" [value]="campo.draftValue" (click)="$event.stopPropagation()"
-                      (change)="onDetectedOptionSelected(campo.id, $any($event.target).value)">
-                      <option value="" disabled>{{ selectPlaceholderLabel }}</option>
-                      <option *ngFor="let option of campo.detectedOptions" [value]="option">{{ option }}</option>
-                      <option [value]="otherValueOption">Otro valor</option>
-                    </select>
+              <div class="compare-row" *ngFor="let campo of camposFactura(); trackBy: trackByCampoId"
+                [class.validated]="campo.validated">
+                <span class="label">
+                  <small class="mobile-caption">Campo</small>
+                  {{ campo.label }}
+                </span>
+                <span class="value-cell">
+                  <small class="mobile-caption">Dato</small>
+                  <ng-container *ngIf="!campo.editing; else editFieldTpl">
+                    {{ (campo.detectedOptions.length > 1 && !campo.validated) ? pendingValidationLabel : (campo.value ||
+                    '-') }}
                   </ng-container>
-
-                  <ng-template #manualInputTpl>
-                    <ng-container *ngIf="campo.id === 'fechaVencimiento'; else textInputTpl">
-                      <input class="field-input" type="date" [value]="campo.draftValue" (click)="$event.stopPropagation()"
-                        (change)="updateDraftValue(campo.id, $any($event.target).value)"
-                        (keydown.enter)="validateField(campo.id, $event)"
-                        (keydown.escape)="cancelField(campo.id, $event)" />
+                  <ng-template #editFieldTpl>
+                    <ng-container
+                      *ngIf="campo.detectedOptions.length > 1 && !campo.usingCustomValue; else manualInputTpl">
+                      <select class="field-select" [value]="campo.draftValue" (click)="$event.stopPropagation()"
+                        (change)="onDetectedOptionSelected(campo.id, $any($event.target).value)">
+                        <option value="" disabled>{{ selectPlaceholderLabel }}</option>
+                        <option *ngFor="let option of campo.detectedOptions" [value]="option">{{ option }}</option>
+                        <option [value]="otherValueOption">Otro valor</option>
+                      </select>
                     </ng-container>
 
-                    <ng-template #textInputTpl>
-                      <input class="field-input" [value]="campo.draftValue" (click)="$event.stopPropagation()"
-                        (input)="updateDraftValue(campo.id, $any($event.target).value)"
-                        (keydown.enter)="validateField(campo.id, $event)"
-                        (keydown.escape)="cancelField(campo.id, $event)" />
+                    <ng-template #manualInputTpl>
+                      <ng-container *ngIf="campo.id === 'fechaVencimiento'; else textInputTpl">
+                        <app-atomic-datepicker
+                          [value]="campo.draftValue"
+                          (valueChange)="updateDraftValue(campo.id, $event)"
+                          (enterPressed)="validateField(campo.id, $event)"
+                          (escapePressed)="cancelField(campo.id, $event)">
+                        </app-atomic-datepicker>
+                      </ng-container>
+
+                      <ng-template #textInputTpl>
+                        <input class="field-input" [value]="campo.draftValue" (click)="$event.stopPropagation()"
+                          (input)="updateDraftValue(campo.id, $any($event.target).value)"
+                          (keydown.enter)="validateField(campo.id, $event)"
+                          (keydown.escape)="cancelField(campo.id, $event)" />
+                      </ng-template>
                     </ng-template>
                   </ng-template>
-                </ng-template>
-              </span>
-              <span class="row-actions">
-                <small class="mobile-caption">Accion</small>
-                <button type="button" class="action-btn primary" [class.is-editing]="campo.editing"
-                  [class.is-validated]="campo.validated && !campo.editing" [title]="primaryActionTitle(campo)"
-                  (click)="onPrimaryAction(campo.id, $event)">
-                  <mat-icon>{{ primaryActionIcon(campo) }}</mat-icon>
-                </button>
-              </span>
-            </div>
+                </span>
+                <span class="row-actions">
+                  <small class="mobile-caption">Accion</small>
+                  <button type="button" class="action-btn primary" [class.is-editing]="campo.editing"
+                    [class.is-validated]="campo.validated && !campo.editing" [disabled]="isFieldSaving(campo)"
+                    [title]="primaryActionTitle(campo)" (click)="onPrimaryAction(campo.id, $event)">
+                    <mat-icon [class.spin]="isFieldSaving(campo)">{{ primaryActionIcon(campo) }}</mat-icon>
+                  </button>
+                </span>
+              </div>
 
-            <div class="notifications-list" *ngIf="notificationCount()">
-              <h4>Notificaciones asociadas</h4>
-              <ul>
-                <li *ngFor="let item of notificacionesFactura()">{{ item }}</li>
-              </ul>
-            </div>
+              <div class="notifications-list" *ngIf="notificationCount()">
+                <h4>Notificaciones asociadas</h4>
+                <ul>
+                  <li *ngFor="let item of notificacionesFactura()">{{ item }}</li>
+                </ul>
+              </div>
             </section>
           </ng-container>
         </div>

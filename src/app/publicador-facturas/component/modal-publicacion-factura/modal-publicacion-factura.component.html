@@ -1,0 +1,97 @@
+<div class="modal-backdrop" *ngIf="isOpen" (click)="onBackdropClick()">
+  <section class="publish-modal" (click)="$event.stopPropagation()">
+    <header class="modal-header">
+      <h2>Publicar factura</h2>
+      <button type="button" class="btn-close" (click)="close()" [disabled]="isSubmitting" aria-label="Cerrar">
+        <mat-icon>close</mat-icon>
+      </button>
+    </header>
+
+    <nav class="tabs-nav" aria-label="Opciones de publicacion">
+      <button type="button" class="tab-btn" [class.active]="activeTab === 'upload'" (click)="selectTab('upload')"
+        [disabled]="isSubmitting">Subir documento</button>
+      <button type="button" class="tab-btn" [class.active]="activeTab === 'form'" (click)="selectTab('form')"
+        [disabled]="isSubmitting">Completar formulario</button>
+    </nav>
+
+    <section class="tab-content" *ngIf="activeTab === 'upload'">
+      <p class="modal-hint">Acepta PDF, XML o imagen (JPG/PNG).</p>
+
+      <label class="dropzone" [class.dragging]="isDragging" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)">
+        <input type="file" accept=".pdf,.xml,image/*" (change)="onFileSelected($event)" [disabled]="isSubmitting" />
+        <mat-icon class="dropzone-icon">upload_file</mat-icon>
+        <span>Arrastra tu archivo aqui o toca para seleccionarlo</span>
+      </label>
+
+      <div class="mobile-actions" *ngIf="isMobile">
+        <label class="btn-mobile">
+          <mat-icon>photo_camera</mat-icon>
+          Tomar foto
+          <input type="file" accept="image/*" capture="environment" (change)="onFileSelected($event)" [disabled]="isSubmitting" />
+        </label>
+        <label class="btn-mobile">
+          <mat-icon>folder_open</mat-icon>
+          Elegir archivo
+          <input type="file" accept=".pdf,.xml,image/*" (change)="onFileSelected($event)" [disabled]="isSubmitting" />
+        </label>
+      </div>
+
+      <p class="selected-file" [class.has-file]="!!selectedFile">
+        <mat-icon>{{ selectedFile ? 'check_circle' : 'info' }}</mat-icon>
+        {{ selectedFileName }}
+      </p>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-light" (click)="close()" [disabled]="isSubmitting">Cancelar</button>
+        <button type="button" class="btn-primary" [disabled]="!selectedFile || isSubmitting" (click)="submitSelectedFile()">
+          {{ isSubmitting ? 'Publicando...' : 'Publicar' }}
+        </button>
+      </footer>
+    </section>
+
+    <section class="tab-content" *ngIf="activeTab === 'form'">
+      <p class="modal-hint">Completa los datos minimos para generar y publicar una factura manual.</p>
+
+      <form class="manual-form" (submit)="$event.preventDefault(); submitManualData()">
+        <label>
+          Numero de factura
+          <input type="text" name="numeroFactura" [(ngModel)]="manualForm.numeroFactura" [disabled]="isSubmitting" required />
+        </label>
+
+        <label>
+          RUT deudor
+          <input type="text" name="rutDeudor" [(ngModel)]="manualForm.rutDeudor" [disabled]="isSubmitting" required />
+        </label>
+
+        <label>
+          Razon social deudor
+          <input type="text" name="nombreRazonSocialDeudor" [(ngModel)]="manualForm.nombreRazonSocialDeudor"
+            [disabled]="isSubmitting" required />
+        </label>
+
+        <label>
+          Monto total
+          <input type="number" min="1" step="1" name="montoTotal" [(ngModel)]="manualForm.montoTotal" [disabled]="isSubmitting"
+            required />
+        </label>
+
+        <label>
+          Fecha de vencimiento
+          <app-atomic-datepicker
+            [value]="manualForm.fechaVencimiento"
+            [disabled]="isSubmitting"
+            (valueChange)="manualForm.fechaVencimiento = $event">
+          </app-atomic-datepicker>
+        </label>
+      </form>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-light" (click)="close()" [disabled]="isSubmitting">Cancelar</button>
+        <button type="button" class="btn-primary" [disabled]="isSubmitting" (click)="submitManualData()">
+          {{ isSubmitting ? 'Publicando...' : 'Publicar' }}
+        </button>
+      </footer>
+    </section>
+  </section>
+</div>

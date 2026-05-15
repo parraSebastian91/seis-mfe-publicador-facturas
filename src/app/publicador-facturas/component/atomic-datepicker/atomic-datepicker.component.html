@@ -1,0 +1,18 @@
+<div class="atomic-datepicker" (click)="$event.stopPropagation()">
+  <div class="date-row">
+    <input
+      class="field-input"
+      ngbDatepicker
+      #dp="ngbDatepicker"
+      [disabled]="disabled"
+      [readonly]="true"
+      [(ngModel)]="model"
+      (dateSelect)="onDateChange($event)"
+      (keydown.enter)="enterPressed.emit($any($event))"
+      (keydown.escape)="escapePressed.emit($any($event))"
+    />
+    <button type="button" class="calendar-btn" (click)="dp.toggle()" [disabled]="disabled" aria-label="Abrir calendario">
+      <span>Calendario</span>
+    </button>
+  </div>
+</div>

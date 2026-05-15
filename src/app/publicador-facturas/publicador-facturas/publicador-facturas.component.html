@@ -16,3 +16,11 @@
 
   <p class="estado-vacio" *ngIf="!facturas.length">No hay facturas para la organizacion seleccionada.</p>
 </section>
+
+<app-modal-publicacion-factura
+  [isOpen]="isPublicationModalOpen"
+  [isSubmitting]="isPublishing"
+  (closeModal)="closePublicationModal()"
+  (submitFile)="handleFilePublish($event)"
+  (submitForm)="handleManualFormPublish($event)">
+</app-modal-publicacion-factura>
