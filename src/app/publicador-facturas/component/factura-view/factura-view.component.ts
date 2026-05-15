@@ -167,6 +167,24 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     return this.getFieldDisplayValue('numeroFactura', this.facturaOriginal().facturaNumero || 'Sin numero');
   }
 
+  get mandanteNombreHeader(): string {
+    return this.resolveHeaderValue(this.facturaOriginal().nombre_mandante, 'Sin mandante');
+  }
+
+  get mandanteRutHeader(): string {
+    const rawRut = this.resolveHeaderValue(this.facturaOriginal().rut_mandante, '');
+    if (!rawRut) {
+      return 'Sin RUT mandante';
+    }
+
+    const formatted = this.formatRut(rawRut);
+    return formatted || 'Sin RUT mandante';
+  }
+
+  get gestorNombreHeader(): string {
+    return this.resolveHeaderValue(this.facturaOriginal().gestor, 'Sin gestor');
+  }
+
   get pdfInputId(): string {
     const seed = this.facturaOriginal().assetId || this.facturaOriginal().facturaNumero || 'factura';
     return `pdf-input-${seed.replace(/[^a-zA-Z0-9_-]/g, '')}`;
@@ -311,6 +329,29 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
           : field
       )
     );
+  }
+
+  onMontoDraftInput(fieldId: string, event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const numericText = String(target.value ?? '').replace(/\D+/g, '');
+
+    if (!numericText) {
+      this.updateDraftValue(fieldId, '');
+      target.value = '';
+      return;
+    }
+
+    const numericValue = Number.parseInt(numericText, 10);
+    const formatted = Number.isFinite(numericValue) ? new Intl.NumberFormat('es-CL').format(numericValue) : '';
+    this.updateDraftValue(fieldId, formatted);
+    target.value = formatted;
+  }
+
+  onRutDraftInput(fieldId: string, event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const formatted = this.formatRut(target.value ?? '');
+    this.updateDraftValue(fieldId, formatted);
+    target.value = formatted;
   }
 
   getDatepickerValue(value: string): Date | null {
@@ -504,6 +545,20 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     return field.value || fallbackValue;
   }
 
+  private resolveHeaderValue(rawValue: unknown, fallbackValue: string): string {
+    const normalized = String(rawValue ?? '').trim();
+    if (!normalized) {
+      return fallbackValue;
+    }
+
+    const firstOption = normalized
+      .split(';')
+      .map(item => item.trim())
+      .find(item => item.length > 0);
+
+    return firstOption || fallbackValue;
+  }
+
   private isInvalidSelectionForValidation(field: FacturaFieldEditable): boolean {
     return field.detectedOptions.length > 1
       && !field.usingCustomValue
@@ -634,6 +689,23 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     return parsed;
   }
 
+  private formatRut(value: string): string {
+    const cleaned = String(value ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+
+    if (!cleaned) {
+      return '';
+    }
+
+    if (cleaned.length === 1) {
+      return cleaned;
+    }
+
+    const dv = cleaned.slice(-1);
+    const body = cleaned.slice(0, -1);
+    const bodyWithDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `${bodyWithDots}-${dv}`;
+  }
+
   private parseDateFromDisplay(value: string): Date {
     const normalizedValue = String(value ?? '').trim();
 
@@ -671,6 +743,10 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     const draft = field.draftValue.trim();
     if (!draft) {
       return field.value;
+    }
+
+    if (field.id === 'montoTotal') {
+      return String(this.parseCurrencyToNumber(draft));
     }
 
     if (field.id === 'fechaVencimiento') {

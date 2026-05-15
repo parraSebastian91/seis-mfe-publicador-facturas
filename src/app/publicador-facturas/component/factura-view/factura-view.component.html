@@ -21,9 +21,15 @@
         </mat-expansion-panel-header>
 
         <header class="factura-header">
-          <div>
+          <div class="header-main">
             <p class="header-kicker">Factura</p>
             <h2>{{ facturaNumeroHeader }}</h2>
+          </div>
+
+          <div class="header-meta">
+            <p><strong>Mandante:</strong> {{ mandanteNombreHeader }}</p>
+            <p><strong>RUT Mandante:</strong> {{ mandanteRutHeader }}</p>
+            <p><strong>Gestor:</strong> {{ gestorNombreHeader }}</p>
           </div>
 
 
@@ -64,7 +70,7 @@
               <div class="compare-header-row">
                 <span>Campo</span>
                 <span>Dato</span>
-                <span>Acciones</span>
+                <span *ngIf="isPendingValidation">Acciones</span>
               </div>
 
               <div class="compare-row" *ngFor="let campo of camposFactura(); trackBy: trackByCampoId"
@@ -91,7 +97,7 @@
                     </ng-container>
 
                     <ng-template #manualInputTpl>
-                      <ng-container *ngIf="campo.id === 'fechaVencimiento'; else textInputTpl">
+                      <ng-container *ngIf="campo.id === 'fechaVencimiento'; else montoInputWrapperTpl">
                         <app-atomic-datepicker
                           [value]="campo.draftValue"
                           (valueChange)="updateDraftValue(campo.id, $event)"
@@ -99,6 +105,25 @@
                           (escapePressed)="cancelField(campo.id, $event)">
                         </app-atomic-datepicker>
                       </ng-container>
+
+                      <ng-template #montoInputWrapperTpl>
+                        <ng-container *ngIf="campo.id === 'montoTotal'; else rutInputWrapperTpl">
+                          <input class="field-input" [value]="campo.draftValue" inputmode="numeric"
+                            autocomplete="off" (click)="$event.stopPropagation()"
+                            (input)="onMontoDraftInput(campo.id, $event)"
+                            (keydown.enter)="validateField(campo.id, $event)"
+                            (keydown.escape)="cancelField(campo.id, $event)" />
+                        </ng-container>
+                      </ng-template>
+
+                      <ng-template #rutInputWrapperTpl>
+                        <ng-container *ngIf="campo.id === 'rutDeudor'; else textInputTpl">
+                          <input class="field-input" [value]="campo.draftValue" autocomplete="off"
+                            (click)="$event.stopPropagation()" (input)="onRutDraftInput(campo.id, $event)"
+                            (keydown.enter)="validateField(campo.id, $event)"
+                            (keydown.escape)="cancelField(campo.id, $event)" />
+                        </ng-container>
+                      </ng-template>
 
                       <ng-template #textInputTpl>
                         <input class="field-input" [value]="campo.draftValue" (click)="$event.stopPropagation()"
@@ -109,7 +134,7 @@
                     </ng-template>
                   </ng-template>
                 </span>
-                <span class="row-actions">
+                <span class="row-actions" *ngIf="isPendingValidation">
                   <small class="mobile-caption">Accion</small>
                   <button type="button" class="action-btn primary" [class.is-editing]="campo.editing"
                     [class.is-validated]="campo.validated && !campo.editing" [disabled]="isFieldSaving(campo)"
@@ -129,7 +154,7 @@
           </ng-container>
         </div>
 
-        <footer class="confirm-footer">
+        <footer class="confirm-footer" *ngIf="isPendingValidation">
           <button type="button" class="confirm-btn" [disabled]="!canConfirmFactura" (click)="confirmFactura()">
             Confirmar validacion y cambiar estado
           </button>

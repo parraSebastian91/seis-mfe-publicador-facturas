@@ -1,5 +1,5 @@
 import { Component, EffectRef, Injector, OnDestroy, OnInit, Signal, effect, signal } from '@angular/core';
-import { FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UserStateService } from 'shared-utils';
+import { FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UserOrgProfileState, UserStateService } from 'shared-utils';
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
 import { FacturaManualFormValue } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 
@@ -27,8 +27,8 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
   private orgEffect?: EffectRef;
   readonly orgSelected!: Signal<string>;
-  
- 
+  readonly userName!: Signal<string>;
+  readonly orgSelectedInfo!: Signal<UserOrgProfileState | null>;
 
   constructor(
     private injector: Injector,
@@ -36,8 +36,9 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     private userStateService: UserStateService,
     private facturasService: FacturasService
   ) {
-    
+    this.userName = this.userStateService.userName;
     this.orgSelected = this.userStateService.orgSelected;
+    this.orgSelectedInfo = this.userStateService.getOrgSelectedInfo;
   }
 
   ngOnInit(): void {
@@ -74,10 +75,94 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   }
 
   async handleManualFormPublish(formValue: FacturaManualFormValue): Promise<void> {
-    const xmlContent = this.buildFacturaXml(formValue);
-    const fileName = `factura-manual-${Date.now()}.xml`;
-    const manualFile = new File([xmlContent], fileName, { type: 'application/xml' });
-    await this.publishFile(manualFile);
+    const optimisticCorrelationId = this.buildOptimisticCorrelationId();
+
+    const newFactura: FacturaType = {
+      assetId: '',
+      facturaId: '',
+      ownerUUID: this.orgSelected(),
+      nombre_mandante: this.orgSelectedInfo()?.razonSocial || '',
+      rut_mandante: this.orgSelectedInfo()?.rut || 'Recuperando...', // Podríamos obtenerlo de orgSelectedInfo si lo tuviéramos allí
+      gestor: this.userName(),
+      gestorUUID: '',
+      deudorNombre: formValue.nombreRazonSocialDeudor,
+      deudorRut: formValue.rutDeudor,
+      facturaNumero: formValue.numeroFactura,
+      montoTotal: formValue.montoTotal,
+      fechaVencimiento: new Date(formValue.fechaVencimiento),
+      status: facturaEstado.PROCESANDO,
+      correlationId: optimisticCorrelationId,
+      storage_key: '',
+      ofertas: '0',
+    }
+
+    const requestFactura: FacturaCreateRequestDto = {
+      facturaId: '',
+      ownerUUID: this.orgSelected(),
+      numeroFactura: formValue.numeroFactura,
+      rutDeudor: formValue.rutDeudor,
+      nombreDeudor: formValue.nombreRazonSocialDeudor,
+      correlationId: optimisticCorrelationId,
+      montoTotal: formValue.montoTotal,
+      fechaVencimiento: new Date(formValue.fechaVencimiento),
+      gestor: this.userName(),
+    };
+
+    this.facturas = [newFactura, ...this.facturas];
+    this.isPublicationModalOpen = false;
+
+    this.isPublishing = true;
+    try {
+      const response = await this.facturasService.publicarFactura(requestFactura);
+      console.log('Factura publicada:', response);
+      this.actualizarFacturaInMemory(response, optimisticCorrelationId, formValue);
+    } catch (err) {
+      console.error('Error al publicar factura manual:', err);
+    } finally {
+      this.isPublishing = false;
+    }
+  }
+
+  actualizarFacturaInMemory(
+    updatedFactura: FacturaType,
+    optimisticCorrelationId?: string,
+    originalFormValue?: FacturaManualFormValue
+  ): void {
+    const targetFacturaId = this.normalizeText(updatedFactura.facturaId);
+    const targetCorrelationId = this.normalizeText(updatedFactura.correlationId) || this.normalizeText(optimisticCorrelationId);
+    const targetNumero = this.normalizeText(updatedFactura.facturaNumero || originalFormValue?.numeroFactura || '');
+    const targetRut = this.normalizeRut(updatedFactura.deudorRut || originalFormValue?.rutDeudor || '');
+
+    const shouldReplace = (factura: FacturaType): boolean => {
+      const matchById = !!targetFacturaId && this.normalizeText(factura.facturaId) === targetFacturaId;
+      const matchByCorrelation = !!targetCorrelationId && this.normalizeText(factura.correlationId) === targetCorrelationId;
+      const matchByNumeroRut = this.normalizeText(factura.facturaNumero) === targetNumero
+        && this.normalizeRut(factura.deudorRut) === targetRut;
+
+      return matchById || matchByCorrelation || matchByNumeroRut;
+    };
+
+    const hasMatch = this.facturas.some(shouldReplace);
+
+    if (!hasMatch) {
+      this.facturas = [updatedFactura, ...this.facturas];
+      return;
+    }
+
+    this.facturas = this.facturas.map(factura => (shouldReplace(factura) ? updatedFactura : factura));
+  }
+
+  private buildOptimisticCorrelationId(): string {
+    const randomChunk = Math.random().toString(36).slice(2, 8);
+    return `tmp-${Date.now()}-${randomChunk}`;
+  }
+
+  private normalizeText(value: unknown): string {
+    return String(value ?? '').trim().toUpperCase();
+  }
+
+  private normalizeRut(value: unknown): string {
+    return String(value ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
   }
 
   trackByFacturaId(index: number, factura: FacturaType): string {
@@ -138,37 +223,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     }
   }
 
-  private buildFacturaXml(formValue: FacturaManualFormValue): string {
-    const escapedNumeroFactura = this.escapeXml(formValue.numeroFactura);
-    const escapedRutDeudor = this.escapeXml(formValue.rutDeudor);
-    const escapedNombreDeudor = this.escapeXml(formValue.nombreRazonSocialDeudor);
-    const escapedMontoTotal = this.escapeXml(String(formValue.montoTotal));
-    const escapedFechaVencimiento = this.escapeXml(formValue.fechaVencimiento);
-    const escapedGestor = this.escapeXml(this.userStateService.userName());
-    const escapedMandante = this.escapeXml(this.orgSelected());
 
-    return [
-      '<?xml version="1.0" encoding="UTF-8"?>',
-      '<FacturaManual>',
-      `  <NumeroFactura>${escapedNumeroFactura}</NumeroFactura>`,
-      `  <RutDeudor>${escapedRutDeudor}</RutDeudor>`,
-      `  <NombreRazonSocialDeudor>${escapedNombreDeudor}</NombreRazonSocialDeudor>`,
-      `  <MontoTotal>${escapedMontoTotal}</MontoTotal>`,
-      `  <FechaVencimiento>${escapedFechaVencimiento}</FechaVencimiento>`,
-      `  <Gestor>${escapedGestor}</Gestor>`,
-      `  <Organizacion>${escapedMandante}</Organizacion>`,
-      '</FacturaManual>'
-    ].join('\n');
-  }
-
-  private escapeXml(value: string): string {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
 
 
 }
