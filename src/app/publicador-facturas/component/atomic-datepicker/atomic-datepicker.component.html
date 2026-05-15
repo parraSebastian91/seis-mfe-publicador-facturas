@@ -2,17 +2,21 @@
   <div class="date-row">
     <input
       class="field-input"
+      [class.is-invalid]="hasError"
       ngbDatepicker
       #dp="ngbDatepicker"
+      [firstDayOfWeek]="1"
+      [minDate]="minDate"
       [disabled]="disabled"
       [readonly]="true"
+      [placeholder]="placeholder"
       [(ngModel)]="model"
+      (click)="openFromInput(dp, $event)"
+      (touchstart)="openFromInput(dp, $event)"
       (dateSelect)="onDateChange($event)"
+      (blur)="blurred.emit()"
       (keydown.enter)="enterPressed.emit($any($event))"
       (keydown.escape)="escapePressed.emit($any($event))"
     />
-    <button type="button" class="calendar-btn" (click)="dp.toggle()" [disabled]="disabled" aria-label="Abrir calendario">
-      <span>Calendario</span>
-    </button>
   </div>
 </div>

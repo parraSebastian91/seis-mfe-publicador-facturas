@@ -17,6 +17,11 @@
   background: #ffffff;
 }
 
+.field-input.is-invalid {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.08);
+}
+
 .calendar-btn {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
@@ -31,6 +36,22 @@
 .field-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Ensure ngb datepicker popup has an opaque surface even without Bootstrap CSS. */
+:host ::ng-deep .ngb-dp-dropdown.dropdown-menu {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+}
+
+:host ::ng-deep .ngb-dp-header,
+:host ::ng-deep .ngb-dp-month,
+:host ::ng-deep .ngb-dp-week,
+:host ::ng-deep .ngb-dp-weekday,
+:host ::ng-deep .ngb-dp-day,
+:host ::ng-deep .ngb-dp-week-number {
+  background-color: #ffffff;
 }
 
 @media (max-width: 767px) {

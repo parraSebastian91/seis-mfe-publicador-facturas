@@ -51,29 +51,41 @@
     </section>
 
     <section class="tab-content" *ngIf="activeTab === 'form'">
-      <p class="modal-hint">Completa los datos minimos para generar y publicar una factura manual.</p>
-
       <form class="manual-form" (submit)="$event.preventDefault(); submitManualData()">
         <label>
           Numero de factura
-          <input type="text" name="numeroFactura" [(ngModel)]="manualForm.numeroFactura" [disabled]="isSubmitting" required />
+          <input type="text" name="numeroFactura" [(ngModel)]="manualForm.numeroFactura" [disabled]="isSubmitting"
+            [class.invalid-field]="shouldShowFieldError('numeroFactura')" placeholder="Ej: 123456789"
+            inputmode="numeric" autocomplete="off" (input)="onNumeroFacturaInput($event)"
+            (blur)="markFieldTouched('numeroFactura')" required />
+          <small class="field-error" *ngIf="shouldShowFieldError('numeroFactura')">{{ getFieldErrorMessage('numeroFactura') }}</small>
         </label>
 
         <label>
           RUT deudor
-          <input type="text" name="rutDeudor" [(ngModel)]="manualForm.rutDeudor" [disabled]="isSubmitting" required />
+          <input type="text" name="rutDeudor" [(ngModel)]="manualForm.rutDeudor" [disabled]="isSubmitting"
+            [class.invalid-field]="shouldShowFieldError('rutDeudor')" placeholder="Ej: 12.345.678-9"
+            autocomplete="off" (input)="onRutInput($event)" (blur)="markFieldTouched('rutDeudor')" required />
+          <small class="field-error" *ngIf="shouldShowFieldError('rutDeudor')">{{ getFieldErrorMessage('rutDeudor') }}</small>
         </label>
 
         <label>
           Razon social deudor
           <input type="text" name="nombreRazonSocialDeudor" [(ngModel)]="manualForm.nombreRazonSocialDeudor"
-            [disabled]="isSubmitting" required />
+            [disabled]="isSubmitting" [class.invalid-field]="shouldShowFieldError('nombreRazonSocialDeudor')"
+            placeholder="Ej: Comercial Acme Spa" autocomplete="off"
+            (input)="onNombreRazonSocialInput()"
+            (blur)="markFieldTouched('nombreRazonSocialDeudor')" required />
+          <small class="field-error" *ngIf="shouldShowFieldError('nombreRazonSocialDeudor')">{{ getFieldErrorMessage('nombreRazonSocialDeudor') }}</small>
         </label>
 
         <label>
           Monto total
-          <input type="number" min="1" step="1" name="montoTotal" [(ngModel)]="manualForm.montoTotal" [disabled]="isSubmitting"
-            required />
+          <input type="text" name="montoTotal" [(ngModel)]="manualForm.montoTotal" [disabled]="isSubmitting"
+            [class.invalid-field]="shouldShowFieldError('montoTotal')" placeholder="Ej: 1.250.000"
+            inputmode="numeric" autocomplete="off" (input)="onMontoInput($event)"
+            (blur)="markFieldTouched('montoTotal')" required />
+          <small class="field-error" *ngIf="shouldShowFieldError('montoTotal')">{{ getFieldErrorMessage('montoTotal') }}</small>
         </label>
 
         <label>
@@ -81,14 +93,19 @@
           <app-atomic-datepicker
             [value]="manualForm.fechaVencimiento"
             [disabled]="isSubmitting"
-            (valueChange)="manualForm.fechaVencimiento = $event">
+            [placeholder]="'Ej: ' + suggestedDateIso"
+            [minDate]="minDateStruct"
+            [hasError]="shouldShowFieldError('fechaVencimiento')"
+            (valueChange)="manualForm.fechaVencimiento = $event; markFieldTouched('fechaVencimiento')"
+            (blurred)="markFieldTouched('fechaVencimiento')">
           </app-atomic-datepicker>
+          <small class="field-error" *ngIf="shouldShowFieldError('fechaVencimiento')">{{ getFieldErrorMessage('fechaVencimiento') }}</small>
         </label>
       </form>
 
       <footer class="modal-footer">
         <button type="button" class="btn-light" (click)="close()" [disabled]="isSubmitting">Cancelar</button>
-        <button type="button" class="btn-primary" [disabled]="isSubmitting" (click)="submitManualData()">
+        <button type="button" class="btn-primary" [disabled]="isSubmitting || !isManualFormValid()" (click)="submitManualData()">
           {{ isSubmitting ? 'Publicando...' : 'Publicar' }}
         </button>
       </footer>

@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
-import { NgbDateStruct } from '@ng-bootstrap/ng-bootstrap';
+import { NgbDateStruct, NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 
 @Component({
   selector: 'app-atomic-datepicker',
@@ -10,10 +10,14 @@ import { NgbDateStruct } from '@ng-bootstrap/ng-bootstrap';
 export class AtomicDatepickerComponent implements OnChanges {
   @Input() value = '';
   @Input() disabled = false;
+  @Input() placeholder = '';
+  @Input() hasError = false;
+  @Input() minDate: NgbDateStruct = { year: 1900, month: 1, day: 1 };
 
   @Output() valueChange = new EventEmitter<string>();
   @Output() enterPressed = new EventEmitter<KeyboardEvent>();
   @Output() escapePressed = new EventEmitter<KeyboardEvent>();
+  @Output() blurred = new EventEmitter<void>();
 
   model: NgbDateStruct | null = null;
 
@@ -32,6 +36,17 @@ export class AtomicDatepickerComponent implements OnChanges {
     }
 
     this.valueChange.emit(this.formatToIso(date));
+  }
+
+  openFromInput(datepicker: NgbInputDatepicker, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (this.disabled) {
+      return;
+    }
+
+    datepicker.open();
   }
 
   private parseToStruct(value: string): NgbDateStruct | null {

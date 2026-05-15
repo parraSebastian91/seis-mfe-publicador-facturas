@@ -49,9 +49,9 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   readonly estadoConfirmado = signal(false);
   readonly ofertasFactura = signal(0);
   readonly notificacionesFactura = signal<string[]>([
-    'Monto total requiere revision por diferencias.',
-    'RUT deudor validado contra padrón tributario.',
-    'Fecha de vencimiento sugerida por OCR: 30-04-2026.'
+    'Esta herramienta es automatizada, puede contener errores.',
+    'Si subio un documento, revise que los datos estan correctos.',
+    'Valide cada campo antes de publicar.',
   ]);
 
   readonly facturaOriginal = signal<FacturaType>({
