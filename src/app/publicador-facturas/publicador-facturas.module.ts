@@ -11,10 +11,7 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { CdkAutofill } from "@angular/cdk/text-field";
 import { ImagePanzoomViewerComponent } from './component/image-panzoom-viewer/image-panzoom-viewer.component';
 import { ModalPublicacionFacturaComponent } from './component/modal-publicacion-factura/modal-publicacion-factura.component';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatInputModule } from '@angular/material/input';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatNativeDateModule, MAT_DATE_LOCALE } from '@angular/material/core';
+import { NgbDatepickerModule } from '@ng-bootstrap/ng-bootstrap';
 import { AtomicDatepickerComponent } from './component/atomic-datepicker/atomic-datepicker.component';
 @NgModule({
   declarations: [
@@ -31,14 +28,8 @@ import { AtomicDatepickerComponent } from './component/atomic-datepicker/atomic-
     MatExpansionModule,
     MatIconModule,
     MatBadgeModule,
-    MatDatepickerModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatNativeDateModule,
+    NgbDatepickerModule,
     CdkAutofill
-  ],
-  providers: [
-    { provide: MAT_DATE_LOCALE, useValue: 'es-CL' }
   ]
 })
 export class PublicadorFacturasModule { }

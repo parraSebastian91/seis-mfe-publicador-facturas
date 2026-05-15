@@ -1,16 +1,18 @@
 <div class="atomic-datepicker" (click)="$event.stopPropagation()">
-  <mat-form-field class="date-field" appearance="outline" subscriptSizing="dynamic">
+  <div class="date-row">
     <input
-      matInput
-      [matDatepicker]="picker"
-      [value]="model"
+      class="field-input"
+      ngbDatepicker
+      #dp="ngbDatepicker"
       [disabled]="disabled"
       [readonly]="true"
-      (dateChange)="onDateChange($any($event.value))"
+      [(ngModel)]="model"
+      (dateSelect)="onDateChange($event)"
       (keydown.enter)="enterPressed.emit($any($event))"
       (keydown.escape)="escapePressed.emit($any($event))"
     />
-    <mat-datepicker-toggle matIconSuffix [for]="picker" [disabled]="disabled"></mat-datepicker-toggle>
-    <mat-datepicker #picker></mat-datepicker>
-  </mat-form-field>
+    <button type="button" class="calendar-btn" (click)="dp.toggle()" [disabled]="disabled" aria-label="Abrir calendario">
+      <span>Calendario</span>
+    </button>
+  </div>
 </div>
