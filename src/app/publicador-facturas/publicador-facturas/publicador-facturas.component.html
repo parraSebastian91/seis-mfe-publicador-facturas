@@ -5,22 +5,57 @@
       <h1>Publicador de Facturas</h1>
       <p>Carga, validación y publicación de comprobantes.</p>
     </div>
-    <button type="button" class="btn-publicar" (click)="openUploadModal()">Publicar</button>
+    <div class="header-actions">
+      <button type="button" class="btn-filtros-mobile" *ngIf="facturas.length" (click)="openMobileFiltersModal()">
+        Filtros
+        <span class="filtros-count" *ngIf="activeFilterCount > 0">{{ activeFilterCount }}</span>
+      </button>
+      <button type="button" class="btn-publicar" (click)="openUploadModal()">Publicar</button>
+    </div>
   </header>
 
-  <ul class="estado-lista">
-    <li *ngFor="let factura of facturas; trackBy: trackByFacturaId">
-      <app-factura-view [factura]="factura" (facturaChange)="handleFacturaChange($event)"></app-factura-view>
-    </li>
-  </ul>
+  <div class="contenido">
+    <div class="filtro-row" *ngIf="facturas.length">
+      <app-atomic-factura-filters [facturas]="facturas" [isAdmin]="isAdminUser" [filters]="activeFilters"
+        (filtersChange)="onFiltersChange($event)">
+      </app-atomic-factura-filters>
+    </div>
+
+    <div class="contenedor-lista" *ngIf="filteredFacturas.length">
+      <ul class="estado-lista">
+        <li *ngFor="let factura of filteredFacturas; trackBy: trackByFacturaId"
+          [class.factura-just-published]="isFacturaRecentlyPublished(factura)">
+          <app-factura-view [factura]="factura" (facturaChange)="handleFacturaChange($event)"></app-factura-view>
+        </li>
+      </ul>
+    </div>
+  </div>
 
   <p class="estado-vacio" *ngIf="!facturas.length">No hay facturas para la organizacion seleccionada.</p>
+  <p class="estado-vacio" *ngIf="facturas.length && !filteredFacturas.length">No hay facturas que coincidan con los
+    filtros seleccionados.</p>
 </section>
 
-<app-modal-publicacion-factura
-  [isOpen]="isPublicationModalOpen"
-  [isSubmitting]="isPublishing"
-  (closeModal)="closePublicationModal()"
-  (submitFile)="handleFilePublish($event)"
+<app-modal-publicacion-factura [isOpen]="isPublicationModalOpen" [isSubmitting]="isPublishing"
+  (closeModal)="closePublicationModal()" (submitFile)="handleFilePublish($event)"
   (submitForm)="handleManualFormPublish($event)">
 </app-modal-publicacion-factura>
+
+<div class="mobile-filters-modal" *ngIf="isMobileFiltersModalOpen" (click)="closeMobileFiltersModal()">
+  <section class="mobile-filters-panel" role="dialog" aria-modal="true" aria-label="Filtros de facturas"
+    (click)="$event.stopPropagation()">
+    <header class="mobile-filters-header">
+      <h2>Filtros</h2>
+      <button type="button" class="btn-close-filters" (click)="closeMobileFiltersModal()">Cerrar</button>
+    </header>
+
+    <app-atomic-factura-filters [facturas]="facturas" [isAdmin]="isAdminUser" [filters]="mobileDraftFilters"
+      (filtersChange)="onMobileFiltersDraftChange($event)">
+    </app-atomic-factura-filters>
+
+    <footer class="mobile-filters-footer">
+      <button type="button" class="btn-cancel-filters" (click)="cancelMobileFilters()">Cancelar</button>
+      <button type="button" class="btn-apply-filters" (click)="applyMobileFilters()">Aplicar</button>
+    </footer>
+  </section>
+</div>

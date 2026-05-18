@@ -15,6 +15,7 @@ import { ImagePanzoomViewerComponent } from './component/image-panzoom-viewer/im
 import { ModalPublicacionFacturaComponent } from './component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { NgbDatepickerModule } from '@ng-bootstrap/ng-bootstrap';
 import { AtomicDatepickerComponent } from './component/atomic-datepicker/atomic-datepicker.component';
+import { AtomicFacturaFiltersComponent } from './component/atomic-factura-filters/atomic-factura-filters.component';
 
 registerLocaleData(localeEsCl);
 @NgModule({
@@ -23,7 +24,8 @@ registerLocaleData(localeEsCl);
     FacturaViewComponent,
     ImagePanzoomViewerComponent,
     ModalPublicacionFacturaComponent,
-    AtomicDatepickerComponent
+    AtomicDatepickerComponent,
+    AtomicFacturaFiltersComponent
   ],
   imports: [
     CommonModule,

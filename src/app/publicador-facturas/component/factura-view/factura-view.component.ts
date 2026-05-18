@@ -58,7 +58,10 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     facturaId: '',
     assetId: '',
     ownerUUID: '',
-    gestor: '',
+    gestor: {
+        uuid: '',
+        username: ''
+    },
     nombre_mandante: 'Mandante S.A.',
     rut_mandante: '11.111.111-1',
     deudorNombre: 'Deudor S.A.',
@@ -143,8 +146,8 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     const numeroFactura = this.getFieldDisplayValue('numeroFactura', factura.facturaNumero || 'Sin numero');
     const deudorNombre = this.getFieldDisplayValue('nombreRazonSocialDeudor', factura.deudorNombre || 'Sin deudor');
     const montoTotal = this.getFieldDisplayValue('montoTotal', this.formatCurrency(factura.montoTotal || 0));
-    if (this.isMobileView()){
-      return [`N° ${numeroFactura}`,  `${montoTotal}`];
+    if (this.isMobileView()) {
+      return [`N° ${numeroFactura}`, `${montoTotal}`];
     }
     return [`N° ${numeroFactura}`, `${deudorNombre}`, `${montoTotal}`];
 
@@ -182,7 +185,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   }
 
   get gestorNombreHeader(): string {
-    return this.resolveHeaderValue(this.facturaOriginal().gestor, 'Sin gestor');
+    return this.resolveHeaderValue(this.facturaOriginal().gestor?.username, 'Sin gestor');
   }
 
   get pdfInputId(): string {

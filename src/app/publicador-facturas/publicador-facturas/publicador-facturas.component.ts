@@ -1,7 +1,8 @@
 import { Component, EffectRef, Injector, OnDestroy, OnInit, Signal, effect, signal } from '@angular/core';
-import { FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UserOrgProfileState, UserStateService } from 'shared-utils';
+import { FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UserProfileService, UserStateService } from 'shared-utils';
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
 import { FacturaManualFormValue } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
+import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
 
 interface FacturaFieldUpdateEvent {
   factura: FacturaType;
@@ -20,25 +21,49 @@ interface FacturaFieldUpdateEvent {
 })
 export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   private readonly apiBase = 'http://localhost:8000';
+  private readonly publishedHighlightDurationMs = 2400;
+  private readonly statusPriority: Record<string, number> = Object.values(facturaEstado).reduce((acc, estado, index) => {
+    acc[estado] = index;
+    return acc;
+  }, {} as Record<string, number>);
+  private publishedHighlightTimeoutId?: ReturnType<typeof setTimeout>;
 
   facturas: FacturaType[] = [];
+  filteredFacturas: FacturaType[] = [];
   isPublicationModalOpen = false;
+  isMobileFiltersModalOpen = false;
   isPublishing = false;
+  highlightedFacturaKey: string | null = null;
+  activeFilters: FacturaFilters = {
+    status: '',
+    gestor: '',
+    deudor: '',
+    numeroFactura: '',
+    sortBy: 'none',
+  };
+  mobileDraftFilters: FacturaFilters = {
+    status: '',
+    gestor: '',
+    deudor: '',
+    numeroFactura: '',
+    sortBy: 'none',
+  };
 
   private orgEffect?: EffectRef;
   readonly orgSelected!: Signal<string>;
   readonly userName!: Signal<string>;
-  readonly orgSelectedInfo!: Signal<UserOrgProfileState | null>;
+  readonly userRole!: Signal<string>;
 
   constructor(
     private injector: Injector,
     private objectUploadService: ObjectUploadService,
     private userStateService: UserStateService,
+    private userProfileService: UserProfileService,
     private facturasService: FacturasService
   ) {
     this.userName = this.userStateService.userName;
     this.orgSelected = this.userStateService.orgSelected;
-    this.orgSelectedInfo = this.userStateService.getOrgSelectedInfo;
+    this.userRole = this.userStateService.role;
   }
 
   ngOnInit(): void {
@@ -47,6 +72,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
       if (!organizacionUUID) {
         this.facturas = [];
+        this.filteredFacturas = [];
         return;
       }
 
@@ -56,6 +82,9 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.orgEffect?.destroy();
+    if (this.publishedHighlightTimeoutId) {
+      clearTimeout(this.publishedHighlightTimeoutId);
+    }
   }
 
   openUploadModal(): void {
@@ -70,20 +99,32 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     this.isPublicationModalOpen = false;
   }
 
+  openMobileFiltersModal(): void {
+    this.mobileDraftFilters = { ...this.activeFilters };
+    this.isMobileFiltersModalOpen = true;
+  }
+
+  closeMobileFiltersModal(): void {
+    this.isMobileFiltersModalOpen = false;
+  }
+
   async handleFilePublish(file: File): Promise<void> {
     await this.publishFile(file);
   }
 
   async handleManualFormPublish(formValue: FacturaManualFormValue): Promise<void> {
     const optimisticCorrelationId = this.buildOptimisticCorrelationId();
-
+    const orgInfo = this.userStateService.organizationProfile().find(org => org.uuid === this.orgSelected()) || { razonSocial: '', rut: '' };
     const newFactura: FacturaType = {
       assetId: '',
       facturaId: '',
       ownerUUID: this.orgSelected(),
-      nombre_mandante: this.orgSelectedInfo()?.razonSocial || '',
-      rut_mandante: this.orgSelectedInfo()?.rut || 'Recuperando...', // Podríamos obtenerlo de orgSelectedInfo si lo tuviéramos allí
-      gestor: this.userName(),
+      nombre_mandante: orgInfo.razonSocial || '',
+      rut_mandante: orgInfo.rut || 'Recuperando...', // Podríamos obtenerlo de orgSelectedInfo si lo tuviéramos allí
+      gestor: {
+        uuid: '',
+        username: this.userName(),
+      },
       gestorUUID: '',
       deudorNombre: formValue.nombreRazonSocialDeudor,
       deudorRut: formValue.rutDeudor,
@@ -105,15 +146,19 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       correlationId: optimisticCorrelationId,
       montoTotal: formValue.montoTotal,
       fechaVencimiento: new Date(formValue.fechaVencimiento),
-      gestor: this.userName(),
+      gestor: {
+         uuid: '',
+        username: this.userName(),
+      },
     };
 
     this.facturas = [newFactura, ...this.facturas];
+    this.applyFiltersAndSort();
     this.isPublicationModalOpen = false;
 
     this.isPublishing = true;
     try {
-      const response = await this.facturasService.publicarFactura(requestFactura);
+      const response: FacturaType = await this.facturasService.publicarFactura(requestFactura);
       console.log('Factura publicada:', response);
       this.actualizarFacturaInMemory(response, optimisticCorrelationId, formValue);
     } catch (err) {
@@ -146,10 +191,14 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
     if (!hasMatch) {
       this.facturas = [updatedFactura, ...this.facturas];
+      this.applyFiltersAndSort();
+      this.highlightPublishedFactura(updatedFactura);
       return;
     }
 
     this.facturas = this.facturas.map(factura => (shouldReplace(factura) ? updatedFactura : factura));
+    this.applyFiltersAndSort();
+    this.highlightPublishedFactura(updatedFactura);
   }
 
   private buildOptimisticCorrelationId(): string {
@@ -169,15 +218,159 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     return factura.correlationId || String(index);
   }
 
+  get isAdminUser(): boolean {
+    return this.normalizeText(this.userRole()).includes('ADMIN');
+  }
+
+  onFiltersChange(filters: FacturaFilters): void {
+    this.activeFilters = { ...filters };
+    this.applyFiltersAndSort();
+  }
+
+  onMobileFiltersDraftChange(filters: FacturaFilters): void {
+    this.mobileDraftFilters = { ...filters };
+  }
+
+  applyMobileFilters(): void {
+    this.onFiltersChange(this.mobileDraftFilters);
+    this.closeMobileFiltersModal();
+  }
+
+  cancelMobileFilters(): void {
+    this.mobileDraftFilters = { ...this.activeFilters };
+    this.closeMobileFiltersModal();
+  }
+
+  get activeFilterCount(): number {
+    let count = 0;
+
+    if (this.activeFilters.status) {
+      count += 1;
+    }
+
+    if (this.activeFilters.gestor) {
+      count += 1;
+    }
+
+    if (this.activeFilters.deudor.trim()) {
+      count += 1;
+    }
+
+    if (this.activeFilters.numeroFactura.trim()) {
+      count += 1;
+    }
+
+    if (this.activeFilters.sortBy !== 'none') {
+      count += 1;
+    }
+
+    return count;
+  }
+
+  isFacturaRecentlyPublished(factura: FacturaType): boolean {
+    return this.highlightedFacturaKey === this.getFacturaVisualKey(factura);
+  }
+
+  private getFacturaVisualKey(factura: FacturaType): string {
+    const facturaId = this.normalizeText(factura.facturaId);
+    if (facturaId) {
+      return `id:${facturaId}`;
+    }
+
+    const correlationId = this.normalizeText(factura.correlationId);
+    if (correlationId) {
+      return `corr:${correlationId}`;
+    }
+
+    const numero = this.normalizeText(factura.facturaNumero);
+    const rut = this.normalizeRut(factura.deudorRut);
+    return `nr:${numero}|${rut}`;
+  }
+
+  private highlightPublishedFactura(factura: FacturaType): void {
+    this.highlightedFacturaKey = this.getFacturaVisualKey(factura);
+
+    if (this.publishedHighlightTimeoutId) {
+      clearTimeout(this.publishedHighlightTimeoutId);
+    }
+
+    this.publishedHighlightTimeoutId = setTimeout(() => {
+      this.highlightedFacturaKey = null;
+      this.publishedHighlightTimeoutId = undefined;
+    }, this.publishedHighlightDurationMs);
+  }
+
   private async loadFacturas(organizacionUUID: string): Promise<void> {
     try {
       const facturas = await this.facturasService.getFacturas(organizacionUUID);
       this.facturas = facturas;
+      this.applyFiltersAndSort();
       console.log('Facturas obtenidas:', facturas);
     } catch (err) {
       this.facturas = [];
+      this.filteredFacturas = [];
       console.error('Error al obtener facturas:', err);
     }
+  }
+
+  private applyFiltersAndSort(): void {
+    const filters = this.activeFilters;
+    let filtered = [...this.facturas];
+
+    if (filters.status) {
+      filtered = filtered.filter(factura => factura.status === filters.status);
+    }
+
+    if (filters.gestor) {
+      const selectedGestor = this.normalizeText(filters.gestor);
+      filtered = filtered.filter(factura => this.normalizeText(factura.gestor) === selectedGestor);
+    }
+
+    if (filters.deudor.trim()) {
+      const deudorQuery = this.normalizeText(filters.deudor);
+      const deudorRutQuery = this.normalizeRut(filters.deudor);
+
+      filtered = filtered.filter(factura => {
+        const deudorNombre = this.normalizeText(factura.deudorNombre);
+        const deudorRut = this.normalizeRut(factura.deudorRut);
+        return deudorNombre.includes(deudorQuery) || (!!deudorRutQuery && deudorRut.includes(deudorRutQuery));
+      });
+    }
+
+    if (filters.numeroFactura.trim()) {
+      const numeroQuery = this.normalizeText(filters.numeroFactura);
+      filtered = filtered.filter(factura => this.normalizeText(factura.facturaNumero).includes(numeroQuery));
+    }
+
+    switch (filters.sortBy) {
+      case 'monto-asc':
+        filtered.sort((a, b) => Number(a.montoTotal || 0) - Number(b.montoTotal || 0));
+        break;
+      case 'monto-desc':
+        filtered.sort((a, b) => Number(b.montoTotal || 0) - Number(a.montoTotal || 0));
+        break;
+      case 'estado-asc':
+        filtered.sort((a, b) => this.compareFacturaStatus(a.status, b.status));
+        break;
+      case 'estado-desc':
+        filtered.sort((a, b) => this.compareFacturaStatus(b.status, a.status));
+        break;
+      default:
+        break;
+    }
+
+    this.filteredFacturas = filtered;
+  }
+
+  private compareFacturaStatus(a: facturaEstado, b: facturaEstado): number {
+    const rankA = this.statusPriority[a] ?? Number.MAX_SAFE_INTEGER;
+    const rankB = this.statusPriority[b] ?? Number.MAX_SAFE_INTEGER;
+
+    if (rankA !== rankB) {
+      return rankA - rankB;
+    }
+
+    return String(a).localeCompare(String(b), 'es');
   }
 
   async handleFacturaChange(event: FacturaFieldUpdateEvent): Promise<void> {
@@ -196,11 +389,24 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   private async publishFile(file: File): Promise<void> {
     this.isPublishing = true;
     try {
+      let currentUserName = (this.userStateService.userName() || '').trim();
+      if (!currentUserName) {
+        const profile = await this.userProfileService.getUserProfile(this.apiBase);
+        currentUserName = (profile?.username || '').trim();
+        if (currentUserName) {
+          this.userStateService.patch({ username: currentUserName });
+        }
+      }
+
+      if (!currentUserName) {
+        throw new Error('No se pudo publicar porque userName está vacío en UserStateService.');
+      }
+
       const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(
         this.apiBase,
         PATH_TYPES.DOCUMENT,
         file,
-        this.userStateService.userName(),
+        currentUserName,
         this.orgSelected()
       );
 
