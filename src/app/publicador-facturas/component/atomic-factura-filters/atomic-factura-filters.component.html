@@ -1,0 +1,63 @@
+<section class="factura-filters" aria-label="Filtros de facturas">
+  <div class="chips-row" *ngIf="activeChips.length">
+    <button
+      type="button"
+      class="chip"
+      *ngFor="let chip of activeChips"
+      (click)="clearOne(chip.key)">
+      <span>{{ chip.label }}</span>
+      <span aria-hidden="true">x</span>
+    </button>
+
+    <button type="button" class="clear-all" (click)="clearAll()">Limpiar todo</button>
+  </div>
+
+  <div class="controls-grid">
+    <label class="control-field">
+      <span>Estado</span>
+      <select
+        [value]="filters.status"
+        (change)="updateFilter('status', $any($event.target).value)">
+        <option value="">Todos</option>
+        <option *ngFor="let estado of estadoOptions" [value]="estado">{{ estado }}</option>
+      </select>
+    </label>
+
+    <label class="control-field" *ngIf="isAdmin">
+      <span>Gestor</span>
+      <select
+        [value]="filters.gestor"
+        (change)="updateFilter('gestor', $any($event.target).value)">
+        <option value="">Todos</option>
+        <option *ngFor="let gestor of gestorOptions" [value]="gestor">{{ gestor }}</option>
+      </select>
+    </label>
+
+    <label class="control-field">
+      <span>Deudor</span>
+      <input
+        type="text"
+        [value]="filters.deudor"
+        placeholder="Nombre o RUT"
+        (input)="updateFilter('deudor', $any($event.target).value)" />
+    </label>
+
+    <label class="control-field">
+      <span>Numero Factura</span>
+      <input
+        type="text"
+        [value]="filters.numeroFactura"
+        placeholder="Ej: 10458"
+        (input)="updateFilter('numeroFactura', $any($event.target).value)" />
+    </label>
+
+    <label class="control-field">
+      <span>Ordenar por</span>
+      <select
+        [value]="filters.sortBy"
+        (change)="updateFilter('sortBy', $any($event.target).value)">
+        <option *ngFor="let sort of sortOptions" [value]="sort.value">{{ sort.label }}</option>
+      </select>
+    </label>
+  </div>
+</section>
