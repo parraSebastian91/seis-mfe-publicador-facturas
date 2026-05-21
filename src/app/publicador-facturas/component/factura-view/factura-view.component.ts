@@ -1,5 +1,5 @@
 import { Component, computed, effect, EventEmitter, HostListener, inject, Input, OnChanges, OnDestroy, Output, signal, SimpleChanges } from '@angular/core';
-import { FacturaResponseUpdateDTO, FacturaType, NotificationSocketService } from 'shared-utils';
+import { facturaEstado, FacturaResponseUpdateDTO, FacturaType, NotificationSocketService } from 'shared-utils';
 
 interface FacturaFieldEditable {
   id: string;
@@ -20,6 +20,11 @@ interface FacturaFieldUpdateEvent {
   onError: () => void;
 }
 
+export interface FacturaConfirmRequestEvent {
+  factura: FacturaType;
+  onCompleted: (result: { authorized: boolean; updated: boolean; status: facturaEstado }) => void;
+}
+
 @Component({
   selector: 'app-factura-view',
   templateUrl: './factura-view.component.html',
@@ -36,6 +41,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
 
   @Input() factura: FacturaType = {} as FacturaType;
   @Output() facturaChange = new EventEmitter<FacturaFieldUpdateEvent>();
+  @Output() confirmFacturaRequest = new EventEmitter<FacturaConfirmRequestEvent>();
 
   readonly panelOpenState = signal(false);
   readonly imageSrc = signal<string | undefined>(undefined);
@@ -59,8 +65,8 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     assetId: '',
     ownerUUID: '',
     gestor: {
-        uuid: '',
-        username: ''
+      uuid: '',
+      username: ''
     },
     nombre_mandante: 'Mandante S.A.',
     rut_mandante: '11.111.111-1',
@@ -159,7 +165,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   }
 
   get isPendingValidation(): boolean {
-    return this.facturaOriginal().status === 'PENDIENTE_VALIDACION';
+    return this.facturaOriginal().status === facturaEstado.PENDIENTE_VALIDACION || this.facturaOriginal().status === facturaEstado.PENDIENTE_AUTORIZACION;
   }
 
   get canShowPdfViewer(): boolean {
@@ -416,8 +422,18 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
       return;
     }
 
-    this.estadoConfirmado.set(true);
-    this.estadoFactura.set('Validada por usuario');
+    this.confirmFacturaRequest.emit({
+      factura: this.facturaOriginal(),
+      onCompleted: (result) => {
+        if (!result.updated) {
+          return;
+        }
+
+        this.estadoConfirmado.set(true);
+        this.estadoFactura.set(this.prettyStatus(result.status));
+        this.facturaOriginal.update(current => ({ ...current, status: result.status }));
+      }
+    });
   }
 
   private buildFields(factura: FacturaType): FacturaFieldEditable[] {

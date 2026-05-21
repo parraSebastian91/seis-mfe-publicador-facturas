@@ -25,7 +25,9 @@
       <ul class="estado-lista">
         <li *ngFor="let factura of filteredFacturas; trackBy: trackByFacturaId"
           [class.factura-just-published]="isFacturaRecentlyPublished(factura)">
-          <app-factura-view [factura]="factura" (facturaChange)="handleFacturaChange($event)"></app-factura-view>
+          <app-factura-view [factura]="factura" (facturaChange)="handleFacturaChange($event)"
+            (confirmFacturaRequest)="handleFacturaConfirmRequest($event)">
+          </app-factura-view>
         </li>
       </ul>
     </div>

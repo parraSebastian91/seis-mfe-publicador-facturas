@@ -3,6 +3,8 @@ import { FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, Factu
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
 import { FacturaManualFormValue } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
+import Swal from 'sweetalert2';
+import { FacturaConfirmRequestEvent } from '../component/factura-view/factura-view.component';
 
 interface FacturaFieldUpdateEvent {
   factura: FacturaType;
@@ -113,6 +115,9 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   }
 
   async handleManualFormPublish(formValue: FacturaManualFormValue): Promise<void> {
+    const hasAuthorization = await this.confirmPublicationAuthorization();
+    const status = this.facturasService.resolveEstadoFromAuthorization(hasAuthorization);
+
     const optimisticCorrelationId = this.buildOptimisticCorrelationId();
     const orgInfo = this.userStateService.organizationProfile().find(org => org.uuid === this.orgSelected()) || { razonSocial: '', rut: '' };
     const newFactura: FacturaType = {
@@ -131,7 +136,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       facturaNumero: formValue.numeroFactura,
       montoTotal: formValue.montoTotal,
       fechaVencimiento: new Date(formValue.fechaVencimiento),
-      status: facturaEstado.PROCESANDO,
+      status: status,
       correlationId: optimisticCorrelationId,
       storage_key: '',
       ofertas: '0',
@@ -146,8 +151,9 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       correlationId: optimisticCorrelationId,
       montoTotal: formValue.montoTotal,
       fechaVencimiento: new Date(formValue.fechaVencimiento),
+      status: status,
       gestor: {
-         uuid: '',
+        uuid: '',
         username: this.userName(),
       },
     };
@@ -166,6 +172,55 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     } finally {
       this.isPublishing = false;
     }
+  }
+
+  async handleFacturaConfirmRequest(event: FacturaConfirmRequestEvent): Promise<void> {
+    const hasAuthorization = await this.confirmPublicationAuthorization(event.factura.facturaNumero || undefined);
+    const nextStatus = this.facturasService.resolveEstadoFromAuthorization(hasAuthorization);
+
+    if (!event.factura.facturaId) {
+      event.onCompleted({ authorized: hasAuthorization, updated: false, status: nextStatus });
+      return;
+    }
+
+    try {
+      await this.facturasService.actualizarEstadoFactura(event.factura, nextStatus);
+      const updatedFactura: FacturaType = { ...event.factura, status: nextStatus };
+      this.actualizarFacturaInMemory(updatedFactura);
+      event.onCompleted({ authorized: hasAuthorization, updated: true, status: nextStatus });
+    } catch (err) {
+      console.error('Error al actualizar estado de factura:', err);
+      event.onCompleted({ authorized: hasAuthorization, updated: false, status: event.factura.status });
+    }
+  }
+
+  private async confirmPublicationAuthorization(facturaNumero?: string): Promise<boolean> {
+    const facturaReference = String(facturaNumero ?? '').trim();
+    const facturaLabel = facturaReference ? `Factura N° ${facturaReference}` : 'Factura';
+    const authorizationText = [
+      `<p><strong>${facturaLabel}</strong></p>`,
+      '<p>Debes confirmar expresamente la autorización para continuar.</p>',
+      '<p>Al aceptar, declaras que:</p>',
+      '<ul style="text-align:left; margin:0.5rem 0 0 1.25rem;">',
+      '<li>Autorizas la publicación de la factura.</li>',
+      '<li>Autorizas la notificación a entidades financieras para su evaluación.</li>',
+      '</ul>'
+    ].join('');
+
+    const result = await Swal.fire({
+      title: 'Confirmar autorización',
+      html: authorizationText,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Aceptar',
+      cancelButtonText: 'Volver a revisar',
+      reverseButtons: true,
+      allowOutsideClick: !this.isPublishing,
+      allowEscapeKey: !this.isPublishing,
+      focusCancel: true
+    });
+
+    return result.isConfirmed;
   }
 
   actualizarFacturaInMemory(
