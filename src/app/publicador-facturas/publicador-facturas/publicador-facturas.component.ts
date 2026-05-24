@@ -110,6 +110,11 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     this.isMobileFiltersModalOpen = false;
   }
 
+  //**
+  // ==========================================
+  // Bloque para publicar y validar Factura
+  // ========================================== */
+
   async handleFilePublish(file: File): Promise<void> {
     await this.publishFile(file);
   }
@@ -194,7 +199,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     }
   }
 
-  private async confirmPublicationAuthorization(facturaNumero?: string): Promise<boolean> {
+  private async confirmPublicationAuthorization(facturaNumero?: string): Promise<any> {
     const facturaReference = String(facturaNumero ?? '').trim();
     const facturaLabel = facturaReference ? `Factura N° ${facturaReference}` : 'Factura';
     const authorizationText = [
@@ -220,8 +225,13 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       focusCancel: true
     });
 
-    return result.isConfirmed;
+    return result;
   }
+
+  //**
+  // ==========================================
+  // Bloque para publicar y validar Factura
+  // ========================================== */
 
   actualizarFacturaInMemory(
     updatedFactura: FacturaType,
