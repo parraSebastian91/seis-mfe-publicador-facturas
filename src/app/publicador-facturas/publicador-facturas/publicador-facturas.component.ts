@@ -1,5 +1,5 @@
 import { Component, EffectRef, Injector, OnDestroy, OnInit, Signal, effect, signal } from '@angular/core';
-import { FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UserProfileService, UserStateService } from 'shared-utils';
+import { FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UserOrgProfileState, UserProfileService, UserStateService } from 'shared-utils';
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
 import { FacturaData, FacturaFormularioPublicacion } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
@@ -121,7 +121,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
   async handleManualFormPublish(data: FacturaData): Promise<FacturaType | undefined> {
     const optimisticCorrelationId = this.buildOptimisticCorrelationId();
-    const orgInfo = this.userStateService.organizationProfile().find(org => org.uuid === this.orgSelected()) || { razonSocial: '', rut: '' };
+    const orgInfo = this.userStateService.organizationProfile().find((org: UserOrgProfileState) => org.uuid === this.orgSelected()) || { razonSocial: '', rut: '' };
     const newFactura: FacturaType = {
       assetId: '',
       facturaId: '',
@@ -206,18 +206,35 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
   public async publicarFactura(event: FacturaFormularioPublicacion | FacturaConfirmRequestEvent): Promise<void> {
     switch (event.type) {
-      case 'formulario':
+      case 'formulario': {
         const data = (event as FacturaFormularioPublicacion).data;
+
+        // Paso 1: Crear la factura
         const facturaCreada = await this.handleManualFormPublish(data);
-      
+        if (!facturaCreada) {
+          return; // Error en la creación — ya se registró en handleManualFormPublish
+        }
+
+        // Paso 2: Pedir consentimiento de términos de publicación
+        const authorizationResult = await this.confirmarAutorizacionParaPublicar(facturaCreada.facturaNumero || undefined);
+        const nextStatus = this.facturasService.resolveEstadoFromAuthorization(authorizationResult);
+
+        // Paso 3: Actualizar permisos según la respuesta del usuario
+        try {
+          await this.facturasService.actualizarEstadoFactura(facturaCreada, nextStatus);
+          const facturaActualizada: FacturaType = { ...facturaCreada, status: nextStatus };
+          this.actualizarFacturaInMemory(facturaActualizada);
+        } catch (err) {
+          console.error('Error al actualizar estado tras consentimiento:', err);
+        }
         break;
+      }
       case 'confirmar':
         await this.handleFacturaConfirmRequest(event as FacturaConfirmRequestEvent);
         break;
       default:
         console.warn('Evento de publicación desconocido:', event);
     }
-
   }
 
 
