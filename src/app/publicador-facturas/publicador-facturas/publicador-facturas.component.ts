@@ -1,7 +1,7 @@
 import { Component, EffectRef, Injector, OnDestroy, OnInit, Signal, effect, signal } from '@angular/core';
 import { FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UserProfileService, UserStateService } from 'shared-utils';
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
-import { FacturaManualFormValue } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
+import { FacturaData, FacturaFormularioPublicacion } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
 import Swal from 'sweetalert2';
 import { FacturaConfirmRequestEvent } from '../component/factura-view/factura-view.component';
@@ -119,10 +119,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     await this.publishFile(file);
   }
 
-  async handleManualFormPublish(formValue: FacturaManualFormValue): Promise<void> {
-    const hasAuthorization = await this.confirmPublicationAuthorization();
-    const status = this.facturasService.resolveEstadoFromAuthorization(hasAuthorization);
-
+  async handleManualFormPublish(data: FacturaData): Promise<FacturaType | undefined> {
     const optimisticCorrelationId = this.buildOptimisticCorrelationId();
     const orgInfo = this.userStateService.organizationProfile().find(org => org.uuid === this.orgSelected()) || { razonSocial: '', rut: '' };
     const newFactura: FacturaType = {
@@ -136,27 +133,27 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
         username: this.userName(),
       },
       gestorUUID: '',
-      deudorNombre: formValue.nombreRazonSocialDeudor,
-      deudorRut: formValue.rutDeudor,
-      facturaNumero: formValue.numeroFactura,
-      montoTotal: formValue.montoTotal,
-      fechaVencimiento: new Date(formValue.fechaVencimiento),
-      status: status,
-      correlationId: optimisticCorrelationId,
+      deudorNombre: data.nombreRazonSocialDeudor,
+      deudorRut: data.rutDeudor,
+      facturaNumero: data.numeroFactura,
+      montoTotal: data.montoTotal,
+      fechaVencimiento: new Date(data.fechaVencimiento),
+      status: facturaEstado.PENDIENTE_AUTORIZACION, // primero se crea la factura, y luego se actualiza los permisos de publicacion.
       storage_key: '',
       ofertas: '0',
+      correlationId: '',
     }
 
     const requestFactura: FacturaCreateRequestDto = {
       facturaId: '',
       ownerUUID: this.orgSelected(),
-      numeroFactura: formValue.numeroFactura,
-      rutDeudor: formValue.rutDeudor,
-      nombreDeudor: formValue.nombreRazonSocialDeudor,
+      numeroFactura: data.numeroFactura,
+      rutDeudor: data.rutDeudor,
+      nombreDeudor: data.nombreRazonSocialDeudor,
       correlationId: optimisticCorrelationId,
-      montoTotal: formValue.montoTotal,
-      fechaVencimiento: new Date(formValue.fechaVencimiento),
-      status: status,
+      montoTotal: data.montoTotal,
+      fechaVencimiento: new Date(data.fechaVencimiento),
+      status: facturaEstado.PENDIENTE_AUTORIZACION, // primero se crea la factura, y luego se actualiza los permisos de publicacion.
       gestor: {
         uuid: '',
         username: this.userName(),
@@ -168,38 +165,63 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     this.isPublicationModalOpen = false;
 
     this.isPublishing = true;
+    let respuestaFactura: FacturaType;
     try {
-      const response: FacturaType = await this.facturasService.publicarFactura(requestFactura);
-      console.log('Factura publicada:', response);
-      this.actualizarFacturaInMemory(response, optimisticCorrelationId, formValue);
+      respuestaFactura = await this.facturasService.publicarFactura(requestFactura);
+      console.log('Factura publicada:', respuestaFactura);
+      this.actualizarFacturaInMemory(respuestaFactura, optimisticCorrelationId, data);
+      return respuestaFactura;
     } catch (err) {
       console.error('Error al publicar factura manual:', err);
+      return undefined;
     } finally {
       this.isPublishing = false;
     }
   }
 
+  /**
+   * Se ejecuta cuando Confirma validacion de formulario factura.
+   * @param event 
+   * @returns 
+   */
   async handleFacturaConfirmRequest(event: FacturaConfirmRequestEvent): Promise<void> {
-    const hasAuthorization = await this.confirmPublicationAuthorization(event.factura.facturaNumero || undefined);
+    const hasAuthorization = await this.confirmarAutorizacionParaPublicar(event.data.factura.facturaNumero || undefined);
     const nextStatus = this.facturasService.resolveEstadoFromAuthorization(hasAuthorization);
-
-    if (!event.factura.facturaId) {
-      event.onCompleted({ authorized: hasAuthorization, updated: false, status: nextStatus });
+    if (!event.data.factura.facturaId) {
+      event.data.onCompleted({ authorized: hasAuthorization, updated: false, status: nextStatus });
       return;
     }
 
     try {
-      await this.facturasService.actualizarEstadoFactura(event.factura, nextStatus);
-      const updatedFactura: FacturaType = { ...event.factura, status: nextStatus };
+      await this.facturasService.actualizarEstadoFactura(event.data.factura, nextStatus);
+      const updatedFactura: FacturaType = { ...event.data.factura, status: nextStatus };
       this.actualizarFacturaInMemory(updatedFactura);
-      event.onCompleted({ authorized: hasAuthorization, updated: true, status: nextStatus });
+      event.data.onCompleted({ authorized: hasAuthorization, updated: true, status: nextStatus });
     } catch (err) {
       console.error('Error al actualizar estado de factura:', err);
-      event.onCompleted({ authorized: hasAuthorization, updated: false, status: event.factura.status });
+      event.data.onCompleted({ authorized: hasAuthorization, updated: false, status: event.data.factura.status });
     }
   }
 
-  private async confirmPublicationAuthorization(facturaNumero?: string): Promise<any> {
+
+  public async publicarFactura(event: FacturaFormularioPublicacion | FacturaConfirmRequestEvent): Promise<void> {
+    switch (event.type) {
+      case 'formulario':
+        const data = (event as FacturaFormularioPublicacion).data;
+        const facturaCreada = await this.handleManualFormPublish(data);
+      
+        break;
+      case 'confirmar':
+        await this.handleFacturaConfirmRequest(event as FacturaConfirmRequestEvent);
+        break;
+      default:
+        console.warn('Evento de publicación desconocido:', event);
+    }
+
+  }
+
+
+  private async confirmarAutorizacionParaPublicar(facturaNumero?: string): Promise<any> {
     const facturaReference = String(facturaNumero ?? '').trim();
     const facturaLabel = facturaReference ? `Factura N° ${facturaReference}` : 'Factura';
     const authorizationText = [
@@ -236,7 +258,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   actualizarFacturaInMemory(
     updatedFactura: FacturaType,
     optimisticCorrelationId?: string,
-    originalFormValue?: FacturaManualFormValue
+    originalFormValue?: FacturaData
   ): void {
     const targetFacturaId = this.normalizeText(updatedFactura.facturaId);
     const targetCorrelationId = this.normalizeText(updatedFactura.correlationId) || this.normalizeText(optimisticCorrelationId);

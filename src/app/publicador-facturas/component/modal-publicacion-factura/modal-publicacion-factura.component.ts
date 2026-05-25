@@ -1,12 +1,17 @@
 import { Component, EventEmitter, Input, OnDestroy, Output } from '@angular/core';
 import { NgbDateStruct } from '@ng-bootstrap/ng-bootstrap';
 
-export interface FacturaManualFormValue {
+export interface FacturaData {
     numeroFactura: string;
     rutDeudor: string;
     nombreRazonSocialDeudor: string;
     montoTotal: number;
     fechaVencimiento: string;
+};
+
+export interface FacturaFormularioPublicacion {
+    type: string;
+    data: FacturaData;
 }
 
 type ManualField = 'numeroFactura' | 'rutDeudor' | 'nombreRazonSocialDeudor' | 'montoTotal' | 'fechaVencimiento';
@@ -23,7 +28,7 @@ export class ModalPublicacionFacturaComponent implements OnDestroy {
 
     @Output() closeModal = new EventEmitter<void>();
     @Output() submitFile = new EventEmitter<File>();
-    @Output() submitForm = new EventEmitter<FacturaManualFormValue>();
+    @Output() submitForm = new EventEmitter<FacturaFormularioPublicacion>();
 
     activeTab: 'upload' | 'form' = 'upload';
     isDragging = false;
@@ -158,13 +163,18 @@ export class ModalPublicacionFacturaComponent implements OnDestroy {
             return;
         }
 
-        this.submitForm.emit({
-            numeroFactura: this.manualForm.numeroFactura.trim(),
-            rutDeudor: this.manualForm.rutDeudor.trim(),
-            nombreRazonSocialDeudor: this.manualForm.nombreRazonSocialDeudor.trim(),
-            montoTotal: this.parseMonto(this.manualForm.montoTotal),
-            fechaVencimiento: this.manualForm.fechaVencimiento
-        });
+        this.submitForm.emit(
+            {
+                type: 'formulario',
+                data: {
+                    numeroFactura: this.manualForm.numeroFactura.trim(),
+                    rutDeudor: this.manualForm.rutDeudor.trim(),
+                    nombreRazonSocialDeudor: this.manualForm.nombreRazonSocialDeudor.trim(),
+                    montoTotal: this.parseMonto(this.manualForm.montoTotal),
+                    fechaVencimiento: this.manualForm.fechaVencimiento
+                }
+            }
+        );
     }
 
     markFieldTouched(field: ManualField): void {

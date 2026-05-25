@@ -21,8 +21,11 @@ interface FacturaFieldUpdateEvent {
 }
 
 export interface FacturaConfirmRequestEvent {
-  factura: FacturaType;
-  onCompleted: (result: { authorized: boolean; updated: boolean; status: facturaEstado }) => void;
+  type: string;
+  data: {
+    factura: FacturaType;
+    onCompleted: (result: { authorized: boolean; updated: boolean; status: facturaEstado }) => void;
+  }
 }
 
 @Component({
@@ -422,18 +425,23 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
       return;
     }
 
-    this.confirmFacturaRequest.emit({
-      factura: this.facturaOriginal(),
-      onCompleted: (result) => {
-        if (!result.updated) {
-          return;
-        }
+    this.confirmFacturaRequest.emit(
+      {
+        type: 'confirmar',
+        data: {
+          factura: this.facturaOriginal(),
+          onCompleted: (result) => {
+            if (!result.updated) {
+              return;
+            }
 
-        this.estadoConfirmado.set(true);
-        this.estadoFactura.set(this.prettyStatus(result.status));
-        this.facturaOriginal.update(current => ({ ...current, status: result.status }));
+            this.estadoConfirmado.set(true);
+            this.estadoFactura.set(this.prettyStatus(result.status));
+            this.facturaOriginal.update(current => ({ ...current, status: result.status }));
+          }
+        }
       }
-    });
+    );
   }
 
   private buildFields(factura: FacturaType): FacturaFieldEditable[] {
