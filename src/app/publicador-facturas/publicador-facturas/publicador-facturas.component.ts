@@ -1,7 +1,7 @@
 import { Component, EffectRef, Injector, OnDestroy, OnInit, Signal, effect, signal } from '@angular/core';
 import { AutorizacionPublicacionDto, FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos } from 'shared-utils';
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
-import { FacturaData, FacturaFormularioPublicacion } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
+import { FacturaData, FacturaFormularioPublicacion, modalPublishMetadata } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
 import Swal from 'sweetalert2';
 import { FacturaConfirmRequestEvent } from '../component/factura-view/factura-view.component';
@@ -119,61 +119,32 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     await this.publishFile(file);
   }
 
-  async handleManualFormPublish(data: FacturaData): Promise<FacturaType | undefined> {
-    const optimisticCorrelationId = this.buildOptimisticCorrelationId();
-    const orgInfo = this.userStateService.organizationProfile().find((org: UserOrgProfileState) => org.uuid === this.orgSelected()) || { razonSocial: '', rut: '' };
-    const newFactura: FacturaType = {
-      assetId: '',
-      facturaId: '',
-      ownerUUID: this.orgSelected(),
-      nombre_mandante: orgInfo.razonSocial || '',
-      rut_mandante: orgInfo.rut || 'Recuperando...', // Podríamos obtenerlo de orgSelectedInfo si lo tuviéramos allí
-      gestor: {
-        uuid: '',
-        username: this.userName(),
-      },
-      gestorUUID: '',
-      deudorNombre: data.nombreRazonSocialDeudor,
-      deudorRut: data.rutDeudor,
-      facturaNumero: data.numeroFactura,
-      montoTotal: data.montoTotal,
-      fechaVencimiento: new Date(data.fechaVencimiento),
-      status: facturaEstado.PENDIENTE_AUTORIZACION, // primero se crea la factura, y luego se actualiza los permisos de publicacion.
-      storage_key: '',
-      ofertas: '0',
-      correlationId: '',
-    }
-
+  async handleManualFormPublish(data: FacturaData, correlationId: string): Promise<{ data?: FacturaType; errorMsg?: string }> {
     const requestFactura: FacturaCreateRequestDto = {
       facturaId: '',
       ownerUUID: this.orgSelected(),
       numeroFactura: data.numeroFactura,
       rutDeudor: data.rutDeudor,
       nombreDeudor: data.nombreRazonSocialDeudor,
-      correlationId: optimisticCorrelationId,
+      correlationId,
       montoTotal: data.montoTotal,
       fechaVencimiento: new Date(data.fechaVencimiento),
-      status: facturaEstado.PENDIENTE_AUTORIZACION, // primero se crea la factura, y luego se actualiza los permisos de publicacion.
+      status: facturaEstado.PENDIENTE_AUTORIZACION,
       gestor: {
         uuid: '',
         username: this.userName(),
       },
     };
 
-    this.facturas = [newFactura, ...this.facturas];
-    this.applyFiltersAndSort();
-    this.isPublicationModalOpen = false;
-
     this.isPublishing = true;
-    let respuestaFactura: FacturaType;
     try {
-      respuestaFactura = await this.facturasService.publicarFactura(requestFactura);
-      console.log('Factura publicada:', respuestaFactura);
-      this.actualizarFacturaInMemory(respuestaFactura, optimisticCorrelationId, data);
-      return respuestaFactura;
-    } catch (err) {
+      const factura = await this.facturasService.publicarFactura(requestFactura);
+      return { data: factura };
+    } catch (err: any) {
+      const errorMsg = err?.error?.message || err?.message || 'Error desconocido al publicar la factura.';
       console.error('Error al publicar factura manual:', err);
-      return undefined;
+      // Swal.fire({ icon: 'error', title: 'No se pudo publicar', text: errorMsg });
+      return { errorMsg };
     } finally {
       this.isPublishing = false;
     }
@@ -205,17 +176,51 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
 
   public async publicarFactura(event: FacturaFormularioPublicacion | FacturaConfirmRequestEvent): Promise<void> {
+    const orgInfo = this.userStateService.organizationProfile().find((org: UserOrgProfileState) => org.uuid === this.orgSelected()) || { razonSocial: '', rut: '' };
     switch (event.type) {
       case 'formulario': {
         const data = (event as FacturaFormularioPublicacion).data;
+        const optimisticCorrelationId = this.buildOptimisticCorrelationId();
 
-        // Paso 1: Crear la factura
-        const facturaCreada = await this.handleManualFormPublish(data);
+        // Paso 1: Insertar factura optimista en estado PROCESANDO y cerrar el modal inmediatamente
+        const newFactura: FacturaType = {
+          assetId: '',
+          facturaId: '',
+          ownerUUID: this.orgSelected(),
+          nombre_mandante: orgInfo.razonSocial || '',
+          rut_mandante: orgInfo.rut || 'Recuperando...',
+          gestor: {
+            uuid: '',
+            username: this.userName(),
+          },
+          gestorUUID: '',
+          deudorNombre: data.nombreRazonSocialDeudor,
+          deudorRut: data.rutDeudor,
+          facturaNumero: data.numeroFactura,
+          montoTotal: data.montoTotal,
+          fechaVencimiento: new Date(data.fechaVencimiento),
+          status: facturaEstado.PROCESANDO,
+          storage_key: '',
+          ofertas: '0',
+          correlationId: optimisticCorrelationId,
+        };
+        this.facturas = [newFactura, ...this.facturas];
+        this.applyFiltersAndSort();
+        this.isPublicationModalOpen = false;
+
+        // Paso 2: Enviar al backend (modal ya cerrado)
+        const { data: facturaCreada, errorMsg } = await this.handleManualFormPublish(data, optimisticCorrelationId);
         if (!facturaCreada) {
-          return; // Error en la creación — ya se registró en handleManualFormPublish
+          // El backend rechazó la creación — marcar la optimista como RECHAZADA con el motivo
+          const notas = errorMsg ? [errorMsg] : ['Publicación rechazada por el servidor.'];
+          this.facturas = this.facturas.map(f =>
+            f.correlationId === optimisticCorrelationId ? { ...f, status: facturaEstado.RECHAZADA, notas } : f
+          );
+          this.applyFiltersAndSort();
+          return;
         }
 
-        // Paso 2: Obtener términos vigentes del backend
+        // Paso 3: Obtener términos vigentes del backend
         let versionTerminos: VersionTerminos | undefined;
         try {
           versionTerminos = await this.facturasService.obtenerVersionTerminosActiva();
@@ -223,14 +228,14 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
           // Continúa con texto genérico si el fetch falla
         }
 
-        // Paso 3: Mostrar modal con términos reales (o texto de respaldo)
+        // Paso 4: Mostrar modal de confirmación de términos
         const authorizationResult = await this.confirmarAutorizacionParaPublicar(
           facturaCreada.facturaNumero || undefined,
           versionTerminos
         );
         const nextStatus = this.facturasService.resolveEstadoFromAuthorization(authorizationResult);
 
-        // Paso 4: Registrar autorización en BD (el trigger actualiza el status atómicamente)
+        // Paso 5: Registrar autorización (WebSocket actualizará el estado final)
         try {
           if (versionTerminos) {
             await this.facturasService.registrarAutorizacion({
@@ -240,10 +245,9 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
               correlationId: facturaCreada.correlationId || undefined
             } satisfies AutorizacionPublicacionDto);
           } else {
-            // Fallback si el endpoint de términos no está disponible
             await this.facturasService.actualizarEstadoFactura(facturaCreada, nextStatus);
           }
-          this.actualizarFacturaInMemory({ ...facturaCreada, status: nextStatus });
+          this.actualizarFacturaInMemory({ ...facturaCreada, status: nextStatus }, optimisticCorrelationId, data);
         } catch (err) {
           console.error('Error al registrar autorización:', err);
         }
@@ -264,12 +268,12 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     const cuerpoTerminos = versionTerminos?.textCompleto
       ? `<p style="text-align:left; font-size:0.9rem; margin:0.75rem 0">${versionTerminos.textCompleto}</p>`
       : [
-          '<p>Al aceptar, declaras que:</p>',
-          '<ul style="text-align:left; margin:0.5rem 0 0 1.25rem;">',
-          '<li>Autorizas la publicación de la factura.</li>',
-          '<li>Autorizas la notificación a entidades financieras para su evaluación.</li>',
-          '</ul>'
-        ].join('');
+        '<p>Al aceptar, declaras que:</p>',
+        '<ul style="text-align:left; margin:0.5rem 0 0 1.25rem;">',
+        '<li>Autorizas la publicación de la factura.</li>',
+        '<li>Autorizas la notificación a entidades financieras para su evaluación.</li>',
+        '</ul>'
+      ].join('');
     const authorizationText = [
       `<p><strong>${facturaLabel}</strong></p>`,
       '<p>Debes confirmar expresamente la autorización para continuar.</p>',
@@ -352,6 +356,24 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     return this.normalizeText(this.userRole()).includes('ADMIN');
   }
 
+  publicationMetadata: modalPublishMetadata = { numeroFacturaExistentes: [], deudoresExistentes: [] };
+
+  private rebuildPublicationMetadata(): void {
+    const seen = new Set<string>();
+    const deudoresExistentes: modalPublishMetadata['deudoresExistentes'] = [];
+    for (const f of this.facturas) {
+      const rut = (f.deudorRut ?? '').trim();
+      if (rut && !seen.has(rut)) {
+        seen.add(rut);
+        deudoresExistentes.push({ rut, nombre: (f.deudorNombre ?? '').trim() });
+      }
+    }
+    const numeroFacturaExistentes = this.facturas
+      .map(f => Number.parseInt(f.facturaNumero, 10))
+      .filter(n => Number.isFinite(n) && n > 0);
+    this.publicationMetadata = { numeroFacturaExistentes, deudoresExistentes };
+  }
+
   onFiltersChange(filters: FacturaFilters): void {
     this.activeFilters = { ...filters };
     this.applyFiltersAndSort();
@@ -396,6 +418,11 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
     return count;
   }
+
+  /**
+   * Bloque que resalta la factura publicada recientemente
+   * 
+   */
 
   isFacturaRecentlyPublished(factura: FacturaType): boolean {
     return this.highlightedFacturaKey === this.getFacturaVisualKey(factura);
@@ -490,6 +517,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     }
 
     this.filteredFacturas = filtered;
+    this.rebuildPublicationMetadata();
   }
 
   private compareFacturaStatus(a: facturaEstado, b: facturaEstado): number {

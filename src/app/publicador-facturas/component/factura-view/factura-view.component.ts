@@ -123,6 +123,10 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
       this.resolveImageSource(updatedFactura);
       this.camposFactura.set(this.buildFields(updatedFactura));
 
+      if (updatedFactura.notas?.length) {
+        this.notificacionesFactura.set(updatedFactura.notas);
+      }
+
       if (!this.isPendingValidation || this.isMobileView()) {
         this.showPdfView.set(false);
       }

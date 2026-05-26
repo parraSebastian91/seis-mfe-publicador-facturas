@@ -1,6 +1,15 @@
 import { Component, EventEmitter, Input, OnDestroy, Output } from '@angular/core';
 import { NgbDateStruct } from '@ng-bootstrap/ng-bootstrap';
 
+export interface modalPublishMetadata {
+    numeroFacturaExistentes: number[];
+    deudoresExistentes: {
+        rut: string;
+        nombre: string;
+    }[];
+}
+
+
 export interface FacturaData {
     numeroFactura: string;
     rutDeudor: string;
@@ -25,6 +34,7 @@ type ManualField = 'numeroFactura' | 'rutDeudor' | 'nombreRazonSocialDeudor' | '
 export class ModalPublicacionFacturaComponent implements OnDestroy {
     @Input() isOpen = false;
     @Input() isSubmitting = false;
+    @Input() metadata: modalPublishMetadata | undefined;
 
     @Output() closeModal = new EventEmitter<void>();
     @Output() submitFile = new EventEmitter<File>();
@@ -191,6 +201,9 @@ export class ModalPublicacionFacturaComponent implements OnDestroy {
                 if (!this.manualForm.numeroFactura.trim()) {
                     return 'El numero de factura es obligatorio.';
                 }
+                if (this.isNumeroFacturaDuplicado()) {
+                    return 'Este numero de factura ya existe en el listado.';
+                }
                 return 'Debe contener solo numeros, sin formato.';
 
             case 'rutDeudor':
@@ -242,6 +255,26 @@ export class ModalPublicacionFacturaComponent implements OnDestroy {
         this.markFieldTouchedDebounced('nombreRazonSocialDeudor');
     }
 
+    /** Auto-fill nombre from RUT selection. */
+    onRutChange(event: Event): void {
+        const value = (event.target as HTMLInputElement).value.trim();
+        const match = this.metadata?.deudoresExistentes.find(d => d.rut === value);
+        if (match?.nombre && !this.manualForm.nombreRazonSocialDeudor.trim()) {
+            this.manualForm.nombreRazonSocialDeudor = match.nombre;
+            this.touchedFields.nombreRazonSocialDeudor = true;
+        }
+    }
+
+    /** Auto-fill RUT from nombre selection. */
+    onNombreDeudorChange(event: Event): void {
+        const value = (event.target as HTMLInputElement).value.trim();
+        const match = this.metadata?.deudoresExistentes.find(d => d.nombre === value);
+        if (match?.rut && !this.manualForm.rutDeudor.trim()) {
+            this.manualForm.rutDeudor = match.rut;
+            this.touchedFields.rutDeudor = true;
+        }
+    }
+
     onMontoInput(event: Event): void {
         this.markFieldTouchedDebounced('montoTotal');
         const target = event.target as HTMLInputElement;
@@ -270,7 +303,8 @@ export class ModalPublicacionFacturaComponent implements OnDestroy {
     private isFieldValid(field: ManualField): boolean {
         switch (field) {
             case 'numeroFactura':
-                return /^\d+$/.test(this.manualForm.numeroFactura.trim());
+                return /^\d+$/.test(this.manualForm.numeroFactura.trim())
+                    && !this.isNumeroFacturaDuplicado();
 
             case 'rutDeudor':
                 return /^\d{1,2}\.\d{3}\.\d{3}-[\dkK]$/.test(this.manualForm.rutDeudor.trim());
@@ -287,6 +321,18 @@ export class ModalPublicacionFacturaComponent implements OnDestroy {
             default:
                 return false;
         }
+    }
+
+    trackByDeudorRut(_index: number, d: { rut: string; nombre: string }): string {
+        return d.rut;
+    }
+
+    private isNumeroFacturaDuplicado(): boolean {
+        const numero = Number.parseInt(this.manualForm.numeroFactura.trim(), 10);
+        if (!Number.isFinite(numero)) {
+            return false;
+        }
+        return (this.metadata?.numeroFacturaExistentes ?? []).includes(numero);
     }
 
     private isDateTodayOrLater(value: string): boolean {

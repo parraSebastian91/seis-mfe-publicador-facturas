@@ -56,7 +56,8 @@
           Numero de factura
           <input type="text" name="numeroFactura" [(ngModel)]="manualForm.numeroFactura" [disabled]="isSubmitting"
             [class.invalid-field]="shouldShowFieldError('numeroFactura')" placeholder="Ej: 123456789"
-            inputmode="numeric" autocomplete="off" (input)="onNumeroFacturaInput($event)"
+            inputmode="numeric" autocomplete="off"
+            (input)="onNumeroFacturaInput($event)"
             (blur)="markFieldTouched('numeroFactura')" required />
           <small class="field-error" *ngIf="shouldShowFieldError('numeroFactura')">{{ getFieldErrorMessage('numeroFactura') }}</small>
         </label>
@@ -65,7 +66,13 @@
           RUT deudor
           <input type="text" name="rutDeudor" [(ngModel)]="manualForm.rutDeudor" [disabled]="isSubmitting"
             [class.invalid-field]="shouldShowFieldError('rutDeudor')" placeholder="Ej: 12.345.678-9"
-            autocomplete="off" (input)="onRutInput($event)" (blur)="markFieldTouched('rutDeudor')" required />
+            autocomplete="off" list="datalist-rut-deudor"
+            (input)="onRutInput($event)"
+            (change)="onRutChange($event)"
+            (blur)="markFieldTouched('rutDeudor')" required />
+          <datalist id="datalist-rut-deudor">
+            <option *ngFor="let d of metadata?.deudoresExistentes; trackBy: trackByDeudorRut" [value]="d.rut" [label]="d.nombre"></option>
+          </datalist>
           <small class="field-error" *ngIf="shouldShowFieldError('rutDeudor')">{{ getFieldErrorMessage('rutDeudor') }}</small>
         </label>
 
@@ -73,9 +80,13 @@
           Razon social deudor
           <input type="text" name="nombreRazonSocialDeudor" [(ngModel)]="manualForm.nombreRazonSocialDeudor"
             [disabled]="isSubmitting" [class.invalid-field]="shouldShowFieldError('nombreRazonSocialDeudor')"
-            placeholder="Ej: Comercial Acme Spa" autocomplete="off"
+            placeholder="Ej: Comercial Acme Spa" autocomplete="off" list="datalist-nombre-deudor"
             (input)="onNombreRazonSocialInput()"
+            (change)="onNombreDeudorChange($event)"
             (blur)="markFieldTouched('nombreRazonSocialDeudor')" required />
+          <datalist id="datalist-nombre-deudor">
+            <option *ngFor="let d of metadata?.deudoresExistentes; trackBy: trackByDeudorRut" [value]="d.nombre" [label]="d.rut"></option>
+          </datalist>
           <small class="field-error" *ngIf="shouldShowFieldError('nombreRazonSocialDeudor')">{{ getFieldErrorMessage('nombreRazonSocialDeudor') }}</small>
         </label>
 
