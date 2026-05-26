@@ -1,5 +1,5 @@
 import { Component, EffectRef, Injector, OnDestroy, OnInit, Signal, effect, signal } from '@angular/core';
-import { FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UserOrgProfileState, UserProfileService, UserStateService } from 'shared-utils';
+import { AutorizacionPublicacionDto, FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos } from 'shared-utils';
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
 import { FacturaData, FacturaFormularioPublicacion } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
@@ -215,17 +215,37 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
           return; // Error en la creación — ya se registró en handleManualFormPublish
         }
 
-        // Paso 2: Pedir consentimiento de términos de publicación
-        const authorizationResult = await this.confirmarAutorizacionParaPublicar(facturaCreada.facturaNumero || undefined);
+        // Paso 2: Obtener términos vigentes del backend
+        let versionTerminos: VersionTerminos | undefined;
+        try {
+          versionTerminos = await this.facturasService.obtenerVersionTerminosActiva();
+        } catch {
+          // Continúa con texto genérico si el fetch falla
+        }
+
+        // Paso 3: Mostrar modal con términos reales (o texto de respaldo)
+        const authorizationResult = await this.confirmarAutorizacionParaPublicar(
+          facturaCreada.facturaNumero || undefined,
+          versionTerminos
+        );
         const nextStatus = this.facturasService.resolveEstadoFromAuthorization(authorizationResult);
 
-        // Paso 3: Actualizar permisos según la respuesta del usuario
+        // Paso 4: Registrar autorización en BD (el trigger actualiza el status atómicamente)
         try {
-          await this.facturasService.actualizarEstadoFactura(facturaCreada, nextStatus);
-          const facturaActualizada: FacturaType = { ...facturaCreada, status: nextStatus };
-          this.actualizarFacturaInMemory(facturaActualizada);
+          if (versionTerminos) {
+            await this.facturasService.registrarAutorizacion({
+              facturaId: facturaCreada.facturaId,
+              versionTerminosId: versionTerminos.id,
+              acepto: authorizationResult.isConfirmed,
+              correlationId: facturaCreada.correlationId || undefined
+            } satisfies AutorizacionPublicacionDto);
+          } else {
+            // Fallback si el endpoint de términos no está disponible
+            await this.facturasService.actualizarEstadoFactura(facturaCreada, nextStatus);
+          }
+          this.actualizarFacturaInMemory({ ...facturaCreada, status: nextStatus });
         } catch (err) {
-          console.error('Error al actualizar estado tras consentimiento:', err);
+          console.error('Error al registrar autorización:', err);
         }
         break;
       }
@@ -238,17 +258,22 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   }
 
 
-  private async confirmarAutorizacionParaPublicar(facturaNumero?: string): Promise<any> {
+  private async confirmarAutorizacionParaPublicar(facturaNumero?: string, versionTerminos?: VersionTerminos): Promise<any> {
     const facturaReference = String(facturaNumero ?? '').trim();
     const facturaLabel = facturaReference ? `Factura N° ${facturaReference}` : 'Factura';
+    const cuerpoTerminos = versionTerminos?.textCompleto
+      ? `<p style="text-align:left; font-size:0.9rem; margin:0.75rem 0">${versionTerminos.textCompleto}</p>`
+      : [
+          '<p>Al aceptar, declaras que:</p>',
+          '<ul style="text-align:left; margin:0.5rem 0 0 1.25rem;">',
+          '<li>Autorizas la publicación de la factura.</li>',
+          '<li>Autorizas la notificación a entidades financieras para su evaluación.</li>',
+          '</ul>'
+        ].join('');
     const authorizationText = [
       `<p><strong>${facturaLabel}</strong></p>`,
       '<p>Debes confirmar expresamente la autorización para continuar.</p>',
-      '<p>Al aceptar, declaras que:</p>',
-      '<ul style="text-align:left; margin:0.5rem 0 0 1.25rem;">',
-      '<li>Autorizas la publicación de la factura.</li>',
-      '<li>Autorizas la notificación a entidades financieras para su evaluación.</li>',
-      '</ul>'
+      cuerpoTerminos
     ].join('');
 
     const result = await Swal.fire({
@@ -261,7 +286,8 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       reverseButtons: true,
       allowOutsideClick: !this.isPublishing,
       allowEscapeKey: !this.isPublishing,
-      focusCancel: true
+      focusCancel: true,
+      footer: versionTerminos ? `<small>Versión términos: ${versionTerminos.codigo}</small>` : undefined
     });
 
     return result;
