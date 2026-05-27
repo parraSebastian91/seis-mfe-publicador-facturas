@@ -13,8 +13,12 @@
                 <span class="description-separator" *ngIf="!last">|</span>
               </ng-container>
               <button type="button" class="notification-btn" aria-label="Notificaciones de esta factura">
-                <mat-icon class="notification-icon" [matBadge]="ofertasCount()" [matBadgeHidden]="!ofertasCount()"
-                  matBadgeColor="warn" matBadgePosition="above after" matBadgeSize="large">price_change</mat-icon>
+                <mat-icon class="notification-icon">{{!ofertasCount()? 'notifications_off' :
+                  'notifications_unread'}}</mat-icon>
+              </button>
+              <button type="button" class="notification-btn" aria-label="respaldo de esta factura">
+                <mat-icon class="notification-icon">{{canUploadRespaldo ? 'receipt_long_off' :
+                  'receipt_long'}}</mat-icon>
               </button>
             </div>
           </mat-panel-description>
@@ -44,19 +48,24 @@
             <p class="pdf-empty" *ngIf="!isPendingValidation">Vista de imagen deshabilitada para este estado.</p>
           </div> -->
 
-          <button type="button" class="toggle-pdf-btn" [disabled]="!isPendingValidation" (click)="togglePdfView()">
+          <button type="button" class="toggle-pdf-btn" [disabled]="!imageSrc()" (click)="togglePdfView()"
+            *ngIf="!canUploadRespaldo">
             {{ showPdfView() ? 'Ocultar imagen' : 'Ver imagen' }}
+          </button>
+
+          <button type="button" class="toggle-pdf-btn" *ngIf="canUploadRespaldo" (click)="requestUploadRespaldo()">
+            Subir respaldo
           </button>
         </div>
 
-        <div class="split-layout" [class.pdf-hidden]="!showPdfView()">
+        <div class="split-layout" [class.pdf-hidden]="!showPdfView() || canUploadRespaldo">
           <section class="loading-pane" *ngIf="splitLayoutLoading()">
             <div class="spinner"></div>
             <p>Procesando factura, esperando respuesta por WebSocket (Correlation ID).</p>
           </section>
 
           <ng-container *ngIf="!splitLayoutLoading()">
-            <section class="pdf-pane" *ngIf="showPdfView() && canShowPdfViewer">
+            <section class="pdf-pane" *ngIf="showPdfView() && imageSrc() && !splitLayoutLoading()">
               <app-image-panzoom-viewer *ngIf="imageSrc()" [imageSrc]="imageSrc() ?? ''" [altText]="'Imagen de factura'"
                 [mobileMode]="isMobileView()">
               </app-image-panzoom-viewer>
@@ -98,8 +107,7 @@
 
                     <ng-template #manualInputTpl>
                       <ng-container *ngIf="campo.id === 'fechaVencimiento'; else montoInputWrapperTpl">
-                        <app-atomic-datepicker
-                          [value]="campo.draftValue"
+                        <app-atomic-datepicker [value]="campo.draftValue"
                           (valueChange)="updateDraftValue(campo.id, $event)"
                           (enterPressed)="validateField(campo.id, $event)"
                           (escapePressed)="cancelField(campo.id, $event)">
@@ -108,9 +116,8 @@
 
                       <ng-template #montoInputWrapperTpl>
                         <ng-container *ngIf="campo.id === 'montoTotal'; else rutInputWrapperTpl">
-                          <input class="field-input" [value]="campo.draftValue" inputmode="numeric"
-                            autocomplete="off" (click)="$event.stopPropagation()"
-                            (input)="onMontoDraftInput(campo.id, $event)"
+                          <input class="field-input" [value]="campo.draftValue" inputmode="numeric" autocomplete="off"
+                            (click)="$event.stopPropagation()" (input)="onMontoDraftInput(campo.id, $event)"
                             (keydown.enter)="validateField(campo.id, $event)"
                             (keydown.escape)="cancelField(campo.id, $event)" />
                         </ng-container>

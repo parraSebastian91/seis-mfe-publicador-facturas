@@ -26,7 +26,8 @@
         <li *ngFor="let factura of filteredFacturas; trackBy: trackByFacturaId"
           [class.factura-just-published]="isFacturaRecentlyPublished(factura)">
           <app-factura-view [factura]="factura" (facturaChange)="handleFacturaChange($event)"
-            (confirmFacturaRequest)="publicarFactura($event)">
+            (confirmFacturaRequest)="publicarFactura($event)"
+            (uploadRespaldoRequest)="handleUploadRespaldoRequest($event)">
           </app-factura-view>
         </li>
       </ul>

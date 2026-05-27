@@ -16,6 +16,7 @@ import { ModalPublicacionFacturaComponent } from './component/modal-publicacion-
 import { NgbDatepickerModule } from '@ng-bootstrap/ng-bootstrap';
 import { AtomicDatepickerComponent } from './component/atomic-datepicker/atomic-datepicker.component';
 import { AtomicFacturaFiltersComponent } from './component/atomic-factura-filters/atomic-factura-filters.component';
+import { A11yModule } from "@angular/cdk/a11y";
 
 registerLocaleData(localeEsCl);
 @NgModule({
@@ -35,8 +36,9 @@ registerLocaleData(localeEsCl);
     MatIconModule,
     MatBadgeModule,
     NgbDatepickerModule,
-    CdkAutofill
-  ],
+    CdkAutofill,
+    A11yModule
+],
   providers: [
     { provide: LOCALE_ID, useValue: 'es-CL' }
   ]

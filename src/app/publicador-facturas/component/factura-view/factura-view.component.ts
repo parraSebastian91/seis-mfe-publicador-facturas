@@ -28,6 +28,10 @@ export interface FacturaConfirmRequestEvent {
   }
 }
 
+export interface FacturaRespaldoRequestEvent {
+  factura: FacturaType;
+}
+
 @Component({
   selector: 'app-factura-view',
   templateUrl: './factura-view.component.html',
@@ -45,6 +49,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   @Input() factura: FacturaType = {} as FacturaType;
   @Output() facturaChange = new EventEmitter<FacturaFieldUpdateEvent>();
   @Output() confirmFacturaRequest = new EventEmitter<FacturaConfirmRequestEvent>();
+  @Output() uploadRespaldoRequest = new EventEmitter<FacturaRespaldoRequestEvent>();
 
   readonly panelOpenState = signal(false);
   readonly imageSrc = signal<string | undefined>(undefined);
@@ -179,6 +184,21 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     return this.isPendingValidation && !this.splitLayoutLoading();
   }
 
+  get hasFacturaAssetAnexo(): boolean {
+    const factura = this.facturaOriginal();
+    const assetId = String(factura.assetId ?? '').trim();
+    if (assetId) {
+      return true;
+    }
+
+    const source = this.extractImageSourceFromFactura(factura);
+    return !!source;
+  }
+
+  get canUploadRespaldo(): boolean {
+    return !this.hasFacturaAssetAnexo;
+  }
+
   get facturaNumeroHeader(): string {
     return this.getFieldDisplayValue('numeroFactura', this.facturaOriginal().facturaNumero || 'Sin numero');
   }
@@ -231,11 +251,21 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   // }
 
   togglePdfView(): void {
-    if (!this.isPendingValidation) {
+    if (!this.imageSrc()) {
       return;
     }
 
     this.showPdfView.update(value => !value);
+  }
+
+  requestUploadRespaldo(): void {
+    if (!this.canUploadRespaldo) {
+      return;
+    }
+
+    this.uploadRespaldoRequest.emit({
+      factura: this.facturaOriginal()
+    });
   }
 
   trackByCampoId(index: number, field: FacturaFieldEditable): string {
@@ -916,6 +946,10 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     for (const candidate of candidates) {
       const value = String(candidate ?? '').trim();
       if (!value) {
+        continue;
+      }
+
+      if (value.toUpperCase() === 'N/A') {
         continue;
       }
 

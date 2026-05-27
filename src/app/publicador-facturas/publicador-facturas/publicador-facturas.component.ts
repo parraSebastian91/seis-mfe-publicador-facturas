@@ -1,10 +1,11 @@
 import { Component, EffectRef, Injector, OnDestroy, OnInit, Signal, effect, signal } from '@angular/core';
-import { AutorizacionPublicacionDto, FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos } from 'shared-utils';
+import { Subscription } from 'rxjs';
+import { AutorizacionPublicacionDto, FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos } from 'shared-utils';
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
 import { FacturaData, FacturaFormularioPublicacion, modalPublishMetadata } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
 import Swal from 'sweetalert2';
-import { FacturaConfirmRequestEvent } from '../component/factura-view/factura-view.component';
+import { FacturaConfirmRequestEvent, FacturaRespaldoRequestEvent } from '../component/factura-view/factura-view.component';
 
 interface FacturaFieldUpdateEvent {
   factura: FacturaType;
@@ -23,12 +24,14 @@ interface FacturaFieldUpdateEvent {
 })
 export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   private readonly apiBase = 'http://localhost:8000';
+  private readonly respaldoModalContextPrefix = 'factura-respaldo:';
   private readonly publishedHighlightDurationMs = 2400;
   private readonly statusPriority: Record<string, number> = Object.values(facturaEstado).reduce((acc, estado, index) => {
     acc[estado] = index;
     return acc;
   }, {} as Record<string, number>);
   private publishedHighlightTimeoutId?: ReturnType<typeof setTimeout>;
+  private respaldoModalSubscription?: Subscription;
 
   facturas: FacturaType[] = [];
   filteredFacturas: FacturaType[] = [];
@@ -59,6 +62,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   constructor(
     private injector: Injector,
     private objectUploadService: ObjectUploadService,
+    private uploadModalService: UploadModalService,
     private userStateService: UserStateService,
     private userProfileService: UserProfileService,
     private facturasService: FacturasService
@@ -69,6 +73,10 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.respaldoModalSubscription = this.uploadModalService.fileSelected$.subscribe((result) => {
+      void this.handleRespaldoSelected(result.file, result.context);
+    });
+
     this.orgEffect = effect(() => {
       const organizacionUUID = this.orgSelected();
 
@@ -84,6 +92,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.orgEffect?.destroy();
+    this.respaldoModalSubscription?.unsubscribe();
     if (this.publishedHighlightTimeoutId) {
       clearTimeout(this.publishedHighlightTimeoutId);
     }
@@ -544,21 +553,195 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     }
   }
 
+  handleUploadRespaldoRequest(event: FacturaRespaldoRequestEvent): void {
+    const factura = event.factura;
+    const contextKey = this.getFacturaRespaldoContextKey(factura);
+    if (!contextKey) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No se pudo abrir carga',
+        text: 'La factura no tiene identificador para asociar el respaldo.'
+      });
+      return;
+    }
+
+    if (this.hasFacturaAssetAnexo(factura)) {
+      Swal.fire({
+        icon: 'info',
+        title: 'Factura con respaldo',
+        text: 'Esta factura ya tiene un respaldo asociado.'
+      });
+      return;
+    }
+
+    this.uploadModalService.open({
+      title: 'Subir respaldo',
+      hint: 'Selecciona el respaldo de la factura para anexarlo.',
+      accept: '.pdf,image/*',
+      context: `${this.respaldoModalContextPrefix}${contextKey}`
+    });
+  }
+
+  private async handleRespaldoSelected(file: File, context?: string): Promise<void> {
+    const safeContext = String(context ?? '');
+    if (!safeContext.startsWith(this.respaldoModalContextPrefix)) {
+      return;
+    }
+
+    const contextKey = safeContext.slice(this.respaldoModalContextPrefix.length).trim();
+    if (!contextKey) {
+      return;
+    }
+
+    const factura = this.findFacturaByRespaldoContext(contextKey);
+    if (!factura) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Factura no encontrada',
+        text: 'No se encontró la factura para asociar el respaldo.'
+      });
+      return;
+    }
+
+    if (this.hasFacturaAssetAnexo(factura)) {
+      Swal.fire({
+        icon: 'info',
+        title: 'Factura con respaldo',
+        text: 'La factura ya tiene respaldo asociado.'
+      });
+      return;
+    }
+
+    const facturaId = String(factura.facturaId ?? '').trim();
+    if (!facturaId) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Factura sin identificador',
+        text: 'No se puede anexar respaldo porque la factura no tiene idFactura.'
+      });
+      return;
+    }
+
+    try {
+      const currentUserName = await this.resolveCurrentUserName();
+      const respaldoTypeUpload = PATH_TYPES.DTE_FACTURA_RESPALDO || 'DTE-factura-respaldo';
+      const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(
+        this.apiBase,
+        respaldoTypeUpload,
+        file,
+        currentUserName,
+        this.orgSelected(),
+        facturaId
+      );
+
+      if (!respuesta?.objectUrl) {
+        throw new Error('No se obtuvo URL del respaldo subido.');
+      }
+
+      this.facturas = this.facturas.map((item) => {
+        if (!this.matchesFacturaContext(item, contextKey)) {
+          return item;
+        }
+
+        const updated = {
+          ...item,
+          storage_key: respuesta.objectUrl
+        } as FacturaType & { objectUrl?: string };
+        updated.objectUrl = respuesta.objectUrl;
+        return updated;
+      });
+
+      this.applyFiltersAndSort();
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Respaldo cargado',
+        text: 'El respaldo se subió correctamente.'
+      });
+    } catch (error: any) {
+      console.error('Error al subir respaldo de factura:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error al subir respaldo',
+        text: error?.message || 'No se pudo subir el respaldo de la factura.'
+      });
+    }
+  }
+
+  private getFacturaRespaldoContextKey(factura: FacturaType): string {
+    const facturaId = this.normalizeText(factura.facturaId).toLowerCase();
+    if (facturaId) {
+      return `id:${facturaId}`;
+    }
+
+    const correlationId = this.normalizeText(factura.correlationId).toLowerCase();
+    if (correlationId) {
+      return `corr:${correlationId}`;
+    }
+
+    return '';
+  }
+
+  private findFacturaByRespaldoContext(contextKey: string): FacturaType | undefined {
+    return this.facturas.find((item) => this.matchesFacturaContext(item, contextKey));
+  }
+
+  private matchesFacturaContext(factura: FacturaType, contextKey: string): boolean {
+    if (contextKey.startsWith('id:')) {
+      return this.normalizeText(factura.facturaId).toLowerCase() === contextKey.slice(3);
+    }
+
+    if (contextKey.startsWith('corr:')) {
+      return this.normalizeText(factura.correlationId).toLowerCase() === contextKey.slice(5);
+    }
+
+    return false;
+  }
+
+  private hasFacturaAssetAnexo(factura: FacturaType): boolean {
+    const assetId = String(factura.assetId ?? '').trim();
+    if (assetId) {
+      return true;
+    }
+
+    const dynamicFactura = factura as FacturaType & { objectUrl?: string };
+    const source = String(dynamicFactura.objectUrl ?? factura.storage_key ?? '').trim();
+    if (!source || source.toUpperCase() === 'N/A') {
+      return false;
+    }
+
+    return source.startsWith('http://')
+      || source.startsWith('https://')
+      || source.startsWith('blob:')
+      || source.startsWith('data:')
+      || source.includes('.pdf')
+      || source.includes('.png')
+      || source.includes('.jpg')
+      || source.includes('.jpeg')
+      || source.includes('.webp');
+  }
+
+  private async resolveCurrentUserName(): Promise<string> {
+    let currentUserName = (this.userStateService.userName() || '').trim();
+    if (!currentUserName) {
+      const profile = await this.userProfileService.getUserProfile(this.apiBase);
+      currentUserName = (profile?.username || '').trim();
+      if (currentUserName) {
+        this.userStateService.patch({ username: currentUserName });
+      }
+    }
+
+    if (!currentUserName) {
+      throw new Error('No se pudo resolver el usuario para subir el respaldo.');
+    }
+
+    return currentUserName;
+  }
+
   private async publishFile(file: File): Promise<void> {
     this.isPublishing = true;
     try {
-      let currentUserName = (this.userStateService.userName() || '').trim();
-      if (!currentUserName) {
-        const profile = await this.userProfileService.getUserProfile(this.apiBase);
-        currentUserName = (profile?.username || '').trim();
-        if (currentUserName) {
-          this.userStateService.patch({ username: currentUserName });
-        }
-      }
-
-      if (!currentUserName) {
-        throw new Error('No se pudo publicar porque userName está vacío en UserStateService.');
-      }
+      const currentUserName = await this.resolveCurrentUserName();
 
       const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(
         this.apiBase,
