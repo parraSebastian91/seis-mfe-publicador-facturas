@@ -196,22 +196,25 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
           assetId: '',
           facturaId: '',
           ownerUUID: this.orgSelected(),
-          nombre_mandante: orgInfo.razonSocial || '',
-          rut_mandante: orgInfo.rut || 'Recuperando...',
+          nombre_cliente_cedente: orgInfo.razonSocial || '',
+          rut_cliente_cedente: orgInfo.rut || 'Recuperando...',
           gestor: {
             uuid: '',
             username: this.userName(),
           },
-          gestorUUID: '',
           deudorNombre: data.nombreRazonSocialDeudor,
           deudorRut: data.rutDeudor,
           facturaNumero: data.numeroFactura,
           montoTotal: data.montoTotal,
           fechaVencimiento: new Date(data.fechaVencimiento),
           status: facturaEstado.PROCESANDO,
-          storage_key: '',
-          ofertas: '0',
+          ofertas_aceptadas: 0,
+          ofertas_enviadas: 0,
+          ofertas_rechazadas: 0,
+          ofertas_revisadas: 0,
           correlationId: optimisticCorrelationId,
+          total_ofertas: 0,
+          url_factura: 'N/A'
         };
         this.facturas = [newFactura, ...this.facturas];
         this.applyFiltersAndSort();
@@ -569,7 +572,21 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       Swal.fire({
         icon: 'info',
         title: 'Factura con respaldo',
-        text: 'Esta factura ya tiene un respaldo asociado.'
+        text: 'Esta factura ya tiene un respaldo asociado. ¿Deseas reemplazarlo?',
+        showCancelButton: true,
+        confirmButtonText: 'Continuar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+      }).then((result) => {
+        if (!result.isConfirmed) {
+          return;
+        }
+        this.uploadModalService.open({
+          title: 'Subir respaldo',
+          hint: 'Selecciona el nuevo respaldo de la factura para reemplazar el anterior.',
+          accept: '.pdf,image/*',
+          context: `${this.respaldoModalContextPrefix}${contextKey}`
+        });
       });
       return;
     }
@@ -604,12 +621,19 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     }
 
     if (this.hasFacturaAssetAnexo(factura)) {
-      Swal.fire({
+      const confirmReplace = await Swal.fire({
         icon: 'info',
         title: 'Factura con respaldo',
-        text: 'La factura ya tiene respaldo asociado.'
+        text: 'La factura ya tiene respaldo asociado. ¿Deseas reemplazarlo?',
+        showCancelButton: true,
+        confirmButtonText: 'Continuar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
       });
-      return;
+
+      if (!confirmReplace.isConfirmed) {
+        return;
+      }
     }
 
     const facturaId = String(factura.facturaId ?? '').trim();
@@ -623,13 +647,13 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     }
 
     try {
-      const currentUserName = await this.resolveCurrentUserName();
+      const { uuid } = await this.resolveCurrentUserName();
       const respaldoTypeUpload = PATH_TYPES.DTE_FACTURA_RESPALDO || 'DTE-factura-respaldo';
       const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(
         this.apiBase,
         respaldoTypeUpload,
         file,
-        currentUserName,
+        uuid,
         this.orgSelected(),
         facturaId
       );
@@ -705,7 +729,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     }
 
     const dynamicFactura = factura as FacturaType & { objectUrl?: string };
-    const source = String(dynamicFactura.objectUrl ?? factura.storage_key ?? '').trim();
+    const source = String(dynamicFactura.objectUrl ?? factura.url_factura ?? '').trim();
     if (!source || source.toUpperCase() === 'N/A') {
       return false;
     }
@@ -721,7 +745,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       || source.includes('.webp');
   }
 
-  private async resolveCurrentUserName(): Promise<string> {
+  private async resolveCurrentUserName(): Promise<{ username: string; uuid: string }> {
     let currentUserName = (this.userStateService.userName() || '').trim();
     if (!currentUserName) {
       const profile = await this.userProfileService.getUserProfile(this.apiBase);
@@ -735,19 +759,20 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       throw new Error('No se pudo resolver el usuario para subir el respaldo.');
     }
 
-    return currentUserName;
+    const uuid = (this.userStateService.state().id || '').trim();
+    return { username: currentUserName, uuid };
   }
 
   private async publishFile(file: File): Promise<void> {
     this.isPublishing = true;
     try {
-      const currentUserName = await this.resolveCurrentUserName();
+      const { uuid } = await this.resolveCurrentUserName();
 
       const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(
         this.apiBase,
         PATH_TYPES.DOCUMENT,
         file,
-        currentUserName,
+        uuid,
         this.orgSelected()
       );
 

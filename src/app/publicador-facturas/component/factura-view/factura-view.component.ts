@@ -76,8 +76,8 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
       uuid: '',
       username: ''
     },
-    nombre_mandante: 'Mandante S.A.',
-    rut_mandante: '11.111.111-1',
+    nombre_cliente_cedente: 'Cliente Cedente S.A.',
+    rut_cliente_cedente: '11.111.111-1',
     deudorNombre: 'Deudor S.A.',
     deudorRut: '11.111.111-1',
     facturaNumero: 'folio-123',
@@ -85,8 +85,13 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     fechaVencimiento: new Date(),
     status: 'PENDIENTE_VALIDACION',
     correlationId: '',
-    storage_key: '',
-    ofertas: '0'
+    url_factura: '',
+    total_ofertas: 0,
+    ofertas_enviadas: 0,
+    ofertas_revisadas: 0,
+    ofertas_aceptadas: 0,
+    ofertas_rechazadas: 0,
+    notas: []
   } as FacturaType);
 
   readonly camposFactura = signal<FacturaFieldEditable[]>([]);
@@ -196,21 +201,23 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   }
 
   get canUploadRespaldo(): boolean {
-    return !this.hasFacturaAssetAnexo;
+    const factura = this.facturaOriginal();
+
+    return [facturaEstado.PENDIENTE_VALIDACION, facturaEstado.PENDIENTE_AUTORIZACION, facturaEstado.PUBLICADA, facturaEstado.RECHAZADA].includes(factura.status);
   }
 
   get facturaNumeroHeader(): string {
     return this.getFieldDisplayValue('numeroFactura', this.facturaOriginal().facturaNumero || 'Sin numero');
   }
 
-  get mandanteNombreHeader(): string {
-    return this.resolveHeaderValue(this.facturaOriginal().nombre_mandante, 'Sin mandante');
+  get clienteCedenteNombreHeader(): string {
+    return this.resolveHeaderValue(this.facturaOriginal().nombre_cliente_cedente, 'Sin cliente cedente');
   }
 
-  get mandanteRutHeader(): string {
-    const rawRut = this.resolveHeaderValue(this.facturaOriginal().rut_mandante, '');
+  get clienteCedenteRutHeader(): string {
+    const rawRut = this.resolveHeaderValue(this.facturaOriginal().rut_cliente_cedente, '');
     if (!rawRut) {
-      return 'Sin RUT mandante';
+      return 'Sin RUT cliente cedente';
     }
 
     const formatted = this.formatRut(rawRut);
@@ -226,29 +233,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     return `pdf-input-${seed.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   }
 
-  // onImageSelected(event: Event): void {
-  //   const input = event.target as HTMLInputElement;
-  //   const file = input.files?.[0];
-
-  //   if (!file) {
-  //     return;
-  //   }
-
-  //   if (!file.type.startsWith('image/')) {
-  //     this.imageSrc.set(undefined);
-  //     this.imageName.set('');
-  //     input.value = '';
-  //     return;
-  //   }
-
-  //   const reader = new FileReader();
-  //   reader.onload = () => {
-  //     const imageDataUrl = String(reader.result ?? '');
-  //     this.imageSrc.set(imageDataUrl);
-  //     this.imageName.set(file.name);
-  //   };
-  //   reader.readAsDataURL(file);
-  // }
+  ShowOfertas(): void { }
 
   togglePdfView(): void {
     if (!this.imageSrc()) {
@@ -940,7 +925,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
       dynamicFactura.objectUrl,
       dynamicFactura.pdfUrl,
       dynamicFactura.documentUrl,
-      factura.storage_key
+      factura.url_factura
     ];
 
     for (const candidate of candidates) {

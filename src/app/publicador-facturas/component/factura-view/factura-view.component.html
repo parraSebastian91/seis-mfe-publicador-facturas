@@ -16,10 +16,6 @@
                 <mat-icon class="notification-icon">{{!ofertasCount()? 'notifications_off' :
                   'notifications_unread'}}</mat-icon>
               </button>
-              <button type="button" class="notification-btn" aria-label="respaldo de esta factura">
-                <mat-icon class="notification-icon">{{canUploadRespaldo ? 'receipt_long_off' :
-                  'receipt_long'}}</mat-icon>
-              </button>
             </div>
           </mat-panel-description>
         </mat-expansion-panel-header>
@@ -31,8 +27,8 @@
           </div>
 
           <div class="header-meta">
-            <p><strong>Mandante:</strong> {{ mandanteNombreHeader }}</p>
-            <p><strong>RUT Mandante:</strong> {{ mandanteRutHeader }}</p>
+            <p><strong>Mandante:</strong> {{ clienteCedenteNombreHeader }}</p>
+            <p><strong>RUT Mandante:</strong> {{ clienteCedenteRutHeader }}</p>
             <p><strong>Gestor:</strong> {{ gestorNombreHeader }}</p>
           </div>
 
@@ -48,13 +44,18 @@
             <p class="pdf-empty" *ngIf="!isPendingValidation">Vista de imagen deshabilitada para este estado.</p>
           </div> -->
 
-          <button type="button" class="toggle-pdf-btn" [disabled]="!imageSrc()" (click)="togglePdfView()"
-            *ngIf="!canUploadRespaldo">
-            {{ showPdfView() ? 'Ocultar imagen' : 'Ver imagen' }}
+          <button type="button" class="toggle-pdf-btn" [disabled]="!imageSrc()" (click)="togglePdfView()">
+            <mat-icon class="notification-icon" *ngIf="showPdfView()">preview_off</mat-icon>
+            <mat-icon class="notification-icon" *ngIf="!showPdfView()">preview</mat-icon>
           </button>
 
-          <button type="button" class="toggle-pdf-btn" *ngIf="canUploadRespaldo" (click)="requestUploadRespaldo()">
-            Subir respaldo
+          <button type="button" class="toggle-pdf-btn" [disabled]="!canUploadRespaldo"
+            (click)="requestUploadRespaldo()">
+            <mat-icon class="notification-icon">upload_file</mat-icon>
+          </button>
+
+          <button type="button" class="toggle-pdf-btn" [disabled]="!canUploadRespaldo" (click)="ShowOfertas()">
+            <mat-icon class="notification-icon">sell</mat-icon>
           </button>
         </div>
 
