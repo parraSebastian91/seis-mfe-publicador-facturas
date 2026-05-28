@@ -1,6 +1,6 @@
 import { Component, EffectRef, Injector, OnDestroy, OnInit, Signal, effect, signal } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { AutorizacionPublicacionDto, FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos } from 'shared-utils';
+import { AutorizacionPublicacionDto, createdBy, FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos } from 'shared-utils';
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
 import { FacturaData, FacturaFormularioPublicacion, modalPublishMetadata } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
@@ -214,7 +214,9 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
           ofertas_revisadas: 0,
           correlationId: optimisticCorrelationId,
           total_ofertas: 0,
-          url_factura: 'N/A'
+          url_factura: 'N/A',
+          createdBy: createdBy.FORM,
+          notas: []
         };
         this.facturas = [newFactura, ...this.facturas];
         this.applyFiltersAndSort();

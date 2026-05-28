@@ -86,6 +86,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     status: 'PENDIENTE_VALIDACION',
     correlationId: '',
     url_factura: '',
+    createdBy: 'FORM',
     total_ofertas: 0,
     ofertas_enviadas: 0,
     ofertas_revisadas: 0,
@@ -203,7 +204,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   get canUploadRespaldo(): boolean {
     const factura = this.facturaOriginal();
 
-    return [facturaEstado.PENDIENTE_VALIDACION, facturaEstado.PENDIENTE_AUTORIZACION, facturaEstado.PUBLICADA, facturaEstado.RECHAZADA].includes(factura.status);
+    return [facturaEstado.PENDIENTE_VALIDACION, facturaEstado.PENDIENTE_AUTORIZACION, facturaEstado.PUBLICADA, facturaEstado.RECHAZADA].includes(factura.status) && factura.createdBy === 'FORM';
   }
 
   get facturaNumeroHeader(): string {

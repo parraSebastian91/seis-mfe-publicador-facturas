@@ -44,9 +44,9 @@
             <p class="pdf-empty" *ngIf="!isPendingValidation">Vista de imagen deshabilitada para este estado.</p>
           </div> -->
 
-          <button type="button" class="toggle-pdf-btn" [disabled]="!imageSrc()" (click)="togglePdfView()">
-            <mat-icon class="notification-icon" *ngIf="showPdfView()">preview_off</mat-icon>
-            <mat-icon class="notification-icon" *ngIf="!showPdfView()">preview</mat-icon>
+          <button type="button" class="toggle-pdf-btn" [disabled]="facturaOriginal().url_factura === 'N/A'"
+            (click)="togglePdfView()">
+            <mat-icon class="notification-icon">preview</mat-icon>
           </button>
 
           <button type="button" class="toggle-pdf-btn" [disabled]="!canUploadRespaldo"
@@ -54,7 +54,7 @@
             <mat-icon class="notification-icon">upload_file</mat-icon>
           </button>
 
-          <button type="button" class="toggle-pdf-btn" [disabled]="!canUploadRespaldo" (click)="ShowOfertas()">
+          <button type="button" class="toggle-pdf-btn" (click)="ShowOfertas()">
             <mat-icon class="notification-icon">sell</mat-icon>
           </button>
         </div>
