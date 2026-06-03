@@ -2,7 +2,7 @@ import { Component, EffectRef, Injector, OnDestroy, OnInit, Signal, effect, sign
 import { Subscription } from 'rxjs';
 import { AutorizacionPublicacionDto, createdBy, FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos } from 'shared-utils';
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
-import { FacturaData, FacturaFormularioPublicacion, modalPublishMetadata } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
+import { FacturaData, FacturaFormularioPublicacion, ModalPublishMetadata } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
 import Swal from 'sweetalert2';
 import { FacturaConfirmRequestEvent, FacturaRespaldoRequestEvent } from '../component/factura-view/factura-view.component';
@@ -38,6 +38,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   isPublicationModalOpen = false;
   isMobileFiltersModalOpen = false;
   isPublishing = false;
+  modalErrorMessage = '';
   highlightedFacturaKey: string | null = null;
   activeFilters: FacturaFilters = {
     status: '',
@@ -99,6 +100,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   }
 
   openUploadModal(): void {
+    this.modalErrorMessage = '';
     this.isPublicationModalOpen = true;
   }
 
@@ -107,6 +109,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.modalErrorMessage = '';
     this.isPublicationModalOpen = false;
   }
 
@@ -138,6 +141,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       correlationId,
       montoTotal: data.montoTotal,
       fechaVencimiento: new Date(data.fechaVencimiento),
+      fechaEmision: data.fechaEmision ? new Date(data.fechaEmision) : undefined,
       status: facturaEstado.PENDIENTE_AUTORIZACION,
       gestor: {
         uuid: '',
@@ -152,7 +156,6 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     } catch (err: any) {
       const errorMsg = err?.error?.message || err?.message || 'Error desconocido al publicar la factura.';
       console.error('Error al publicar factura manual:', err);
-      // Swal.fire({ icon: 'error', title: 'No se pudo publicar', text: errorMsg });
       return { errorMsg };
     } finally {
       this.isPublishing = false;
@@ -220,19 +223,21 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
         };
         this.facturas = [newFactura, ...this.facturas];
         this.applyFiltersAndSort();
-        this.isPublicationModalOpen = false;
 
-        // Paso 2: Enviar al backend (modal ya cerrado)
+        // Paso 2: Enviar al backend (modal sigue abierto — EB-01)
         const { data: facturaCreada, errorMsg } = await this.handleManualFormPublish(data, optimisticCorrelationId);
         if (!facturaCreada) {
-          // El backend rechazó la creación — marcar la optimista como RECHAZADA con el motivo
-          const notas = errorMsg ? [errorMsg] : ['Publicación rechazada por el servidor.'];
-          this.facturas = this.facturas.map(f =>
-            f.correlationId === optimisticCorrelationId ? { ...f, status: facturaEstado.RECHAZADA, notas } : f
-          );
+          // Error backend — mantener modal abierto y mostrar el error (EB-01)
+          this.modalErrorMessage = errorMsg ?? 'Error desconocido al publicar la factura.';
+          // Revertir factura optimista
+          this.facturas = this.facturas.filter(f => f.correlationId !== optimisticCorrelationId);
           this.applyFiltersAndSort();
           return;
         }
+
+        // Éxito: cerrar modal y limpiar error
+        this.isPublicationModalOpen = false;
+        this.modalErrorMessage = '';
 
         // Paso 3: Obtener términos vigentes del backend
         let versionTerminos: VersionTerminos | undefined;
@@ -370,11 +375,11 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     return this.normalizeText(this.userRole()).includes('ADMIN');
   }
 
-  publicationMetadata: modalPublishMetadata = { numeroFacturaExistentes: [], deudoresExistentes: [] };
+  publicationMetadata: ModalPublishMetadata = { numeroFacturaExistentes: [], deudoresExistentes: [] };
 
   private rebuildPublicationMetadata(): void {
     const seen = new Set<string>();
-    const deudoresExistentes: modalPublishMetadata['deudoresExistentes'] = [];
+    const deudoresExistentes: ModalPublishMetadata['deudoresExistentes'] = [];
     for (const f of this.facturas) {
       const rut = (f.deudorRut ?? '').trim();
       if (rut && !seen.has(rut)) {

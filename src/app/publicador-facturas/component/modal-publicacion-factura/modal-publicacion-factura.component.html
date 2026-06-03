@@ -1,88 +1,119 @@
 <div class="modal-backdrop" *ngIf="isOpen" (click)="onBackdropClick()">
-  <section class="publish-modal" (click)="$event.stopPropagation()">
+  <section class="publish-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+
+    <!-- Header -->
     <header class="modal-header">
-      <h2>Publicar factura</h2>
-      <button type="button" class="btn-close" (click)="close()" [disabled]="isSubmitting" aria-label="Cerrar">
+      <h2 id="modal-title">Nueva factura</h2>
+      <button type="button" class="btn-close" (click)="tryClose()" [disabled]="isSubmitting" aria-label="Cerrar">
         <mat-icon>close</mat-icon>
       </button>
     </header>
 
-    <nav class="tabs-nav" aria-label="Opciones de publicacion">
-      <button type="button" class="tab-btn" [class.active]="activeTab === 'upload'" (click)="selectTab('upload')"
-        [disabled]="isSubmitting">Subir documento</button>
-      <button type="button" class="tab-btn" [class.active]="activeTab === 'form'" (click)="selectTab('form')"
-        [disabled]="isSubmitting">Completar formulario</button>
+    <!-- Confirmación de cierre (CA-01) -->
+    <div class="close-confirm" *ngIf="showCloseConfirm" role="alertdialog">
+      <p>¿Abandonar la factura? Los datos no se guardarán.</p>
+      <div class="close-confirm-actions">
+        <button type="button" class="btn-light" (click)="cancelClose()">Continuar editando</button>
+        <button type="button" class="btn-danger" (click)="confirmClose()">Sí, abandonar</button>
+      </div>
+    </div>
+
+    <!-- Tabs (CA-01) -->
+    <nav class="tabs-nav" aria-label="Tipo de subida" *ngIf="!showCloseConfirm">
+      <button type="button" class="tab-btn" [class.active]="activeTab === 'automatica'" (click)="selectTab('automatica')"
+        [disabled]="isSubmitting">Automática</button>
+      <button type="button" class="tab-btn" [class.active]="activeTab === 'manual'" (click)="selectTab('manual')"
+        [disabled]="isSubmitting">Manual</button>
     </nav>
 
-    <section class="tab-content" *ngIf="activeTab === 'upload'">
-      <p class="modal-hint">Acepta PDF, XML o imagen (JPG/PNG).</p>
+    <!-- ═══════════════════════════════════ -->
+    <!-- Pestaña AUTOMÁTICA — Caso 3 (CA-02) -->
+    <!-- ═══════════════════════════════════ -->
+    <section class="tab-content" *ngIf="activeTab === 'automatica' && !showCloseConfirm">
+      <p class="modal-hint">Sube el PDF de tu factura y el sistema extraerá los datos automáticamente.</p>
 
       <label class="dropzone" [class.dragging]="isDragging" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)"
         (drop)="onDrop($event)">
-        <input type="file" accept=".pdf,.xml,image/*" (change)="onFileSelected($event)" [disabled]="isSubmitting" />
+        <input type="file" accept="application/pdf" (change)="onFileSelected($event)" [disabled]="isSubmitting" />
         <mat-icon class="dropzone-icon">upload_file</mat-icon>
-        <span>Arrastra tu archivo aqui o toca para seleccionarlo</span>
+        <span>Arrastra tu factura aquí o haz clic para seleccionar (PDF, máx. {{ maxFileSizeMb }} MB).</span>
       </label>
 
-      <div class="mobile-actions" *ngIf="isMobile">
-        <label class="btn-mobile">
-          <mat-icon>photo_camera</mat-icon>
-          Tomar foto
-          <input type="file" accept="image/*" capture="environment" (change)="onFileSelected($event)" [disabled]="isSubmitting" />
-        </label>
-        <label class="btn-mobile">
-          <mat-icon>folder_open</mat-icon>
-          Elegir archivo
-          <input type="file" accept=".pdf,.xml,image/*" (change)="onFileSelected($event)" [disabled]="isSubmitting" />
-        </label>
-      </div>
+      <p class="file-validation-error" *ngIf="fileValidationError" role="alert">
+        <mat-icon>error_outline</mat-icon>
+        {{ fileValidationError }}
+        <button type="button" class="btn-link" (click)="selectTab('manual')">Ingresar manualmente</button>
+      </p>
 
       <p class="selected-file" [class.has-file]="!!selectedFile">
         <mat-icon>{{ selectedFile ? 'check_circle' : 'info' }}</mat-icon>
-        {{ selectedFileName }}
+        <span *ngIf="selectedFile">{{ selectedFile.name }} · {{ formatFileSize(selectedFile.size) }}</span>
+        <span *ngIf="!selectedFile">Ningún archivo seleccionado</span>
+      </p>
+
+      <p class="upload-error" *ngIf="errorMessage" role="alert">
+        <mat-icon>error</mat-icon>
+        {{ errorMessage }}
       </p>
 
       <footer class="modal-footer">
-        <button type="button" class="btn-light" (click)="close()" [disabled]="isSubmitting">Cancelar</button>
-        <button type="button" class="btn-primary" [disabled]="!selectedFile || isSubmitting" (click)="submitSelectedFile()">
-          {{ isSubmitting ? 'Publicando...' : 'Publicar' }}
+        <button type="button" class="btn-light" (click)="tryClose()" [disabled]="isSubmitting">Cancelar</button>
+        <button type="button" class="btn-primary" [disabled]="!selectedFile || !!fileValidationError || isSubmitting"
+          (click)="submitSelectedFile()">
+          <mat-icon *ngIf="isSubmitting" class="spinning">sync</mat-icon>
+          {{ isSubmitting ? 'Subiendo PDF...' : 'Subir factura' }}
         </button>
       </footer>
     </section>
 
-    <section class="tab-content" *ngIf="activeTab === 'form'">
-      <form class="manual-form" (submit)="$event.preventDefault(); submitManualData()">
+    <!-- ═══════════════════════════════════ -->
+    <!-- Pestaña MANUAL — Casos 1 y 2 (CA-03/04/05) -->
+    <!-- ═══════════════════════════════════ -->
+    <section class="tab-content" *ngIf="activeTab === 'manual' && !showCloseConfirm">
+
+      <!-- Stepper (CA-05) -->
+      <div class="stepper-header">
+        <div class="step-item" [class.active]="manualStep === 1" [class.done]="manualStep > 1">
+          <span class="step-number">1</span>
+          <span class="step-label">Datos</span>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-item" [class.active]="manualStep === 2">
+          <span class="step-number">2</span>
+          <span class="step-label">Respaldo PDF</span>
+        </div>
+      </div>
+
+      <!-- ——— Paso 1: Datos (CA-03) ——— -->
+      <form class="manual-form" *ngIf="manualStep === 1" (submit)="$event.preventDefault(); nextStep()">
+
         <label>
-          Numero de factura
+          N° Factura (folio)
           <input type="text" name="numeroFactura" [(ngModel)]="manualForm.numeroFactura" [disabled]="isSubmitting"
             [class.invalid-field]="shouldShowFieldError('numeroFactura')" placeholder="Ej: 123456789"
             inputmode="numeric" autocomplete="off"
-            (input)="onNumeroFacturaInput($event)"
-            (blur)="markFieldTouched('numeroFactura')" required />
+            (input)="onNumeroFacturaInput($event)" (blur)="markFieldTouched('numeroFactura')" required />
           <small class="field-error" *ngIf="shouldShowFieldError('numeroFactura')">{{ getFieldErrorMessage('numeroFactura') }}</small>
         </label>
 
         <label>
-          RUT deudor
+          RUT Deudor
           <input type="text" name="rutDeudor" [(ngModel)]="manualForm.rutDeudor" [disabled]="isSubmitting"
             [class.invalid-field]="shouldShowFieldError('rutDeudor')" placeholder="Ej: 12.345.678-9"
             autocomplete="off" list="datalist-rut-deudor"
-            (input)="onRutInput($event)"
-            (change)="onRutChange($event)"
-            (blur)="markFieldTouched('rutDeudor')" required />
+            (input)="onRutInput($event)" (change)="onRutChange($event)" (blur)="markFieldTouched('rutDeudor')" required />
           <datalist id="datalist-rut-deudor">
             <option *ngFor="let d of metadata?.deudoresExistentes; trackBy: trackByDeudorRut" [value]="d.rut" [label]="d.nombre"></option>
           </datalist>
           <small class="field-error" *ngIf="shouldShowFieldError('rutDeudor')">{{ getFieldErrorMessage('rutDeudor') }}</small>
         </label>
 
-        <label>
-          Razon social deudor
+        <label class="full-col">
+          Razón Social Deudor
           <input type="text" name="nombreRazonSocialDeudor" [(ngModel)]="manualForm.nombreRazonSocialDeudor"
             [disabled]="isSubmitting" [class.invalid-field]="shouldShowFieldError('nombreRazonSocialDeudor')"
-            placeholder="Ej: Comercial Acme Spa" autocomplete="off" list="datalist-nombre-deudor"
-            (input)="onNombreRazonSocialInput()"
-            (change)="onNombreDeudorChange($event)"
+            placeholder="Ej: Comercial Acme SpA" autocomplete="off" list="datalist-nombre-deudor"
+            (input)="onNombreRazonSocialInput()" (change)="onNombreDeudorChange($event)"
             (blur)="markFieldTouched('nombreRazonSocialDeudor')" required />
           <datalist id="datalist-nombre-deudor">
             <option *ngFor="let d of metadata?.deudoresExistentes; trackBy: trackByDeudorRut" [value]="d.nombre" [label]="d.rut"></option>
@@ -90,17 +121,31 @@
           <small class="field-error" *ngIf="shouldShowFieldError('nombreRazonSocialDeudor')">{{ getFieldErrorMessage('nombreRazonSocialDeudor') }}</small>
         </label>
 
-        <label>
-          Monto total
+        <label class="full-col">
+          Monto Total
           <input type="text" name="montoTotal" [(ngModel)]="manualForm.montoTotal" [disabled]="isSubmitting"
             [class.invalid-field]="shouldShowFieldError('montoTotal')" placeholder="Ej: 1.250.000"
-            inputmode="numeric" autocomplete="off" (input)="onMontoInput($event)"
-            (blur)="markFieldTouched('montoTotal')" required />
+            inputmode="numeric" autocomplete="off"
+            (input)="onMontoInput($event)" (blur)="markFieldTouched('montoTotal')" required />
           <small class="field-error" *ngIf="shouldShowFieldError('montoTotal')">{{ getFieldErrorMessage('montoTotal') }}</small>
         </label>
 
         <label>
-          Fecha de vencimiento
+          Fecha Emisión
+          <app-atomic-datepicker
+            [value]="manualForm.fechaEmision"
+            [disabled]="isSubmitting"
+            [placeholder]="'Ej: ' + todayIso"
+            [maxDate]="maxDateStruct"
+            [hasError]="shouldShowFieldError('fechaEmision')"
+            (valueChange)="manualForm.fechaEmision = $event; markFieldTouched('fechaEmision')"
+            (blurred)="markFieldTouched('fechaEmision')">
+          </app-atomic-datepicker>
+          <small class="field-error" *ngIf="shouldShowFieldError('fechaEmision')">{{ getFieldErrorMessage('fechaEmision') }}</small>
+        </label>
+
+        <label>
+          Fecha Vencimiento
           <app-atomic-datepicker
             [value]="manualForm.fechaVencimiento"
             [disabled]="isSubmitting"
@@ -112,14 +157,62 @@
           </app-atomic-datepicker>
           <small class="field-error" *ngIf="shouldShowFieldError('fechaVencimiento')">{{ getFieldErrorMessage('fechaVencimiento') }}</small>
         </label>
+
+        <footer class="modal-footer full-col">
+          <button type="button" class="btn-light" (click)="tryClose()" [disabled]="isSubmitting">Cancelar</button>
+          <button type="submit" class="btn-primary" [disabled]="isSubmitting">
+            Siguiente <mat-icon>arrow_forward</mat-icon>
+          </button>
+        </footer>
       </form>
 
-      <footer class="modal-footer">
-        <button type="button" class="btn-light" (click)="close()" [disabled]="isSubmitting">Cancelar</button>
-        <button type="button" class="btn-primary" [disabled]="isSubmitting || !isManualFormValid()" (click)="submitManualData()">
-          {{ isSubmitting ? 'Publicando...' : 'Publicar' }}
-        </button>
-      </footer>
+      <!-- ——— Paso 2: Respaldo PDF (opcional) (CA-04) ——— -->
+      <div class="step2-content" *ngIf="manualStep === 2">
+
+        <p class="modal-hint">El PDF de respaldo es <strong>opcional</strong>. Puedes publicar sin él.</p>
+
+        <label class="dropzone" [class.dragging]="isDraggingRespaldo"
+          (dragover)="onDragOverRespaldo($event)" (dragleave)="onDragLeaveRespaldo($event)" (drop)="onDropRespaldo($event)">
+          <input type="file" accept="application/pdf" (change)="onRespaldoFileSelected($event)" [disabled]="isSubmitting" />
+          <mat-icon class="dropzone-icon">attach_file</mat-icon>
+          <span>Arrastra tu factura aquí o haz clic para seleccionar (PDF, máx. {{ maxFileSizeMb }} MB).</span>
+        </label>
+
+        <p class="file-validation-error" *ngIf="respaldoValidationError" role="alert">
+          <mat-icon>error_outline</mat-icon>
+          {{ respaldoValidationError }}
+        </p>
+
+        <p class="selected-file" [class.has-file]="!!respaldoFile">
+          <mat-icon>{{ respaldoFile ? 'check_circle' : 'info' }}</mat-icon>
+          <span *ngIf="respaldoFile">{{ respaldoFile.name }} · {{ formatFileSize(respaldoFile.size) }}</span>
+          <span *ngIf="!respaldoFile">Ningún archivo seleccionado</span>
+        </p>
+
+        <p class="upload-error" *ngIf="errorMessage" role="alert">
+          <mat-icon>error</mat-icon>
+          {{ errorMessage }}
+        </p>
+
+        <footer class="modal-footer step2-footer">
+          <button type="button" class="btn-light" (click)="prevStep()" [disabled]="isSubmitting">
+            <mat-icon>arrow_back</mat-icon> Anterior
+          </button>
+          <div class="step2-ctas">
+            <button type="button" class="btn-secondary" (click)="submitWithoutRespaldo()" [disabled]="isSubmitting">
+              <mat-icon *ngIf="isSubmitting" class="spinning">sync</mat-icon>
+              {{ isSubmitting ? 'Creando...' : 'Publicar sin respaldo' }}
+            </button>
+            <button type="button" class="btn-primary" [disabled]="!respaldoFile || !!respaldoValidationError || isSubmitting"
+              (click)="submitWithRespaldo()">
+              <mat-icon *ngIf="isSubmitting" class="spinning">sync</mat-icon>
+              {{ isSubmitting ? 'Subiendo PDF...' : 'Publicar con respaldo' }}
+            </button>
+          </div>
+        </footer>
+      </div>
+
     </section>
+
   </section>
 </div>

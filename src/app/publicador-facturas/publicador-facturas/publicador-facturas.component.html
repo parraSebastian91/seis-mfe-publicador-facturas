@@ -41,6 +41,7 @@
 
 <app-modal-publicacion-factura [isOpen]="isPublicationModalOpen" [isSubmitting]="isPublishing"
   [metadata]="publicationMetadata"
+  [errorMessage]="modalErrorMessage"
   (closeModal)="closePublicationModal()" (submitFile)="handleFilePublish($event)"
   (submitForm)="publicarFactura($event)">
 </app-modal-publicacion-factura>

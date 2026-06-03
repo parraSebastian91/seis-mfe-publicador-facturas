@@ -13,6 +13,7 @@ export class AtomicDatepickerComponent implements OnChanges {
   @Input() placeholder = '';
   @Input() hasError = false;
   @Input() minDate: NgbDateStruct = { year: 1900, month: 1, day: 1 };
+  @Input() maxDate: NgbDateStruct | null = null;
 
   @Output() valueChange = new EventEmitter<string>();
   @Output() enterPressed = new EventEmitter<KeyboardEvent>();
