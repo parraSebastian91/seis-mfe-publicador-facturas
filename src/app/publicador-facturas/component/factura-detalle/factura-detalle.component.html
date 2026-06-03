@@ -11,7 +11,8 @@
 </div>
 
 <!-- ─── Content ───────────────────────────────────────────────────────────── -->
-<div class="detalle-wrapper" *ngIf="!isLoading && factura && !loadError">
+<div class="detalle-page" *ngIf="!isLoading && factura && !loadError">
+<div class="detalle-wrapper">
 
   <!-- Breadcrumb -->
   <button type="button" class="volver-btn" (click)="goBack()">
@@ -138,7 +139,9 @@
               Rechazar
             </button>
 
-            <button type="button" class="btn-chat" title="Ver negociación (HU-26)">
+            <button type="button" class="btn-chat"
+              title="Ver negociación"
+              (click)="openChat(oferta)">
               <mat-icon>chat_bubble_outline</mat-icon>
               Ver chat
             </button>
@@ -331,5 +334,19 @@
       </div>
     </div>
 
-  </div>
-</div>
+  </div><!-- /.detalle-wrapper -->
+
+  <!-- ── CA-08: Chat panel (HU-26) ──────────────────────────────────────── -->
+  <aside class="chat-sidebar" *ngIf="chatOferta" aria-label="Chat de negociación">
+    <app-negotiation-chat
+      [ofertaId]="chatOferta.ofertaId"
+      [oferta]="chatOferta"
+      [factura]="factura"
+      [isClient]="true"
+      (closed)="closeChat()"
+      (acceptar)="onChatAceptar($event)"
+      (ofertaRechazada)="onChatOfertaRechazada($event)">
+    </app-negotiation-chat>
+  </aside>
+
+</div><!-- /.detalle-page -->

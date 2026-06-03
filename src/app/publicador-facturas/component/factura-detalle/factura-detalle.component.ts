@@ -26,6 +26,9 @@ export class FacturaDetalleComponent implements OnInit {
   isRejecting = false;
   rejectError = '';
 
+  // Chat panel (HU-26)
+  chatOferta: OfertaDetalleType | null = null;
+
   readonly ofertaEstadoEnum = ofertaEstado;
 
   constructor(
@@ -218,5 +221,27 @@ export class FacturaDetalleComponent implements OnInit {
 
   trackByOfertaId(_index: number, oferta: OfertaDetalleType): string {
     return oferta.ofertaId;
+  }
+
+  // ─── Chat (HU-26) ───────────────────────────────────────────────────────
+
+  openChat(oferta: OfertaDetalleType): void {
+    this.chatOferta = oferta;
+  }
+
+  closeChat(): void {
+    this.chatOferta = null;
+  }
+
+  onChatAceptar(oferta: OfertaDetalleType): void {
+    this.chatOferta = null;
+    this.openAcceptConfirm(oferta);
+  }
+
+  onChatOfertaRechazada(ofertaId: string): void {
+    this.ofertas = this.ofertas.map(o =>
+      o.ofertaId === ofertaId ? { ...o, estado: ofertaEstado.RECHAZADA } : o
+    );
+    this.chatOferta = null;
   }
 }
