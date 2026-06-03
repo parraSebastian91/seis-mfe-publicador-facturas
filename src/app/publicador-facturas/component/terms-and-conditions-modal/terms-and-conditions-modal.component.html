@@ -1,0 +1,39 @@
+<div class="tnc-backdrop"
+  *ngIf="isOpen"
+  (click)="onDismiss()"
+  (keydown.escape)="onDismiss()">
+
+  <div class="tnc-panel"
+    aria-modal="true"
+    aria-labelledby="tnc-modal-title"
+    (click)="$event.stopPropagation()"
+    (keydown)="$event.stopPropagation()">
+
+    <div class="tnc-header">
+      <h2 id="tnc-modal-title" class="tnc-title">Términos y Condiciones de Publicación</h2>
+      <button type="button" class="tnc-close" (click)="onDismiss()" [disabled]="isSubmitting" aria-label="Cerrar">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="tnc-body">
+      <p class="tnc-factura-ref">{{ facturaLabel }}</p>
+      <h3 class="tnc-section-title">{{ tncTitle }}</h3>
+      <section class="tnc-content" aria-label="Contenido de términos y condiciones">
+        {{ tncText }}
+      </section>Versión: {{ versionTerminos!.codigo }}</p>
+      <div class="tnc-error" role="alert" *ngIf="errorMessage">{{ errorMessage }}</div>
+    </div>
+
+    <div class="tnc-footer">
+      <button type="button" class="btn-revisar" (click)="onDismiss()" [disabled]="isSubmitting">
+        Revisar publicación
+      </button>
+      <button type="button" class="btn-aceptar" (click)="onAccept()" [disabled]="isSubmitting">
+        <mat-icon *ngIf="isSubmitting" class="icon-spin">sync</mat-icon>
+        <span>{{ isSubmitting ? 'Procesando...' : 'Aceptar términos' }}</span>
+      </button>
+    </div>
+
+  </div>
+</div>

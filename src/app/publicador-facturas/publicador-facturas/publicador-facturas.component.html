@@ -66,6 +66,16 @@
   (submitForm)="publicarFactura($event)">
 </app-modal-publicacion-factura>
 
+<app-terms-and-conditions-modal
+  [isOpen]="!!pendingTncFactura"
+  [factura]="pendingTncFactura"
+  [versionTerminos]="pendingTncVersionTerminos"
+  [isSubmitting]="isTncSubmitting"
+  [errorMessage]="tncErrorMessage"
+  (accepted)="handleTncAccepted()"
+  (dismissed)="handleTncDismissed()">
+</app-terms-and-conditions-modal>
+
 <div class="mobile-filters-modal" *ngIf="isMobileFiltersModalOpen" (click)="closeMobileFiltersModal()">
   <section class="mobile-filters-panel" role="dialog" aria-modal="true" aria-label="Filtros de facturas"
     (click)="$event.stopPropagation()">

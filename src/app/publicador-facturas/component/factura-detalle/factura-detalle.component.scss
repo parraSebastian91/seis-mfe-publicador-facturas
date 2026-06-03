@@ -1,0 +1,959 @@
+// ─── Loading & Error ─────────────────────────────────────────────────────────
+
+.detalle-loading,
+.detalle-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 4rem 2rem;
+  color: #6b7280;
+  text-align: center;
+
+  mat-icon {
+    font-size: 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+}
+
+// ─── Wrapper ──────────────────────────────────────────────────────────────────
+
+.detalle-wrapper {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+// ─── Breadcrumb ──────────────────────────────────────────────────────────────
+
+.volver-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #2563eb;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0;
+  text-decoration: none;
+  align-self: flex-start;
+  transition: color 0.15s;
+
+  mat-icon {
+    font-size: 1.1rem;
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  &:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+  }
+}
+
+// ─── Factura Card (CA-05) ────────────────────────────────────────────────────
+
+.factura-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.factura-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  flex-wrap: wrap;
+}
+
+.factura-header-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.factura-folio {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.factura-num-ofertas {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 500;
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.factura-card-body {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.factura-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
+
+  &:nth-child(odd) {
+    border-right: 1px solid #f3f4f6;
+  }
+
+  &:last-child,
+  &:nth-last-child(2):nth-child(odd) {
+    border-bottom: none;
+  }
+
+  @media (max-width: 480px) {
+    border-right: none !important;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+}
+
+.field-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.field-val {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+// Estado badges (reutilizados desde factura-view)
+.estado-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.status-procesando { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+.status-pendiente { color: #854d0e; background: #fefce8; border-color: #fde047; }
+.status-pendiente-auth { color: #92400e; background: #fffbeb; border-color: #fcd34d; }
+.status-publicada { color: #166534; background: #f0fdf4; border-color: #86efac; }
+.status-financiada { color: #6b21a8; background: #faf5ff; border-color: #d8b4fe; }
+.status-rechazada { color: #991b1b; background: #fef2f2; border-color: #fca5a5; }
+.status-vencida { color: #374151; background: #f3f4f6; border-color: #d1d5db; }
+
+// ─── Ofertas Section (CA-06) ──────────────────────────────────────────────────
+
+.ofertas-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ofertas-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.ofertas-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2.5rem 1.5rem;
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  text-align: center;
+  color: #6b7280;
+
+  .empty-icon {
+    font-size: 2rem;
+    width: 2rem;
+    height: 2rem;
+    color: #d1d5db;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.9rem;
+    max-width: 400px;
+  }
+
+  &.ofertas-empty--info {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+
+    .empty-icon {
+      color: #93c5fd;
+    }
+  }
+}
+
+.ofertas-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+// ─── Oferta Card ─────────────────────────────────────────────────────────────
+
+.oferta-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: box-shadow 0.15s, border-color 0.15s;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  &.oferta-aceptada {
+    border-color: #86efac;
+    background: #f0fdf4;
+  }
+
+  &.oferta-inactiva {
+    opacity: 0.7;
+  }
+}
+
+.oferta-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.oferta-ejecutivo {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.ejecutivo-avatar {
+  img {
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.ejecutivo-avatar-placeholder {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border-radius: 50%;
+  color: #4b5563;
+
+  mat-icon {
+    font-size: 1.75rem;
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+}
+
+.ejecutivo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ejecutivo-nombre {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.financiera-nombre {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+// Oferta estado badge
+.oferta-estado-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+}
+
+.estado-activa { color: #166534; background: #dcfce7; border-color: #86efac; }
+.estado-aceptada { color: #6b21a8; background: #faf5ff; border-color: #d8b4fe; }
+.estado-rechazada { color: #991b1b; background: #fef2f2; border-color: #fca5a5; }
+.estado-vencida { color: #374151; background: #f3f4f6; border-color: #d1d5db; }
+
+// ─── Datos económicos ─────────────────────────────────────────────────────────
+
+.oferta-datos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+
+  @media (max-width: 600px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 400px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dato-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dato-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dato-val {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+
+  small.dato-pct {
+    font-weight: 400;
+    color: #6b7280;
+    margin-left: 3px;
+  }
+
+  small {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: #6b7280;
+    display: block;
+  }
+}
+
+.vigencia-urgente {
+  color: #b91c1c;
+}
+
+// ─── Oferta Acciones ─────────────────────────────────────────────────────────
+
+.oferta-acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.comparar-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  transition: background 0.15s, border-color 0.15s;
+
+  input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: #2563eb;
+  }
+
+  &.check-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:hover:not(.check-disabled) {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+  }
+}
+
+.btn-rechazar {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  background: #fff;
+  color: #b91c1c;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) {
+    background: #fef2f2;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.btn-chat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+  }
+
+  &:hover {
+    background: #f3f4f6;
+  }
+}
+
+.btn-aceptar-oferta {
+  margin-left: auto;
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  background: #15803d;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #15803d;
+  }
+}
+
+// ─── Inline Reject Form ───────────────────────────────────────────────────────
+
+.rechazo-inline {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rechazo-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #991b1b;
+}
+
+.rechazo-textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  resize: vertical;
+  font-family: inherit;
+  background: #fff;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: 2px solid #ef4444;
+    outline-offset: 1px;
+  }
+}
+
+.rechazo-error {
+  font-size: 0.8rem;
+  color: #b91c1c;
+}
+
+.rechazo-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.btn-cancelar-rechazo {
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #f3f4f6;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-confirmar-rechazo {
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  background: #dc2626;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) {
+    background: #b91c1c;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+// ─── Comparar CTA ────────────────────────────────────────────────────────────
+
+.comparar-cta {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.btn-comparar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.6rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  mat-icon {
+    font-size: 1.1rem;
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  &:hover {
+    background: #1d4ed8;
+  }
+}
+
+// ─── Dialog Backdrop (shared) ────────────────────────────────────────────────
+
+.dialog-backdrop,
+.compare-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  backdrop-filter: blur(2px);
+}
+
+// ─── Accept Confirm Dialog (CA-07) ───────────────────────────────────────────
+
+.confirm-dialog {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  @media (max-width: 520px) {
+    max-width: 95vw;
+  }
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.125rem 1.5rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #111827;
+  }
+}
+
+.dialog-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #6b7280;
+  display: flex;
+  border-radius: 6px;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) {
+    background: #f3f4f6;
+    color: #111827;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.dialog-body {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dialog-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  font-size: 0.875rem;
+  padding: 4px 0;
+  border-bottom: 1px solid #f9fafb;
+}
+
+.dialog-row--total {
+  border-bottom: none;
+  padding-top: 0.5rem;
+  margin-top: 0.25rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.dialog-label {
+  color: #6b7280;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.dialog-val {
+  color: #111827;
+  font-weight: 600;
+  text-align: right;
+}
+
+.dialog-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+}
+
+.dialog-error {
+  font-size: 0.82rem;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}
+
+.dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.625rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+
+  @media (max-width: 400px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.btn-cancelar {
+  padding: 0.55rem 1.1rem;
+  font-size: 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  font-weight: 500;
+
+  &:hover:not(:disabled) {
+    background: #f3f4f6;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-confirmar-aceptar {
+  padding: 0.55rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: #16a34a;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) {
+    background: #15803d;
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+}
+
+// ─── Compare Modal (CA-08) ────────────────────────────────────────────────────
+
+.compare-modal {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  @media (max-width: 760px) {
+    max-width: 95vw;
+    max-height: 95vh;
+    border-radius: 8px;
+  }
+}
+
+.compare-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.125rem 1.5rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #111827;
+  }
+}
+
+.compare-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #6b7280;
+  display: flex;
+  border-radius: 6px;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #f3f4f6;
+    color: #111827;
+  }
+}
+
+.compare-body {
+  flex: 1;
+  overflow: auto;
+  padding: 1.25rem 1.5rem;
+}
+
+.compare-table-wrapper {
+  overflow-x: auto;
+}
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+
+  th,
+  td {
+    padding: 0.625rem 0.875rem;
+    text-align: center;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
+  }
+
+  thead th {
+    background: #f9fafb;
+    font-weight: 700;
+    color: #374151;
+    font-size: 0.82rem;
+  }
+
+  .label-col {
+    text-align: left;
+    font-weight: 600;
+    color: #6b7280;
+    white-space: nowrap;
+    min-width: 100px;
+  }
+
+  .row-label {
+    text-align: left;
+    color: #6b7280;
+    font-weight: 500;
+  }
+
+  .oferta-col {
+    min-width: 150px;
+    vertical-align: bottom;
+  }
+
+  .compare-ejecutivo {
+    display: block;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .compare-financiera {
+    display: block;
+    color: #6b7280;
+    font-size: 0.78rem;
+    font-weight: 400;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tfoot td {
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+    border-bottom: none;
+  }
+}
+
+.best-value {
+  color: #166534;
+  font-weight: 700;
+  background: #f0fdf4;
+}
+
+.vigencia-urgente {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.btn-aceptar-compare {
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  background: #16a34a;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #15803d;
+  }
+}

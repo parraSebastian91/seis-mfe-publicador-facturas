@@ -1,0 +1,335 @@
+<!-- ─── Loading ───────────────────────────────────────────────────────────── -->
+<div class="detalle-loading" *ngIf="isLoading">
+  <mat-icon class="loading-icon">hourglass_empty</mat-icon>
+  <p>Cargando factura...</p>
+</div>
+
+<!-- ─── Error ─────────────────────────────────────────────────────────────── -->
+<div class="detalle-error" *ngIf="!isLoading && loadError">
+  <mat-icon>error_outline</mat-icon>
+  <p>{{ loadError }}</p>
+</div>
+
+<!-- ─── Content ───────────────────────────────────────────────────────────── -->
+<div class="detalle-wrapper" *ngIf="!isLoading && factura && !loadError">
+
+  <!-- Breadcrumb -->
+  <button type="button" class="volver-btn" (click)="goBack()">
+    <mat-icon>arrow_back</mat-icon>
+    Volver a mis facturas
+  </button>
+
+  <!-- Tarjeta Factura (CA-05) -->
+  <div class="factura-card">
+    <div class="factura-card-header">
+      <div class="factura-header-info">
+        <h1 class="factura-folio">Factura N° {{ factura.facturaNumero }}</h1>
+        <span class="estado-badge status-{{ statusClass(factura.status) }}">{{ factura.status | titlecase }}</span>
+      </div>
+      <span class="factura-num-ofertas">
+        <mat-icon>local_offer</mat-icon>
+        {{ factura.total_ofertas }} oferta(s)
+      </span>
+    </div>
+    <div class="factura-card-body">
+      <div class="factura-field">
+        <span class="field-label">Deudor</span>
+        <span class="field-val">{{ factura.deudorNombre }}</span>
+      </div>
+      <div class="factura-field">
+        <span class="field-label">RUT Deudor</span>
+        <span class="field-val">{{ factura.deudorRut }}</span>
+      </div>
+      <div class="factura-field">
+        <span class="field-label">Monto total</span>
+        <span class="field-val">{{ factura.montoTotal | currency:'CLP':'$':'1.0-0' }}</span>
+      </div>
+      <div class="factura-field">
+        <span class="field-label">Vencimiento</span>
+        <span class="field-val">{{ factura.fechaVencimiento | date:'dd/MM/yyyy' }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lista de Ofertas (CA-06) -->
+  <section class="ofertas-section" aria-label="Ofertas recibidas">
+    <h2 class="ofertas-title">Ofertas recibidas</h2>
+
+    <!-- Empty state — nunca hubo -->
+    <div class="ofertas-empty" *ngIf="!ofertas.length">
+      <mat-icon class="empty-icon">inbox</mat-icon>
+      <p>Aún no has recibido ofertas para esta factura.</p>
+    </div>
+
+    <!-- Empty state — ya no activas (EB-03) -->
+    <div class="ofertas-empty ofertas-empty--info" *ngIf="hasOnlyInactiveOfertas">
+      <mat-icon class="empty-icon">history</mat-icon>
+      <p>Las ofertas recibidas ya no están disponibles. Tu factura sigue publicada y puede recibir nuevas ofertas.</p>
+    </div>
+
+    <!-- Lista de ofertas -->
+    <ul class="ofertas-list" *ngIf="ofertas.length">
+      <li *ngFor="let oferta of ofertas; trackBy: trackByOfertaId" class="oferta-item">
+        <div class="oferta-card"
+          [class.oferta-aceptada]="oferta.estado === ofertaEstadoEnum.ACEPTADA"
+          [class.oferta-inactiva]="oferta.estado !== ofertaEstadoEnum.ACTIVA">
+
+          <!-- Oferta header -->
+          <div class="oferta-header">
+            <div class="oferta-ejecutivo">
+              <div class="ejecutivo-avatar" *ngIf="oferta.ejecutivoAvatarUrl">
+                <img [src]="oferta.ejecutivoAvatarUrl" [alt]="'Avatar de ' + oferta.ejecutivoNombre"
+                  width="40" height="40">
+              </div>
+              <div class="ejecutivo-avatar-placeholder" *ngIf="!oferta.ejecutivoAvatarUrl">
+                <mat-icon>account_circle</mat-icon>
+              </div>
+              <div class="ejecutivo-info">
+                <span class="ejecutivo-nombre">{{ oferta.ejecutivoNombre }}</span>
+                <span class="financiera-nombre" *ngIf="oferta.financieraNombre">{{ oferta.financieraNombre }}</span>
+              </div>
+            </div>
+            <span class="oferta-estado-badge estado-{{ oferta.estado.toLowerCase() }}">{{ oferta.estado }}</span>
+          </div>
+
+          <!-- Datos económicos -->
+          <div class="oferta-datos">
+            <div class="dato-item">
+              <span class="dato-label">Anticipo</span>
+              <span class="dato-val">
+                {{ oferta.montoAnticipo | currency:'CLP':'$':'1.0-0' }}
+                <small class="dato-pct">({{ oferta.porcentajeAnticipo | number:'1.0-1' }}%)</small>
+              </span>
+            </div>
+            <div class="dato-item">
+              <span class="dato-label">Tasa mensual</span>
+              <span class="dato-val">{{ oferta.tasaMensual | number:'1.2-2' }}%</span>
+            </div>
+            <div class="dato-item">
+              <span class="dato-label">Gastos operac.</span>
+              <span class="dato-val">{{ oferta.gastosOperacionales | currency:'CLP':'$':'1.0-0' }}</span>
+            </div>
+            <div class="dato-item">
+              <span class="dato-label">Líquido a recibir</span>
+              <span class="dato-val">{{ oferta.liquidoRecibir | currency:'CLP':'$':'1.0-0' }}</span>
+            </div>
+            <div class="dato-item">
+              <span class="dato-label">Vigencia</span>
+              <span class="dato-val" [class.vigencia-urgente]="getDiasRestantes(oferta.fechaVigencia) <= 2">
+                {{ getDiasRestantes(oferta.fechaVigencia) }} día(s)
+                <small>({{ oferta.fechaVigencia | date:'dd/MM/yyyy' }})</small>
+              </span>
+            </div>
+          </div>
+
+          <!-- Acciones — solo para ofertas ACTIVAS -->
+          <div class="oferta-acciones" *ngIf="isOfertaActiva(oferta)">
+            <label class="comparar-check" [class.check-disabled]="!selectedOfertaIds.has(oferta.ofertaId) && selectedOfertaIds.size >= 3">
+              <input type="checkbox"
+                [checked]="selectedOfertaIds.has(oferta.ofertaId)"
+                [disabled]="!selectedOfertaIds.has(oferta.ofertaId) && selectedOfertaIds.size >= 3"
+                (change)="toggleCompare(oferta.ofertaId)">
+              Comparar
+            </label>
+
+            <button type="button" class="btn-rechazar"
+              (click)="startReject(oferta.ofertaId)"
+              [disabled]="rejectingOfertaId !== null && rejectingOfertaId !== oferta.ofertaId">
+              Rechazar
+            </button>
+
+            <button type="button" class="btn-chat" title="Ver negociación (HU-26)">
+              <mat-icon>chat_bubble_outline</mat-icon>
+              Ver chat
+            </button>
+
+            <button type="button" class="btn-aceptar-oferta"
+              (click)="openAcceptConfirm(oferta)">
+              Aceptar oferta
+            </button>
+          </div>
+
+          <!-- Inline reject form -->
+          <div class="rechazo-inline" *ngIf="rejectingOfertaId === oferta.ofertaId">
+            <label class="rechazo-label" [attr.for]="'rechazo-' + oferta.ofertaId">Motivo del rechazo (opcional)</label>
+            <textarea
+              [id]="'rechazo-' + oferta.ofertaId"
+              class="rechazo-textarea"
+              [(ngModel)]="rejectMotivo"
+              placeholder="Describe brevemente el motivo..."
+              rows="2"></textarea>
+            <div class="rechazo-error" role="alert" *ngIf="rejectError">{{ rejectError }}</div>
+            <div class="rechazo-actions">
+              <button type="button" class="btn-cancelar-rechazo" (click)="cancelReject()" [disabled]="isRejecting">
+                Cancelar
+              </button>
+              <button type="button" class="btn-confirmar-rechazo" (click)="confirmarRechazar()" [disabled]="isRejecting">
+                {{ isRejecting ? 'Rechazando...' : 'Confirmar rechazo' }}
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </li>
+    </ul>
+
+    <!-- Comparar seleccionadas -->
+    <div class="comparar-cta" *ngIf="selectedOfertaIds.size >= 2">
+      <button type="button" class="btn-comparar" (click)="openCompareModal()">
+        <mat-icon>compare</mat-icon>
+        Comparar seleccionadas ({{ selectedOfertaIds.size }})
+      </button>
+    </div>
+
+  </section>
+</div>
+
+<!-- ─── Accept Confirm Dialog (CA-07) ─────────────────────────────────────── -->
+<div class="dialog-backdrop"
+  *ngIf="confirmOferta"
+  (click)="closeAcceptConfirm()"
+  (keydown.escape)="closeAcceptConfirm()">
+
+  <div class="confirm-dialog"
+    aria-modal="true"
+    aria-labelledby="confirm-accept-title"
+    (click)="$event.stopPropagation()"
+    (keydown)="$event.stopPropagation()">
+
+    <div class="dialog-header">
+      <h3 id="confirm-accept-title">¿Confirmar aceptación de oferta?</h3>
+      <button type="button" class="dialog-close" (click)="closeAcceptConfirm()" [disabled]="isAccepting" aria-label="Cerrar">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="dialog-body" *ngIf="confirmOferta">
+      <div class="dialog-row">
+        <span class="dialog-label">Ejecutivo</span>
+        <span class="dialog-val">
+          {{ confirmOferta.ejecutivoNombre }}{{ confirmOferta.financieraNombre ? ' — ' + confirmOferta.financieraNombre : '' }}
+        </span>
+      </div>
+      <div class="dialog-row">
+        <span class="dialog-label">Anticipo</span>
+        <span class="dialog-val">
+          {{ confirmOferta.montoAnticipo | currency:'CLP':'$':'1.0-0' }}
+          ({{ confirmOferta.porcentajeAnticipo | number:'1.0-1' }}%)
+        </span>
+      </div>
+      <div class="dialog-row">
+        <span class="dialog-label">Tasa</span>
+        <span class="dialog-val">{{ confirmOferta.tasaMensual | number:'1.2-2' }}% mensual</span>
+      </div>
+      <div class="dialog-row">
+        <span class="dialog-label">Gastos</span>
+        <span class="dialog-val">{{ confirmOferta.gastosOperacionales | currency:'CLP':'$':'1.0-0' }}</span>
+      </div>
+      <div class="dialog-row dialog-row--total">
+        <span class="dialog-label">Líquido a recibir</span>
+        <span class="dialog-val">{{ confirmOferta.liquidoRecibir | currency:'CLP':'$':'1.0-0' }}</span>
+      </div>
+      <p class="dialog-warning">
+        <mat-icon>warning_amber</mat-icon>
+        Al aceptar, las demás ofertas activas se rechazarán automáticamente.
+      </p>
+      <div class="dialog-error" role="alert" *ngIf="acceptError">{{ acceptError }}</div>
+    </div>
+
+    <div class="dialog-footer">
+      <button type="button" class="btn-cancelar" (click)="closeAcceptConfirm()" [disabled]="isAccepting">
+        Cancelar
+      </button>
+      <button type="button" class="btn-confirmar-aceptar" (click)="confirmarAceptar()" [disabled]="isAccepting">
+        {{ isAccepting ? 'Procesando...' : 'Confirmar aceptación' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Compare Modal (CA-08) ─────────────────────────────────────────────── -->
+<div class="compare-backdrop"
+  *ngIf="showCompareModal"
+  (click)="closeCompareModal()"
+  (keydown.escape)="closeCompareModal()">
+
+  <div class="compare-modal"
+    aria-modal="true"
+    aria-labelledby="compare-modal-title"
+    (click)="$event.stopPropagation()"
+    (keydown)="$event.stopPropagation()">
+
+    <div class="compare-header">
+      <h3 id="compare-modal-title">Comparar Ofertas</h3>
+      <button type="button" class="compare-close" (click)="closeCompareModal()" aria-label="Cerrar comparación">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="compare-body">
+      <div class="compare-table-wrapper">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th scope="col" class="label-col">Criterio</th>
+              <th scope="col" *ngFor="let o of selectedOfertas" class="oferta-col">
+                <span class="compare-ejecutivo">{{ o.ejecutivoNombre }}</span>
+                <small *ngIf="o.financieraNombre" class="compare-financiera">{{ o.financieraNombre }}</small>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="row-label">Anticipo</td>
+              <td *ngFor="let o of selectedOfertas"
+                [class.best-value]="getBestValue('montoAnticipo', o.ofertaId)">
+                {{ o.montoAnticipo | currency:'CLP':'$':'1.0-0' }}<br>
+                <small>({{ o.porcentajeAnticipo | number:'1.0-1' }}%)</small>
+              </td>
+            </tr>
+            <tr>
+              <td class="row-label">Tasa</td>
+              <td *ngFor="let o of selectedOfertas"
+                [class.best-value]="getBestValue('tasaMensual', o.ofertaId)">
+                {{ o.tasaMensual | number:'1.2-2' }}%
+              </td>
+            </tr>
+            <tr>
+              <td class="row-label">Gastos</td>
+              <td *ngFor="let o of selectedOfertas"
+                [class.best-value]="getBestValue('gastosOperacionales', o.ofertaId)">
+                {{ o.gastosOperacionales | currency:'CLP':'$':'1.0-0' }}
+              </td>
+            </tr>
+            <tr>
+              <td class="row-label">Líquido</td>
+              <td *ngFor="let o of selectedOfertas"
+                [class.best-value]="getBestValue('liquidoRecibir', o.ofertaId)">
+                {{ o.liquidoRecibir | currency:'CLP':'$':'1.0-0' }}
+              </td>
+            </tr>
+            <tr>
+              <td class="row-label">Vigencia</td>
+              <td *ngFor="let o of selectedOfertas"
+                [class.vigencia-urgente]="getDiasRestantes(o.fechaVigencia) <= 2">
+                {{ getDiasRestantes(o.fechaVigencia) }} día(s)
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td></td>
+              <td *ngFor="let o of selectedOfertas">
+                <button type="button" class="btn-aceptar-compare"
+                  (click)="openAcceptConfirm(o)">
+                  Aceptar
+                </button>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>

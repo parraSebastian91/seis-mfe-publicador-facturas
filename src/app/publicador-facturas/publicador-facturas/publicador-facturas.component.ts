@@ -4,7 +4,6 @@ import { AutorizacionPublicacionDto, createdBy, FacturaCreateRequestDto, factura
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
 import { FacturaData, FacturaFormularioPublicacion, ModalPublishMetadata } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
-import Swal from 'sweetalert2';
 import { FacturaConfirmRequestEvent, FacturaRespaldoRequestEvent } from '../component/factura-view/factura-view.component';
 
 interface FacturaFieldUpdateEvent {
@@ -73,16 +72,24 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   readonly userName!: Signal<string>;
   readonly userRole!: Signal<string>;
 
+  // T&C modal state
+  pendingTncFactura: FacturaType | null = null;
+  pendingTncVersionTerminos: VersionTerminos | null = null;
+  isTncSubmitting = false;
+  tncErrorMessage = '';
+  private onTncAcceptedCallback?: () => Promise<void>;
+  private onTncDismissedCallback?: () => void;
+
   private readonly notificationSocketService = inject(NotificationSocketService);
   private socketEffect?: EffectRef;
 
   constructor(
-    private injector: Injector,
-    private objectUploadService: ObjectUploadService,
-    private uploadModalService: UploadModalService,
-    private userStateService: UserStateService,
-    private userProfileService: UserProfileService,
-    private facturasService: FacturasService
+    private readonly injector: Injector,
+    private readonly objectUploadService: ObjectUploadService,
+    private readonly uploadModalService: UploadModalService,
+    private readonly userStateService: UserStateService,
+    private readonly userProfileService: UserProfileService,
+    private readonly facturasService: FacturasService
   ) {
     this.userName = this.userStateService.userName;
     this.orgSelected = this.userStateService.orgSelected;
@@ -194,22 +201,35 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
    * @returns 
    */
   async handleFacturaConfirmRequest(event: FacturaConfirmRequestEvent): Promise<void> {
-    const hasAuthorization = await this.confirmarAutorizacionParaPublicar(event.data.factura.facturaNumero || undefined);
-    const nextStatus = this.facturasService.resolveEstadoFromAuthorization(hasAuthorization);
     if (!event.data.factura.facturaId) {
-      event.data.onCompleted({ authorized: hasAuthorization, updated: false, status: nextStatus });
+      event.data.onCompleted({ authorized: false, updated: false, status: event.data.factura.status });
       return;
     }
 
+    let versionTerminos: VersionTerminos | null = null;
     try {
-      await this.facturasService.actualizarEstadoFactura(event.data.factura, nextStatus);
-      const updatedFactura: FacturaType = { ...event.data.factura, status: nextStatus };
-      this.actualizarFacturaInMemory(updatedFactura);
-      event.data.onCompleted({ authorized: hasAuthorization, updated: true, status: nextStatus });
-    } catch (err) {
-      console.error('Error al actualizar estado de factura:', err);
-      event.data.onCompleted({ authorized: hasAuthorization, updated: false, status: event.data.factura.status });
-    }
+      versionTerminos = await this.facturasService.obtenerVersionTerminosActiva();
+    } catch { /* usa texto genérico en el modal */ }
+
+    this.pendingTncVersionTerminos = versionTerminos;
+    this.pendingTncFactura = event.data.factura;
+
+    this.onTncAcceptedCallback = async () => {
+      try {
+        await this.facturasService.actualizarEstadoFactura(event.data.factura, facturaEstado.PUBLICADA);
+        const updatedFactura: FacturaType = { ...event.data.factura, status: facturaEstado.PUBLICADA };
+        this.actualizarFacturaInMemory(updatedFactura);
+        event.data.onCompleted({ authorized: true, updated: true, status: facturaEstado.PUBLICADA });
+      } catch (err) {
+        console.error('Error al publicar factura:', err);
+        this.tncErrorMessage = 'Error al publicar la factura. Intente nuevamente.';
+        event.data.onCompleted({ authorized: true, updated: false, status: event.data.factura.status });
+      }
+    };
+
+    this.onTncDismissedCallback = () => {
+      event.data.onCompleted({ authorized: false, updated: false, status: event.data.factura.status });
+    };
   }
 
   async handleFacturaCorregirRequest(event: FacturaConfirmRequestEvent): Promise<void> {
@@ -291,29 +311,36 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
           // Continúa con texto genérico si el fetch falla
         }
 
-        // Paso 4: Mostrar modal de confirmación de términos
-        const authorizationResult = await this.confirmarAutorizacionParaPublicar(
-          facturaCreada.facturaNumero || undefined,
-          versionTerminos
-        );
-        const nextStatus = this.facturasService.resolveEstadoFromAuthorization(authorizationResult);
+        // Paso 4: Abrir modal T&C (callbacks ejecutados al aceptar/descartar)
+        this.pendingTncVersionTerminos = versionTerminos ?? null;
+        this.pendingTncFactura = facturaCreada;
 
-        // Paso 5: Registrar autorización (WebSocket actualizará el estado final)
-        try {
-          if (versionTerminos) {
-            await this.facturasService.registrarAutorizacion({
-              facturaId: facturaCreada.facturaId,
-              versionTerminosId: versionTerminos.id,
-              acepto: authorizationResult.isConfirmed,
-              correlationId: facturaCreada.correlationId || undefined
-            } satisfies AutorizacionPublicacionDto);
-          } else {
-            await this.facturasService.actualizarEstadoFactura(facturaCreada, nextStatus);
+        this.onTncAcceptedCallback = async () => {
+          try {
+            if (versionTerminos) {
+              await this.facturasService.registrarAutorizacion({
+                facturaId: facturaCreada.facturaId,
+                versionTerminosId: versionTerminos.id,
+                acepto: true,
+                correlationId: facturaCreada.correlationId || undefined
+              } satisfies AutorizacionPublicacionDto);
+            } else {
+              await this.facturasService.actualizarEstadoFactura(facturaCreada, facturaEstado.PUBLICADA);
+            }
+            this.actualizarFacturaInMemory({ ...facturaCreada, status: facturaEstado.PUBLICADA }, optimisticCorrelationId, data);
+          } catch (err) {
+            console.error('Error al registrar autorización:', err);
+            this.tncErrorMessage = 'Error al registrar la autorización. Intente nuevamente.';
           }
-          this.actualizarFacturaInMemory({ ...facturaCreada, status: nextStatus }, optimisticCorrelationId, data);
-        } catch (err) {
-          console.error('Error al registrar autorización:', err);
-        }
+        };
+
+        this.onTncDismissedCallback = () => {
+          this.actualizarFacturaInMemory(
+            { ...facturaCreada, status: facturaEstado.PENDIENTE_AUTORIZACION },
+            optimisticCorrelationId,
+            data
+          );
+        };
         break;
       }
       case 'confirmar':
@@ -329,39 +356,29 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   }
 
 
-  private async confirmarAutorizacionParaPublicar(facturaNumero?: string, versionTerminos?: VersionTerminos): Promise<any> {
-    const facturaReference = String(facturaNumero ?? '').trim();
-    const facturaLabel = facturaReference ? `Factura N° ${facturaReference}` : 'Factura';
-    const cuerpoTerminos = versionTerminos?.textCompleto
-      ? `<p style="text-align:left; font-size:0.9rem; margin:0.75rem 0">${versionTerminos.textCompleto}</p>`
-      : [
-        '<p>Al aceptar, declaras que:</p>',
-        '<ul style="text-align:left; margin:0.5rem 0 0 1.25rem;">',
-        '<li>Autorizas la publicación de la factura.</li>',
-        '<li>Autorizas la notificación a entidades financieras para su evaluación.</li>',
-        '</ul>'
-      ].join('');
-    const authorizationText = [
-      `<p><strong>${facturaLabel}</strong></p>`,
-      '<p>Debes confirmar expresamente la autorización para continuar.</p>',
-      cuerpoTerminos
-    ].join('');
+  async handleTncAccepted(): Promise<void> {
+    if (!this.onTncAcceptedCallback) {
+      return;
+    }
+    this.isTncSubmitting = true;
+    this.tncErrorMessage = '';
+    await this.onTncAcceptedCallback();
+    this.isTncSubmitting = false;
+    if (!this.tncErrorMessage) {
+      this.pendingTncFactura = null;
+      this.pendingTncVersionTerminos = null;
+      this.onTncAcceptedCallback = undefined;
+      this.onTncDismissedCallback = undefined;
+    }
+  }
 
-    const result = await Swal.fire({
-      title: 'Confirmar autorización',
-      html: authorizationText,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Aceptar',
-      cancelButtonText: 'Volver a revisar',
-      reverseButtons: true,
-      allowOutsideClick: !this.isPublishing,
-      allowEscapeKey: !this.isPublishing,
-      focusCancel: true,
-      footer: versionTerminos ? `<small>Versión términos: ${versionTerminos.codigo}</small>` : undefined
-    });
-
-    return result;
+  handleTncDismissed(): void {
+    this.onTncDismissedCallback?.();
+    this.pendingTncFactura = null;
+    this.pendingTncVersionTerminos = null;
+    this.tncErrorMessage = '';
+    this.onTncAcceptedCallback = undefined;
+    this.onTncDismissedCallback = undefined;
   }
 
   //**

@@ -1,8 +1,7 @@
-import { NgModule } from '@angular/core';
+import { NgModule, LOCALE_ID } from '@angular/core';
 import { CommonModule, registerLocaleData } from '@angular/common';
 import localeEsCl from '@angular/common/locales/es-CL';
 import { FormsModule } from '@angular/forms';
-import { LOCALE_ID } from '@angular/core';
 
 import { PublicadorFacturasRoutingModule } from './publicador-facturas-routing.module';
 import { PublicadorFacturasComponent } from './publicador-facturas/publicador-facturas.component';
@@ -17,6 +16,8 @@ import { NgbDatepickerModule } from '@ng-bootstrap/ng-bootstrap';
 import { AtomicDatepickerComponent } from './component/atomic-datepicker/atomic-datepicker.component';
 import { AtomicFacturaFiltersComponent } from './component/atomic-factura-filters/atomic-factura-filters.component';
 import { A11yModule } from "@angular/cdk/a11y";
+import { TermsAndConditionsModalComponent } from './component/terms-and-conditions-modal/terms-and-conditions-modal.component';
+import { FacturaDetalleComponent } from './component/factura-detalle/factura-detalle.component';
 
 registerLocaleData(localeEsCl);
 @NgModule({
@@ -26,7 +27,9 @@ registerLocaleData(localeEsCl);
     ImagePanzoomViewerComponent,
     ModalPublicacionFacturaComponent,
     AtomicDatepickerComponent,
-    AtomicFacturaFiltersComponent
+    AtomicFacturaFiltersComponent,
+    TermsAndConditionsModalComponent,
+    FacturaDetalleComponent
   ],
   imports: [
     CommonModule,
