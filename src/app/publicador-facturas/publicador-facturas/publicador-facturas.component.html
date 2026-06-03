@@ -15,6 +15,17 @@
   </header>
 
   <div class="contenido">
+    <div class="estado-chips" *ngIf="facturas.length">
+      <button
+        *ngFor="let chip of estadoChips"
+        type="button"
+        class="estado-chip"
+        [class.active]="isChipActive(chip.value)"
+        (click)="toggleEstadoChip(chip.value)">
+        {{ chip.label }}
+      </button>
+    </div>
+
     <div class="filtro-row" *ngIf="facturas.length">
       <app-atomic-factura-filters [facturas]="facturas" [isAdmin]="isAdminUser" [filters]="activeFilters"
         (filtersChange)="onFiltersChange($event)">
@@ -23,7 +34,7 @@
 
     <div class="contenedor-lista" *ngIf="filteredFacturas.length">
       <ul class="estado-lista">
-        <li *ngFor="let factura of filteredFacturas; trackBy: trackByFacturaId"
+        <li *ngFor="let factura of paginatedFacturas; trackBy: trackByFacturaId"
           [class.factura-just-published]="isFacturaRecentlyPublished(factura)">
           <app-factura-view [factura]="factura" (facturaChange)="handleFacturaChange($event)"
             (confirmFacturaRequest)="publicarFactura($event)"
@@ -31,12 +42,21 @@
           </app-factura-view>
         </li>
       </ul>
+      <div class="cargar-mas-row" *ngIf="hasMore">
+        <button type="button" class="btn-cargar-mas" (click)="loadMore()">Cargar más</button>
+      </div>
     </div>
-  </div>
 
-  <p class="estado-vacio" *ngIf="!facturas.length">No hay facturas para la organizacion seleccionada.</p>
-  <p class="estado-vacio" *ngIf="facturas.length && !filteredFacturas.length">No hay facturas que coincidan con los
-    filtros seleccionados.</p>
+    <div class="estado-vacio-cta" *ngIf="!facturas.length">
+      <mat-icon class="empty-icon">receipt_long</mat-icon>
+      <h2 class="empty-title">No tienes facturas aún</h2>
+      <p class="empty-desc">Publica tu primera factura para comenzar a recibir financiamiento.</p>
+      <button type="button" class="btn-publicar" (click)="openUploadModal()">+ Nueva Factura</button>
+    </div>
+
+    <p class="estado-vacio" *ngIf="facturas.length && !filteredFacturas.length">No hay facturas que coincidan con los
+      filtros seleccionados.</p>
+  </div>
 </section>
 
 <app-modal-publicacion-factura [isOpen]="isPublicationModalOpen" [isSubmitting]="isPublishing"

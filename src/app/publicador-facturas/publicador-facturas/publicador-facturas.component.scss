@@ -298,10 +298,86 @@ p {
         width: 100%;
     }
 
-    .publicador-wrapper {
-        color: black;
-        padding: 1em 0.5em 1em 0.5em;
-        margin-bottom: 60px;
+.estado-vacio {
+    text-align: center;
+    color: #6b7280;
+    margin-top: 2rem;
+}
+
+.estado-vacio-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 3rem 1.5rem;
+    text-align: center;
+}
+
+.empty-icon {
+    font-size: 3.5rem;
+    width: 3.5rem;
+    height: 3.5rem;
+    color: #9ca3af;
+}
+
+.empty-title {
+    margin: 0;
+    font-size: 1.35rem;
+    color: #111827;
+}
+
+.empty-desc {
+    margin: 0;
+    color: #6b7280;
+    max-width: 380px;
+}
+
+.estado-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem 0 0.25rem;
+}
+
+.estado-chip {
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    color: #374151;
+    border-radius: 999px;
+    padding: 0.35rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+    &:hover {
+        background: #e5e7eb;
     }
 
+    &.active {
+        background: #0f766e;
+        border-color: #0f766e;
+        color: #ffffff;
+    }
+}
+
+.cargar-mas-row {
+    display: flex;
+    justify-content: center;
+    padding: 1.25rem 0 0.5rem;
+}
+
+.btn-cargar-mas {
+    border: 1px solid #0f766e;
+    border-radius: 0.6rem;
+    padding: 0.65rem 1.4rem;
+    font-weight: 600;
+    background: #ffffff;
+    color: #0f766e;
+    cursor: pointer;
+
+    &:hover {
+        background: #f0fdf4;
+    }
 }

@@ -1,6 +1,6 @@
-import { Component, EffectRef, Injector, OnDestroy, OnInit, Signal, effect, signal } from '@angular/core';
+import { Component, EffectRef, Injector, OnDestroy, OnInit, Signal, effect, inject } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { AutorizacionPublicacionDto, createdBy, FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos } from 'shared-utils';
+import { AutorizacionPublicacionDto, createdBy, FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, NotificationSocketService, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos } from 'shared-utils';
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
 import { FacturaData, FacturaFormularioPublicacion, ModalPublishMetadata } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
@@ -33,6 +33,19 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   private publishedHighlightTimeoutId?: ReturnType<typeof setTimeout>;
   private respaldoModalSubscription?: Subscription;
 
+  readonly estadoChips: { label: string; value: string }[] = [
+    { label: 'Todas', value: '' },
+    { label: 'Procesando', value: facturaEstado.PROCESANDO },
+    { label: 'Pend. autorización', value: facturaEstado.PENDIENTE_AUTORIZACION },
+    { label: 'Publicada', value: facturaEstado.PUBLICADA },
+    { label: 'Financiada', value: facturaEstado.FINANCIADA },
+    { label: 'Rechazada', value: facturaEstado.RECHAZADA },
+    { label: 'Vencida', value: facturaEstado.VENCIDA },
+  ];
+  readonly selectedEstadoChips = new Set<string>();
+  pageSize = 10;
+  visibleCount = 10;
+
   facturas: FacturaType[] = [];
   filteredFacturas: FacturaType[] = [];
   isPublicationModalOpen = false;
@@ -59,6 +72,9 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   readonly orgSelected!: Signal<string>;
   readonly userName!: Signal<string>;
   readonly userRole!: Signal<string>;
+
+  private readonly notificationSocketService = inject(NotificationSocketService);
+  private socketEffect?: EffectRef;
 
   constructor(
     private injector: Injector,
@@ -89,10 +105,20 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
       void this.loadFacturas(organizacionUUID);
     }, { injector: this.injector });
+
+    this.socketEffect = effect(() => {
+      const notifications = this.notificationSocketService.notifications();
+      if (!notifications.length) {
+        return;
+      }
+      const latest = notifications[notifications.length - 1];
+      this.handleSocketNotification(latest);
+    }, { injector: this.injector });
   }
 
   ngOnDestroy(): void {
     this.orgEffect?.destroy();
+    this.socketEffect?.destroy();
     this.respaldoModalSubscription?.unsubscribe();
     if (this.publishedHighlightTimeoutId) {
       clearTimeout(this.publishedHighlightTimeoutId);
@@ -186,6 +212,24 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     }
   }
 
+  async handleFacturaCorregirRequest(event: FacturaConfirmRequestEvent): Promise<void> {
+    if (!event.data.factura.facturaId) {
+      event.data.onCompleted({ authorized: false, updated: false, status: event.data.factura.status });
+      return;
+    }
+
+    try {
+      const nextStatus = facturaEstado.PENDIENTE_VALIDACION;
+      await this.facturasService.actualizarEstadoFactura(event.data.factura, nextStatus);
+      const updatedFactura: FacturaType = { ...event.data.factura, status: nextStatus };
+      this.actualizarFacturaInMemory(updatedFactura);
+      event.data.onCompleted({ authorized: true, updated: true, status: nextStatus });
+    } catch (err) {
+      console.error('Error al reenviar factura:', err);
+      event.data.onCompleted({ authorized: false, updated: false, status: event.data.factura.status });
+    }
+  }
+
 
   public async publicarFactura(event: FacturaFormularioPublicacion | FacturaConfirmRequestEvent): Promise<void> {
     const orgInfo = this.userStateService.organizationProfile().find((org: UserOrgProfileState) => org.uuid === this.orgSelected()) || { razonSocial: '', rut: '' };
@@ -273,7 +317,11 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
         break;
       }
       case 'confirmar':
-        await this.handleFacturaConfirmRequest(event as FacturaConfirmRequestEvent);
+      case 'validar':
+        await this.handleFacturaConfirmRequest(event);
+        break;
+      case 'corregir':
+        await this.handleFacturaCorregirRequest(event);
         break;
       default:
         console.warn('Evento de publicación desconocido:', event);
@@ -367,8 +415,35 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     return String(value ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
   }
 
-  trackByFacturaId(index: number, factura: FacturaType): string {
-    return factura.correlationId || String(index);
+  get hasMore(): boolean {
+    return this.visibleCount < this.filteredFacturas.length;
+  }
+
+  get paginatedFacturas(): FacturaType[] {
+    return this.filteredFacturas.slice(0, this.visibleCount);
+  }
+
+  loadMore(): void {
+    this.visibleCount = Math.min(this.visibleCount + this.pageSize, this.filteredFacturas.length);
+  }
+
+  isChipActive(value: string): boolean {
+    if (!value) {
+      return this.selectedEstadoChips.size === 0;
+    }
+    return this.selectedEstadoChips.has(value);
+  }
+
+  toggleEstadoChip(value: string): void {
+    if (!value) {
+      this.selectedEstadoChips.clear();
+    } else if (this.selectedEstadoChips.has(value)) {
+      this.selectedEstadoChips.delete(value);
+    } else {
+      this.selectedEstadoChips.add(value);
+    }
+    this.visibleCount = this.pageSize;
+    this.applyFiltersAndSort();
   }
 
   get isAdminUser(): boolean {
@@ -376,6 +451,10 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   }
 
   publicationMetadata: ModalPublishMetadata = { numeroFacturaExistentes: [], deudoresExistentes: [] };
+
+  trackByFacturaId(index: number, factura: FacturaType): string {
+    return factura.correlationId || String(index);
+  }
 
   private rebuildPublicationMetadata(): void {
     const seen = new Set<string>();
@@ -493,7 +572,9 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     const filters = this.activeFilters;
     let filtered = [...this.facturas];
 
-    if (filters.status) {
+    if (this.selectedEstadoChips.size > 0) {
+      filtered = filtered.filter(factura => this.selectedEstadoChips.has(factura.status));
+    } else if (filters.status) {
       filtered = filtered.filter(factura => factura.status === filters.status);
     }
 
@@ -539,6 +620,48 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     this.rebuildPublicationMetadata();
   }
 
+  private handleSocketNotification(notification: unknown): void {
+    const payload = notification as Record<string, unknown>;
+    const eventType = String(payload?.['type'] as string ?? payload?.['event'] as string ?? '');
+    const facturaId = String(payload?.['facturaId'] as string ?? payload?.['factura_id'] as string ?? '');
+
+    if (!facturaId) {
+      return;
+    }
+
+    const target = this.facturas.find(f => f.facturaId === facturaId || f.correlationId === facturaId);
+    if (!target) {
+      return;
+    }
+
+    if (eventType === 'factura.ocr_completado' || eventType === 'ocr_completado') {
+      const updatedFactura: FacturaType = {
+        ...target,
+        status: facturaEstado.PENDIENTE_AUTORIZACION,
+        notas: (payload?.['notas'] as string[]) ?? target.notas
+      };
+      this.actualizarFacturaInMemory(updatedFactura);
+      return;
+    }
+
+    if (eventType === 'factura.estado_cambiado' || eventType === 'estado_cambiado') {
+      const newStatus = String(payload?.['status'] as string ?? payload?.['estado'] as string ?? '') as facturaEstado;
+      if (newStatus) {
+        const updatedFactura: FacturaType = { ...target, status: newStatus };
+        this.actualizarFacturaInMemory(updatedFactura);
+      }
+      return;
+    }
+
+    if (eventType === 'oferta.nueva' || eventType === 'nueva_oferta') {
+      const updatedFactura: FacturaType = {
+        ...target,
+        total_ofertas: (target.total_ofertas ?? 0) + 1
+      };
+      this.actualizarFacturaInMemory(updatedFactura);
+    }
+  }
+
   private compareFacturaStatus(a: facturaEstado, b: facturaEstado): number {
     const rankA = this.statusPriority[a] ?? Number.MAX_SAFE_INTEGER;
     const rankB = this.statusPriority[b] ?? Number.MAX_SAFE_INTEGER;
@@ -556,7 +679,6 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       const response = await this.facturasService.updateFactura(factura, campoNombre, value);
       console.log('Factura actualizada:', response);
       onResponse(response);
-      //await this.loadFacturas(this.orgSelected());
     } catch (err) {
       console.error('Error al actualizar factura:', err);
       onError();

@@ -58,6 +58,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   readonly splitLayoutLoading = signal(false);
   readonly isMobileView = signal(false);
   readonly pendingFieldId = signal<string | null>(null);
+  readonly showNotificationSidebar = signal(false);
 
   readonly estadoFactura = signal('En validacion');
   readonly estadoConfirmado = signal(false);
@@ -183,7 +184,25 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   }
 
   get isPendingValidation(): boolean {
-    return this.facturaOriginal().status === facturaEstado.PENDIENTE_VALIDACION || this.facturaOriginal().status === facturaEstado.PENDIENTE_AUTORIZACION;
+    return this.facturaOriginal().status === facturaEstado.PENDIENTE_VALIDACION
+      || this.facturaOriginal().status === facturaEstado.PENDIENTE_AUTORIZACION
+      || this.facturaOriginal().status === facturaEstado.RECHAZADA;
+  }
+
+  get isPendingAutorizacion(): boolean {
+    return this.facturaOriginal().status === facturaEstado.PENDIENTE_AUTORIZACION;
+  }
+
+  get isRechazada(): boolean {
+    return this.facturaOriginal().status === facturaEstado.RECHAZADA;
+  }
+
+  get hasPendingOcrNotes(): boolean {
+    return (this.facturaOriginal().notas?.length ?? 0) > 0;
+  }
+
+  get canValidarYPublicar(): boolean {
+    return this.isPendingAutorizacion && !this.hasPendingOcrNotes;
   }
 
   get canShowPdfViewer(): boolean {
@@ -234,7 +253,50 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     return `pdf-input-${seed.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   }
 
-  ShowOfertas(): void { }
+  toggleNotificationSidebar(): void {
+    this.showNotificationSidebar.update(v => !v);
+  }
+
+  closeNotificationSidebar(): void {
+    this.showNotificationSidebar.set(false);
+  }
+
+  validarYPublicar(): void {
+    if (!this.canValidarYPublicar) {
+      return;
+    }
+
+    this.confirmFacturaRequest.emit({
+      type: 'validar',
+      data: {
+        factura: this.facturaOriginal(),
+        onCompleted: (result) => {
+          if (!result.updated) {
+            return;
+          }
+          this.estadoConfirmado.set(true);
+          this.estadoFactura.set(this.prettyStatus(result.status));
+          this.facturaOriginal.update(current => ({ ...current, status: result.status }));
+        }
+      }
+    });
+  }
+
+  corregirYReenviar(): void {
+    this.confirmFacturaRequest.emit({
+      type: 'corregir',
+      data: {
+        factura: this.facturaOriginal(),
+        onCompleted: (result) => {
+          if (!result.updated) {
+            return;
+          }
+          this.estadoFactura.set(this.prettyStatus(result.status));
+          this.facturaOriginal.update(current => ({ ...current, status: result.status }));
+        }
+      }
+    });
+  }
 
   togglePdfView(): void {
     if (!this.imageSrc()) {
@@ -543,6 +605,10 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
 
   private statusClassFromRaw(status?: string): string {
     switch (status) {
+      case 'PROCESANDO':
+        return 'status-procesando';
+      case 'PENDIENTE_AUTORIZACION':
+        return 'status-pendiente-auth';
       case 'PUBLICADA':
         return 'status-publicada';
       case 'OFERTADA':
@@ -552,6 +618,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
       case 'PAGADA':
         return 'status-pagada';
       case 'RECHAZADA':
+        return 'status-rechazada';
       case 'CANCELADA':
       case 'DENUNCIADA':
         return 'status-alerta';

@@ -36,26 +36,25 @@
         </header>
 
         <div class="panel-tools">
-          <!-- <div class="pdf-tools">
-            <label class="pdf-label" [attr.for]="pdfInputId">Seleccionar imagen de factura (WEBP)</label>
-            <input [id]="pdfInputId" type="file" accept="image/webp,image/*" [disabled]="!isPendingValidation"
-              (change)="onImageSelected($event)">
-            <p class="pdf-name" *ngIf="imageName()">Archivo cargado: {{ imageName() }}</p>
-            <p class="pdf-empty" *ngIf="!isPendingValidation">Vista de imagen deshabilitada para este estado.</p>
-          </div> -->
 
           <button type="button" class="toggle-pdf-btn" [disabled]="facturaOriginal().url_factura === 'N/A'"
-            (click)="togglePdfView()">
+            (click)="togglePdfView()" title="Ver foto de la factura">
             <mat-icon class="notification-icon">preview</mat-icon>
+            <span class="tool-label">Ver foto</span>
           </button>
 
           <button type="button" class="toggle-pdf-btn" [disabled]="!canUploadRespaldo"
-            (click)="requestUploadRespaldo()">
-            <mat-icon class="notification-icon">upload_file</mat-icon>
+            (click)="requestUploadRespaldo()" title="Subir respaldo">
+            <mat-icon class="notification-icon">attach_file</mat-icon>
+            <span class="tool-label">Subir respaldo</span>
           </button>
 
-          <button type="button" class="toggle-pdf-btn" (click)="ShowOfertas()">
-            <mat-icon class="notification-icon">sell</mat-icon>
+          <button type="button" class="toggle-pdf-btn notification-toggle-btn"
+            [class.has-unread]="ofertasCount() > 0"
+            (click)="toggleNotificationSidebar()" title="Notificaciones">
+            <mat-icon class="notification-icon">{{ ofertasCount() > 0 ? 'notifications_active' : 'notifications' }}</mat-icon>
+            <span class="tool-label">Notificaciones</span>
+            <span class="notif-badge" *ngIf="ofertasCount() > 0">{{ ofertasCount() }}</span>
           </button>
         </div>
 
@@ -162,12 +161,54 @@
           </ng-container>
         </div>
 
-        <footer class="confirm-footer" *ngIf="isPendingValidation">
-          <button type="button" class="confirm-btn" [disabled]="!canConfirmFactura" (click)="confirmFactura()">
-            Confirmar validacion
+        <footer class="confirm-footer" *ngIf="isPendingAutorizacion || isRechazada">
+          <button *ngIf="isPendingAutorizacion" type="button" class="confirm-btn"
+            [disabled]="!canValidarYPublicar"
+            [title]="hasPendingOcrNotes ? 'Resuelve las notas OCR antes de publicar' : 'Validar y publicar la factura'"
+            (click)="validarYPublicar()">
+            Validar y publicar
+          </button>
+          <button *ngIf="isRechazada" type="button" class="confirm-btn corregir-btn"
+            (click)="corregirYReenviar()">
+            Corregir y reenviar
           </button>
         </footer>
       </mat-expansion-panel>
     </mat-accordion>
   </main>
 </section>
+
+<!-- Notification Sidebar Overlay -->
+<div class="sidebar-overlay" *ngIf="showNotificationSidebar()" (click)="closeNotificationSidebar()" (keydown.escape)="closeNotificationSidebar()"></div>
+<aside class="notification-sidebar" [class.is-open]="showNotificationSidebar()" aria-label="Notificaciones de factura">
+  <header class="sidebar-header">
+    <h3 class="sidebar-title">Notificaciones</h3>
+    <button type="button" class="sidebar-close" (click)="closeNotificationSidebar()" aria-label="Cerrar panel">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <div class="sidebar-body">
+    <section class="sidebar-section">
+      <h4 class="sidebar-section-title">Ofertas</h4>
+      <p *ngIf="!ofertasCount()" class="sidebar-empty">Sin ofertas recibidas aún.</p>
+      <div *ngIf="ofertasCount() > 0" class="sidebar-offers-count">
+        <mat-icon class="sidebar-offer-icon">sell</mat-icon>
+        <span>{{ ofertasCount() }} oferta(s) recibida(s)</span>
+      </div>
+    </section>
+
+    <section class="sidebar-section">
+      <h4 class="sidebar-section-title">Actividad</h4>
+      <div class="activity-item">
+        <mat-icon class="activity-icon">info</mat-icon>
+        <span>Estado actual: <strong>{{ estadoFactura() }}</strong></span>
+      </div>
+    </section>
+
+    <section class="sidebar-section">
+      <h4 class="sidebar-section-title">Mensajes</h4>
+      <p class="sidebar-empty">Sin mensajes en este hilo.</p>
+    </section>
+  </div>
+</aside>
