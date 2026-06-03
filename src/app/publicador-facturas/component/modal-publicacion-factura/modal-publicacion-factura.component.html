@@ -1,0 +1,125 @@
+<div class="modal-backdrop" *ngIf="isOpen" (click)="onBackdropClick()">
+  <section class="publish-modal" (click)="$event.stopPropagation()">
+    <header class="modal-header">
+      <h2>Publicar factura</h2>
+      <button type="button" class="btn-close" (click)="close()" [disabled]="isSubmitting" aria-label="Cerrar">
+        <mat-icon>close</mat-icon>
+      </button>
+    </header>
+
+    <nav class="tabs-nav" aria-label="Opciones de publicacion">
+      <button type="button" class="tab-btn" [class.active]="activeTab === 'upload'" (click)="selectTab('upload')"
+        [disabled]="isSubmitting">Subir documento</button>
+      <button type="button" class="tab-btn" [class.active]="activeTab === 'form'" (click)="selectTab('form')"
+        [disabled]="isSubmitting">Completar formulario</button>
+    </nav>
+
+    <section class="tab-content" *ngIf="activeTab === 'upload'">
+      <p class="modal-hint">Acepta PDF, XML o imagen (JPG/PNG).</p>
+
+      <label class="dropzone" [class.dragging]="isDragging" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)">
+        <input type="file" accept=".pdf,.xml,image/*" (change)="onFileSelected($event)" [disabled]="isSubmitting" />
+        <mat-icon class="dropzone-icon">upload_file</mat-icon>
+        <span>Arrastra tu archivo aqui o toca para seleccionarlo</span>
+      </label>
+
+      <div class="mobile-actions" *ngIf="isMobile">
+        <label class="btn-mobile">
+          <mat-icon>photo_camera</mat-icon>
+          Tomar foto
+          <input type="file" accept="image/*" capture="environment" (change)="onFileSelected($event)" [disabled]="isSubmitting" />
+        </label>
+        <label class="btn-mobile">
+          <mat-icon>folder_open</mat-icon>
+          Elegir archivo
+          <input type="file" accept=".pdf,.xml,image/*" (change)="onFileSelected($event)" [disabled]="isSubmitting" />
+        </label>
+      </div>
+
+      <p class="selected-file" [class.has-file]="!!selectedFile">
+        <mat-icon>{{ selectedFile ? 'check_circle' : 'info' }}</mat-icon>
+        {{ selectedFileName }}
+      </p>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-light" (click)="close()" [disabled]="isSubmitting">Cancelar</button>
+        <button type="button" class="btn-primary" [disabled]="!selectedFile || isSubmitting" (click)="submitSelectedFile()">
+          {{ isSubmitting ? 'Publicando...' : 'Publicar' }}
+        </button>
+      </footer>
+    </section>
+
+    <section class="tab-content" *ngIf="activeTab === 'form'">
+      <form class="manual-form" (submit)="$event.preventDefault(); submitManualData()">
+        <label>
+          Numero de factura
+          <input type="text" name="numeroFactura" [(ngModel)]="manualForm.numeroFactura" [disabled]="isSubmitting"
+            [class.invalid-field]="shouldShowFieldError('numeroFactura')" placeholder="Ej: 123456789"
+            inputmode="numeric" autocomplete="off"
+            (input)="onNumeroFacturaInput($event)"
+            (blur)="markFieldTouched('numeroFactura')" required />
+          <small class="field-error" *ngIf="shouldShowFieldError('numeroFactura')">{{ getFieldErrorMessage('numeroFactura') }}</small>
+        </label>
+
+        <label>
+          RUT deudor
+          <input type="text" name="rutDeudor" [(ngModel)]="manualForm.rutDeudor" [disabled]="isSubmitting"
+            [class.invalid-field]="shouldShowFieldError('rutDeudor')" placeholder="Ej: 12.345.678-9"
+            autocomplete="off" list="datalist-rut-deudor"
+            (input)="onRutInput($event)"
+            (change)="onRutChange($event)"
+            (blur)="markFieldTouched('rutDeudor')" required />
+          <datalist id="datalist-rut-deudor">
+            <option *ngFor="let d of metadata?.deudoresExistentes; trackBy: trackByDeudorRut" [value]="d.rut" [label]="d.nombre"></option>
+          </datalist>
+          <small class="field-error" *ngIf="shouldShowFieldError('rutDeudor')">{{ getFieldErrorMessage('rutDeudor') }}</small>
+        </label>
+
+        <label>
+          Razon social deudor
+          <input type="text" name="nombreRazonSocialDeudor" [(ngModel)]="manualForm.nombreRazonSocialDeudor"
+            [disabled]="isSubmitting" [class.invalid-field]="shouldShowFieldError('nombreRazonSocialDeudor')"
+            placeholder="Ej: Comercial Acme Spa" autocomplete="off" list="datalist-nombre-deudor"
+            (input)="onNombreRazonSocialInput()"
+            (change)="onNombreDeudorChange($event)"
+            (blur)="markFieldTouched('nombreRazonSocialDeudor')" required />
+          <datalist id="datalist-nombre-deudor">
+            <option *ngFor="let d of metadata?.deudoresExistentes; trackBy: trackByDeudorRut" [value]="d.nombre" [label]="d.rut"></option>
+          </datalist>
+          <small class="field-error" *ngIf="shouldShowFieldError('nombreRazonSocialDeudor')">{{ getFieldErrorMessage('nombreRazonSocialDeudor') }}</small>
+        </label>
+
+        <label>
+          Monto total
+          <input type="text" name="montoTotal" [(ngModel)]="manualForm.montoTotal" [disabled]="isSubmitting"
+            [class.invalid-field]="shouldShowFieldError('montoTotal')" placeholder="Ej: 1.250.000"
+            inputmode="numeric" autocomplete="off" (input)="onMontoInput($event)"
+            (blur)="markFieldTouched('montoTotal')" required />
+          <small class="field-error" *ngIf="shouldShowFieldError('montoTotal')">{{ getFieldErrorMessage('montoTotal') }}</small>
+        </label>
+
+        <label>
+          Fecha de vencimiento
+          <app-atomic-datepicker
+            [value]="manualForm.fechaVencimiento"
+            [disabled]="isSubmitting"
+            [placeholder]="'Ej: ' + suggestedDateIso"
+            [minDate]="minDateStruct"
+            [hasError]="shouldShowFieldError('fechaVencimiento')"
+            (valueChange)="manualForm.fechaVencimiento = $event; markFieldTouched('fechaVencimiento')"
+            (blurred)="markFieldTouched('fechaVencimiento')">
+          </app-atomic-datepicker>
+          <small class="field-error" *ngIf="shouldShowFieldError('fechaVencimiento')">{{ getFieldErrorMessage('fechaVencimiento') }}</small>
+        </label>
+      </form>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-light" (click)="close()" [disabled]="isSubmitting">Cancelar</button>
+        <button type="button" class="btn-primary" [disabled]="isSubmitting || !isManualFormValid()" (click)="submitManualData()">
+          {{ isSubmitting ? 'Publicando...' : 'Publicar' }}
+        </button>
+      </footer>
+    </section>
+  </section>
+</div>

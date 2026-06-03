@@ -1,0 +1,83 @@
+.factura-filters {
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid #d5dde7;
+  border-radius: 0.9rem;
+  background: linear-gradient(180deg, #fbfdff 0%, #f5f8fc 100%);
+}
+
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid #99d5c9;
+  background: #e7f6f2;
+  color: #0f766e;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.clear-all {
+  border: 1px dashed #94a3b8;
+  background: #fff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.control-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.control-field span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.control-field input,
+.control-field select {
+  height: 2.3rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.6rem;
+  padding: 0 0.7rem;
+  background: #fff;
+  color: #0f172a;
+}
+
+.control-field input:focus,
+.control-field select:focus {
+  outline: none;
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+}
+
+@media (max-width: 1200px) {
+  .controls-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .controls-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
