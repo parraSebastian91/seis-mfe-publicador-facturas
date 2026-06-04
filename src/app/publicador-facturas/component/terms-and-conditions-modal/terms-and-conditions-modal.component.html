@@ -21,7 +21,8 @@
       <h3 class="tnc-section-title">{{ tncTitle }}</h3>
       <section class="tnc-content" aria-label="Contenido de términos y condiciones">
         {{ tncText }}
-      </section>Versión: {{ versionTerminos!.codigo }}</p>
+      </section>
+      <p class="tnc-version">Versión: {{ versionTerminos!.codigo }}</p>
       <div class="tnc-error" role="alert" *ngIf="errorMessage">{{ errorMessage }}</div>
     </div>
 

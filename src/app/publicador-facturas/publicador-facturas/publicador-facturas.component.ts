@@ -5,6 +5,7 @@ import { FacturasService } from '../../../../../shared-utils/src/lib/services/fa
 import { FacturaData, FacturaFormularioPublicacion, ModalPublishMetadata } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
 import { FacturaConfirmRequestEvent, FacturaRespaldoRequestEvent } from '../component/factura-view/factura-view.component';
+import Swal from 'sweetalert2';
 
 interface FacturaFieldUpdateEvent {
   factura: FacturaType;
@@ -723,7 +724,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
         confirmButtonText: 'Continuar',
         cancelButtonText: 'Cancelar',
         reverseButtons: true
-      }).then((result) => {
+      }).then((result: { isConfirmed: boolean }) => {
         if (!result.isConfirmed) {
           return;
         }

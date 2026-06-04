@@ -18,7 +18,7 @@ import { AtomicFacturaFiltersComponent } from './component/atomic-factura-filter
 import { A11yModule } from "@angular/cdk/a11y";
 import { TermsAndConditionsModalComponent } from './component/terms-and-conditions-modal/terms-and-conditions-modal.component';
 import { FacturaDetalleComponent } from './component/factura-detalle/factura-detalle.component';
-import { NegotiationChatComponent } from '../../../../../shared-utils/src/lib/components/negotiation-chat/negotiation-chat.component';
+import { NegotiationChatComponent } from 'shared-utils';
 
 registerLocaleData(localeEsCl);
 @NgModule({
