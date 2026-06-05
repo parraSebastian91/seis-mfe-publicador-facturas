@@ -798,6 +798,40 @@
   }
 }
 
+/* ── Mobile estrecho: botones icon-only ── */
+@media (max-width: 600px) {
+  .tool-label {
+    display: none;
+  }
+
+  .toggle-pdf-btn {
+    padding: 8px;
+    gap: 0;
+    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .panel-tools {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* En pantallas muy estrechas, los items de descripción se ocultan */
+  /* mostrando solo el estado y el botón de notificaciones            */
+  .description-item,
+  .description-separator {
+    display: none;
+  }
+
+  :host ::ng-deep .mat-expansion-panel-header,
+  :host ::ng-deep .mat-expansion-panel-header.mat-expanded {
+    min-height: 48px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+}
+
 @keyframes rotation {
   from {
     transform: rotate(0deg);
