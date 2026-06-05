@@ -1,5 +1,7 @@
 import { Component, computed, effect, EventEmitter, HostListener, inject, Input, OnChanges, OnDestroy, Output, signal, SimpleChanges } from '@angular/core';
-import { facturaEstado, FacturaResponseUpdateDTO, FacturaType, NotificationSocketService } from 'shared-utils';
+import { Subscription } from 'rxjs';
+import { DrawerService, facturaEstado, FacturaResponseUpdateDTO, FacturaType, NotificationSocketService } from 'shared-utils';
+import { FacturaSidebarContentComponent, FacturaSidebarEvent } from '../factura-sidebar-content/factura-sidebar-content.component';
 
 interface FacturaFieldEditable {
   id: string;
@@ -43,8 +45,10 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   readonly selectPlaceholderLabel = 'Seleccione una opción';
   readonly pendingValidationLabel = 'VALIDAR DATO';
   private readonly notificationSocketService = inject(NotificationSocketService);
+  private readonly drawerService = inject(DrawerService);
   private readonly receivedSocketCorrelationIds = new Set<string>();
   private splitLoadingTimeout?: ReturnType<typeof setTimeout>;
+  private drawerSub?: Subscription;
 
   @Input() factura: FacturaType = {} as FacturaType;
   @Output() facturaChange = new EventEmitter<FacturaFieldUpdateEvent>();
@@ -58,7 +62,6 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   readonly splitLayoutLoading = signal(false);
   readonly isMobileView = signal(false);
   readonly pendingFieldId = signal<string | null>(null);
-  readonly showNotificationSidebar = signal(false);
 
   readonly estadoFactura = signal('En validacion');
   readonly estadoConfirmado = signal(false);
@@ -152,6 +155,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     this.clearSplitLoadingTimeout();
+    this.drawerSub?.unsubscribe();
   }
 
   get panelTitleStatus(): string {
@@ -254,11 +258,31 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   }
 
   toggleNotificationSidebar(): void {
-    this.showNotificationSidebar.update(v => !v);
+    if (this.drawerService.config()) {
+      this.drawerService.close();
+      return;
+    }
+    this.drawerSub?.unsubscribe();
+    this.drawerSub = this.drawerService.open<
+      import('../factura-sidebar-content/factura-sidebar-content.component').FacturaSidebarInputs,
+      FacturaSidebarEvent
+    >({
+      title: 'Detalle de factura',
+      component: FacturaSidebarContentComponent,
+      inputs: {
+        factura: this.facturaOriginal(),
+        estadoFactura: this.estadoFactura(),
+        ofertasCount: this.ofertasFactura(),
+        notificaciones: this.notificacionesFactura(),
+      },
+      width: '440px',
+    }).subscribe(event => {
+      if (event.type === 'CLOSE') this.drawerService.close();
+    });
   }
 
   closeNotificationSidebar(): void {
-    this.showNotificationSidebar.set(false);
+    this.drawerService.close();
   }
 
   validarYPublicar(): void {

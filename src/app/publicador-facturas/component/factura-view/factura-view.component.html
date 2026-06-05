@@ -177,38 +177,3 @@
     </mat-accordion>
   </main>
 </section>
-
-<!-- Notification Sidebar Overlay -->
-<div class="sidebar-overlay" *ngIf="showNotificationSidebar()" (click)="closeNotificationSidebar()" (keydown.escape)="closeNotificationSidebar()"></div>
-<aside class="notification-sidebar" [class.is-open]="showNotificationSidebar()" aria-label="Notificaciones de factura">
-  <header class="sidebar-header">
-    <h3 class="sidebar-title">Notificaciones</h3>
-    <button type="button" class="sidebar-close" (click)="closeNotificationSidebar()" aria-label="Cerrar panel">
-      <mat-icon>close</mat-icon>
-    </button>
-  </header>
-
-  <div class="sidebar-body">
-    <section class="sidebar-section">
-      <h4 class="sidebar-section-title">Ofertas</h4>
-      <p *ngIf="!ofertasCount()" class="sidebar-empty">Sin ofertas recibidas aún.</p>
-      <div *ngIf="ofertasCount() > 0" class="sidebar-offers-count">
-        <mat-icon class="sidebar-offer-icon">sell</mat-icon>
-        <span>{{ ofertasCount() }} oferta(s) recibida(s)</span>
-      </div>
-    </section>
-
-    <section class="sidebar-section">
-      <h4 class="sidebar-section-title">Actividad</h4>
-      <div class="activity-item">
-        <mat-icon class="activity-icon">info</mat-icon>
-        <span>Estado actual: <strong>{{ estadoFactura() }}</strong></span>
-      </div>
-    </section>
-
-    <section class="sidebar-section">
-      <h4 class="sidebar-section-title">Mensajes</h4>
-      <p class="sidebar-empty">Sin mensajes en este hilo.</p>
-    </section>
-  </div>
-</aside>
