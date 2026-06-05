@@ -8,6 +8,14 @@
   justify-content: center;
   padding: 1rem;
   backdrop-filter: blur(2px);
+
+  @media (max-width: 700px) {
+    /* Deja espacio para la barra de navegación inferior */
+    align-items: flex-start;
+    padding-bottom: calc(64px + 1rem);
+    padding-top: 1rem;
+    overflow-y: auto;
+  }
 }
 
 .tnc-panel {

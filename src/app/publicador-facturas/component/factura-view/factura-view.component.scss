@@ -18,20 +18,22 @@
 .description-row {
   display: flex;
   align-items: center;
-  justify-content: space-evenly;
   width: 100%;
   gap: 0.4rem;
   color: #334155;
+  min-width: 0;
 }
 
 .description-item,
 .description-separator {
   display: flex;
   align-items: center;
-  justify-content: space-evenly;
   font-size: 0.94rem;
   font-weight: 600;
   line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .description-item {
@@ -41,6 +43,20 @@
 
 .description-separator {
   flex: 0 0 auto;
+}
+
+.notification-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+  border: none;
+  background: #eef2ff;
+  color: #1f2937;
+  border-radius: 999px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
 }
 
 :host ::ng-deep .mat-expansion-panel-header-description {
@@ -219,17 +235,6 @@
 .header-status {
   margin: 4px 0 0;
   color: #374151;
-}
-
-.notification-btn {
-  border: none;
-  background: #eef2ff;
-  color: #1f2937;
-  border-radius: 999px;
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
 }
 
 .notification-icon {
