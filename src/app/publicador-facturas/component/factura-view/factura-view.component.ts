@@ -176,7 +176,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     const deudorNombre = this.getFieldDisplayValue('nombreRazonSocialDeudor', factura.deudorNombre || 'Sin deudor');
     const montoTotal = this.getFieldDisplayValue('montoTotal', this.formatCurrency(factura.montoTotal || 0));
     if (this.isMobileView()) {
-      return [`N° ${numeroFactura}`, `${montoTotal}`];
+      return [`N° ${numeroFactura}`];
     }
     return [`N° ${numeroFactura}`, `${deudorNombre}`, `${montoTotal}`];
 
@@ -655,18 +655,48 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   }
 
   private readOffersCount(factura: FacturaType): number {
-    const maybeOferta = (factura as FacturaType & { ofertas?: number | string }).ofertas;
+    const dynamicFactura = factura as FacturaType & {
+      ofertas?: number | string;
+      ofertasCount?: number | string;
+      totalOfertas?: number | string;
+      total_ofertas?: number | string;
+      ofertas_enviadas?: number | string;
+      ofertas_revisadas?: number | string;
+      ofertas_aceptadas?: number | string;
+      ofertas_rechazadas?: number | string;
+    };
 
-    if (typeof maybeOferta === 'number' && Number.isFinite(maybeOferta)) {
-      return maybeOferta;
+    const counters = [
+      dynamicFactura.ofertas,
+      dynamicFactura.ofertasCount,
+      dynamicFactura.totalOfertas,
+      dynamicFactura.total_ofertas,
+      dynamicFactura.ofertas_enviadas,
+      dynamicFactura.ofertas_revisadas,
+      dynamicFactura.ofertas_aceptadas,
+      dynamicFactura.ofertas_rechazadas
+    ]
+      .map(value => this.parseCounterValue(value))
+      .filter(value => value !== null) as number[];
+
+    if (!counters.length) {
+      return 0;
     }
 
-    if (typeof maybeOferta === 'string') {
-      const parsed = Number.parseInt(maybeOferta, 10);
-      return Number.isFinite(parsed) ? parsed : 0;
+    return Math.max(...counters);
+  }
+
+  private parseCounterValue(value: unknown): number | null {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? Math.max(0, value) : null;
     }
 
-    return 0;
+    if (typeof value === 'string') {
+      const parsed = Number.parseInt(value, 10);
+      return Number.isFinite(parsed) ? Math.max(0, parsed) : null;
+    }
+
+    return null;
   }
 
   private getFieldDisplayValue(fieldId: string, fallbackValue: string): string {

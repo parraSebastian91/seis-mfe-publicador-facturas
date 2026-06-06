@@ -822,11 +822,16 @@
     flex-wrap: wrap;
   }
 
-  /* En pantallas muy estrechas, los items de descripción se ocultan */
-  /* mostrando solo el estado y el botón de notificaciones            */
+  /* En pantallas muy estrechas, mantener visible el resumen del header */
   .description-item,
   .description-separator {
-    display: none;
+    display: inline-flex;
+    font-size: 0.78rem;
+    line-height: 1.2;
+  }
+
+  .description-item {
+    max-width: 42vw;
   }
 
   :host ::ng-deep .mat-expansion-panel-header,

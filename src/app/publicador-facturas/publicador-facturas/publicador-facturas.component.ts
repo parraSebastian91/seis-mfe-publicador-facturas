@@ -213,6 +213,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     } catch { /* usa texto genérico en el modal */ }
 
     this.pendingTncVersionTerminos = versionTerminos;
+    // EB-02: Se abre el modal T&C al confirmar validación, y se pasan callbacks para manejar la respuesta del usuario
     this.pendingTncFactura = event.data.factura;
 
     this.onTncAcceptedCallback = async () => {
