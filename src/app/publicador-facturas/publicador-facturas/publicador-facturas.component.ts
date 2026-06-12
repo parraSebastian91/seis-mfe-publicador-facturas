@@ -1,4 +1,4 @@
-import { Component, EffectRef, Injector, OnDestroy, OnInit, Signal, effect, inject } from '@angular/core';
+import { Component, computed, EffectRef, Injector, NgZone, OnDestroy, OnInit, Signal, effect, inject } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { AutorizacionPublicacionDto, createdBy, FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, NotificationSocketService, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos } from 'shared-utils';
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
@@ -32,7 +32,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   }, {} as Record<string, number>);
   private publishedHighlightTimeoutId?: ReturnType<typeof setTimeout>;
   private respaldoModalSubscription?: Subscription;
-
+  loading = false;
   readonly estadoChips: { label: string; value: string }[] = [
     { label: 'Todas', value: '' },
     { label: 'Procesando', value: facturaEstado.PROCESANDO },
@@ -86,6 +86,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly injector: Injector,
+    private readonly ngZone: NgZone,
     private readonly objectUploadService: ObjectUploadService,
     private readonly uploadModalService: UploadModalService,
     private readonly userStateService: UserStateService,
@@ -94,10 +95,11 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   ) {
     this.userName = this.userStateService.userName;
     this.orgSelected = this.userStateService.orgSelected;
-    this.userRole = this.userStateService.role;
+    this.userRole = computed(() => this.userStateService.roles().join(','));
   }
 
   ngOnInit(): void {
+    this.loading = true;
     this.respaldoModalSubscription = this.uploadModalService.fileSelected$.subscribe((result) => {
       void this.handleRespaldoSelected(result.file, result.context);
     });
@@ -577,13 +579,22 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   private async loadFacturas(organizacionUUID: string): Promise<void> {
     try {
       const facturas = await this.facturasService.getFacturas(organizacionUUID);
-      this.facturas = facturas;
-      this.applyFiltersAndSort();
-      console.log('Facturas obtenidas:', facturas);
+      // Las continuaciones async dentro de effect() corren fuera de la Angular Zone.
+      // ngZone.run() garantiza que las mutaciones de estado activen Change Detection.
+      this.ngZone.run(() => {
+        this.facturas = facturas;
+        this.applyFiltersAndSort();
+      });
     } catch (err) {
-      this.facturas = [];
-      this.filteredFacturas = [];
+      this.ngZone.run(() => {
+        this.facturas = [];
+        this.filteredFacturas = [];
+      });
       console.error('Error al obtener facturas:', err);
+    } finally {
+      this.ngZone.run(() => {
+        this.loading = false;
+      });
     }
   }
 

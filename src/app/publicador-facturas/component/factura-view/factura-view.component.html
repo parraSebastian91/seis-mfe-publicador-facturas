@@ -1,179 +1,315 @@
 <section class="factura-view-wrapper">
   <main class="content-area">
-    <mat-accordion>
-      <mat-expansion-panel hideToggle (opened)="panelOpenState.set(true)" (closed)="panelOpenState.set(false)">
-        <mat-expansion-panel-header>
-          <mat-panel-title>
-            <span class="panel-status" [ngClass]="panelStatusClass">{{ panelTitleStatus }}</span>
-          </mat-panel-title>
-          <mat-panel-description>
-            <div class="description-row">
-              <ng-container *ngFor="let item of panelDescriptionSummary; let last = last">
-                <span class="description-item">{{ item }}</span>
-                <span class="description-separator" *ngIf="!last">|</span>
-              </ng-container>
-              <button type="button" class="notification-btn" aria-label="Notificaciones de esta factura">
-                <mat-icon class="notification-icon">{{!ofertasCount()? 'notifications_off' :
-                  'notifications_unread'}}</mat-icon>
-              </button>
-            </div>
-          </mat-panel-description>
-        </mat-expansion-panel-header>
 
+    <!--
+      app-expansion-panel reemplaza mat-accordion + mat-expansion-panel.
+      [attention] activa microinteracción de rebote+destello cuando hay notas OCR pendientes.
+    -->
+    <app-expansion-panel
+      [expanded]="panelOpenState()"
+      (expandedChange)="panelOpenState.set($event)"
+      [attention]="hasPendingOcrNotes"
+      attentionVariant="warning"
+    >
+
+      <!-- ══════════════════════════════════════════════════
+           SLOT: HEADER — Estado + Resumen + Indicador
+           Visible siempre (contraído y expandido).
+      ══════════════════════════════════════════════════ -->
+      <div panel-header class="fv-header-slot">
+
+        <!-- Pill de estado con animación de pulso -->
+        <span class="panel-status" [ngClass]="panelStatusClass" [attr.aria-label]="'Estado: ' + panelTitleStatus">
+          {{ panelTitleStatus }}
+        </span>
+
+        <!-- Resumen: N° factura | Deudor | Monto -->
+        <div class="description-row" aria-hidden="true">
+          <ng-container *ngFor="let item of panelDescriptionSummary; let last = last">
+            <span class="description-item">{{ item }}</span>
+            <span class="description-separator" *ngIf="!last">|</span>
+          </ng-container>
+        </div>
+
+        <!-- Indicador visual de notificaciones/ofertas (sin click para evitar UX confusa) -->
+        <span
+          class="notif-indicator"
+          [class.notif-indicator--active]="ofertasCount() > 0"
+          [attr.aria-label]="ofertasCount() > 0 ? ofertasCount() + ' ofertas activas' : undefined"
+        >
+          <mat-icon aria-hidden="true">
+            {{ ofertasCount() > 0 ? 'notifications_active' : 'notifications_none' }}
+          </mat-icon>
+          <span class="notif-badge" *ngIf="ofertasCount() > 0" aria-hidden="true">
+            {{ ofertasCount() }}
+          </span>
+        </span>
+
+      </div>
+
+      <!-- ══════════════════════════════════════════════════
+           SLOT: CONTENT — Toda la vista expandida
+      ══════════════════════════════════════════════════ -->
+      <div panel-content class="fv-content-slot">
+
+        <!-- ── 1. Encabezado meta: número, mandante, gestor ────────────── -->
         <header class="factura-header">
           <div class="header-main">
             <p class="header-kicker">Factura</p>
             <h2>{{ facturaNumeroHeader }}</h2>
           </div>
-
           <div class="header-meta">
             <p><strong>Mandante:</strong> {{ clienteCedenteNombreHeader }}</p>
             <p><strong>RUT Mandante:</strong> {{ clienteCedenteRutHeader }}</p>
             <p><strong>Gestor:</strong> {{ gestorNombreHeader }}</p>
           </div>
-
-
         </header>
 
-        <div class="panel-tools">
+        <!-- ── 2. Barra de herramientas ───────────────────────────────── -->
+        <div class="panel-tools" role="toolbar" aria-label="Acciones de factura">
 
-          <button type="button" class="toggle-pdf-btn" [disabled]="facturaOriginal().url_factura === 'N/A'"
-            (click)="togglePdfView()" title="Ver foto de la factura">
-            <mat-icon class="notification-icon">preview</mat-icon>
+          <button
+            type="button"
+            class="tool-btn"
+            [disabled]="facturaOriginal().url_factura === 'N/A'"
+            (click)="togglePdfView()"
+            title="Ver foto de la factura"
+          >
+            <mat-icon aria-hidden="true">preview</mat-icon>
             <span class="tool-label">Ver foto</span>
           </button>
 
-          <button type="button" class="toggle-pdf-btn" [disabled]="!canUploadRespaldo"
-            (click)="requestUploadRespaldo()" title="Subir respaldo">
-            <mat-icon class="notification-icon">attach_file</mat-icon>
+          <button
+            type="button"
+            class="tool-btn"
+            [disabled]="!canUploadRespaldo"
+            (click)="requestUploadRespaldo()"
+            title="Subir respaldo"
+          >
+            <mat-icon aria-hidden="true">attach_file</mat-icon>
             <span class="tool-label">Subir respaldo</span>
           </button>
 
-          <button type="button" class="toggle-pdf-btn notification-toggle-btn"
-            [class.has-unread]="ofertasCount() > 0"
-            (click)="toggleNotificationSidebar()" title="Notificaciones">
-            <mat-icon class="notification-icon">{{ ofertasCount() > 0 ? 'notifications_active' : 'notifications' }}</mat-icon>
+          <button
+            type="button"
+            class="tool-btn"
+            [class.tool-btn--alert]="ofertasCount() > 0"
+            (click)="toggleNotificationSidebar()"
+            [attr.aria-label]="ofertasCount() > 0 ? 'Ver ' + ofertasCount() + ' notificaciones' : 'Ver notificaciones'"
+            title="Ver detalle y notificaciones"
+          >
+            <mat-icon aria-hidden="true">
+              {{ ofertasCount() > 0 ? 'notifications_active' : 'notifications' }}
+            </mat-icon>
             <span class="tool-label">Notificaciones</span>
-            <span class="notif-badge" *ngIf="ofertasCount() > 0">{{ ofertasCount() }}</span>
+            <span class="notif-badge tool-badge" *ngIf="ofertasCount() > 0" aria-hidden="true">
+              {{ ofertasCount() }}
+            </span>
           </button>
+
         </div>
 
-        <div class="split-layout" [class.pdf-hidden]="!showPdfView() || canUploadRespaldo">
-          <section class="loading-pane" *ngIf="splitLayoutLoading()">
-            <div class="spinner"></div>
-            <p>Procesando factura, esperando respuesta por WebSocket (Correlation ID).</p>
+        <!-- ── 3. Layout dividido: visor de imagen + tabla de campos ─── -->
+        <div class="split-layout" [class.split-layout--pdf-hidden]="!showPdfView() || canUploadRespaldo">
+
+          <!-- Indicador de carga WebSocket -->
+          <section class="loading-pane" *ngIf="splitLayoutLoading()" aria-live="polite">
+            <div class="spinner" role="status" aria-label="Procesando factura"></div>
+            <p>Procesando factura, esperando respuesta del servidor.</p>
           </section>
 
           <ng-container *ngIf="!splitLayoutLoading()">
-            <section class="pdf-pane" *ngIf="showPdfView() && imageSrc() && !splitLayoutLoading()">
-              <app-image-panzoom-viewer *ngIf="imageSrc()" [imageSrc]="imageSrc() ?? ''" [altText]="'Imagen de factura'"
+
+            <!-- Panel PDF / imagen -->
+            <section class="pdf-pane" *ngIf="showPdfView() && imageSrc()">
+              <app-image-panzoom-viewer
+                *ngIf="imageSrc()"
+                [imageSrc]="imageSrc() ?? ''"
+                [altText]="'Imagen de factura'"
                 [mobileMode]="isMobileView()">
               </app-image-panzoom-viewer>
-
-              <p *ngIf="!imageSrc()" class="pdf-empty">Para visualizar la factura debes subirla como respaldo.</p>
+              <p *ngIf="!imageSrc()" class="pdf-empty">
+                Para visualizar la factura, súbela como respaldo.
+              </p>
             </section>
 
+            <!-- ── Tabla de campos editables ─────────────────────────── -->
             <section class="compare-pane">
               <h3>Datos de Factura</h3>
 
-              <div class="compare-header-row">
+              <!-- Cabecera de columnas (solo desktop) -->
+              <div class="compare-header-row" aria-hidden="true">
                 <span>Campo</span>
                 <span>Dato</span>
                 <span *ngIf="isPendingValidation">Acciones</span>
               </div>
 
-              <div class="compare-row" *ngFor="let campo of camposFactura(); trackBy: trackByCampoId"
-                [class.validated]="campo.validated">
+              <!-- Filas de campos -->
+              <div
+                class="compare-row"
+                *ngFor="let campo of camposFactura(); trackBy: trackByCampoId"
+                [class.compare-row--validated]="campo.validated"
+              >
+                <!-- Nombre del campo -->
                 <span class="label">
                   <small class="mobile-caption">Campo</small>
                   {{ campo.label }}
                 </span>
+
+                <!-- Valor / input editable -->
                 <span class="value-cell">
                   <small class="mobile-caption">Dato</small>
+
+                  <!-- Vista de solo lectura -->
                   <ng-container *ngIf="!campo.editing; else editFieldTpl">
-                    {{ (campo.detectedOptions.length > 1 && !campo.validated) ? pendingValidationLabel : (campo.value ||
-                    '-') }}
+                    {{ (campo.detectedOptions.length > 1 && !campo.validated)
+                        ? pendingValidationLabel
+                        : (campo.value || '-') }}
                   </ng-container>
+
+                  <!-- Vista de edición -->
                   <ng-template #editFieldTpl>
-                    <ng-container
-                      *ngIf="campo.detectedOptions.length > 1 && !campo.usingCustomValue; else manualInputTpl">
-                      <select class="field-select" [value]="campo.draftValue" (click)="$event.stopPropagation()"
-                        (change)="onDetectedOptionSelected(campo.id, $any($event.target).value)">
+
+                    <!-- Select cuando hay opciones detectadas por OCR -->
+                    <ng-container *ngIf="campo.detectedOptions.length > 1 && !campo.usingCustomValue; else manualInputTpl">
+                      <select
+                        class="field-select"
+                        [value]="campo.draftValue"
+                        (click)="$event.stopPropagation()"
+                        (change)="onDetectedOptionSelected(campo.id, $any($event.target).value)"
+                      >
                         <option value="" disabled>{{ selectPlaceholderLabel }}</option>
                         <option *ngFor="let option of campo.detectedOptions" [value]="option">{{ option }}</option>
                         <option [value]="otherValueOption">Otro valor</option>
                       </select>
                     </ng-container>
 
+                    <!-- Inputs manuales según tipo de campo -->
                     <ng-template #manualInputTpl>
-                      <ng-container *ngIf="campo.id === 'fechaVencimiento'; else montoInputWrapperTpl">
-                        <app-atomic-datepicker [value]="campo.draftValue"
+
+                      <!-- Fecha de vencimiento → datepicker ng-bootstrap -->
+                      <ng-container *ngIf="campo.id === 'fechaVencimiento'; else montoInputTpl">
+                        <app-atomic-datepicker
+                          [value]="campo.draftValue"
                           (valueChange)="updateDraftValue(campo.id, $event)"
                           (enterPressed)="validateField(campo.id, $event)"
                           (escapePressed)="cancelField(campo.id, $event)">
                         </app-atomic-datepicker>
                       </ng-container>
 
-                      <ng-template #montoInputWrapperTpl>
-                        <ng-container *ngIf="campo.id === 'montoTotal'; else rutInputWrapperTpl">
-                          <input class="field-input" [value]="campo.draftValue" inputmode="numeric" autocomplete="off"
-                            (click)="$event.stopPropagation()" (input)="onMontoDraftInput(campo.id, $event)"
+                      <!-- Monto → solo numérico con formato CLP -->
+                      <ng-template #montoInputTpl>
+                        <ng-container *ngIf="campo.id === 'montoTotal'; else rutInputTpl">
+                          <input
+                            class="field-input"
+                            [value]="campo.draftValue"
+                            inputmode="numeric"
+                            autocomplete="off"
+                            (click)="$event.stopPropagation()"
+                            (input)="onMontoDraftInput(campo.id, $event)"
                             (keydown.enter)="validateField(campo.id, $event)"
-                            (keydown.escape)="cancelField(campo.id, $event)" />
+                            (keydown.escape)="cancelField(campo.id, $event)"
+                          />
                         </ng-container>
                       </ng-template>
 
-                      <ng-template #rutInputWrapperTpl>
+                      <!-- RUT deudor → formato XX.XXX.XXX-X -->
+                      <ng-template #rutInputTpl>
                         <ng-container *ngIf="campo.id === 'rutDeudor'; else textInputTpl">
-                          <input class="field-input" [value]="campo.draftValue" autocomplete="off"
-                            (click)="$event.stopPropagation()" (input)="onRutDraftInput(campo.id, $event)"
+                          <input
+                            class="field-input"
+                            [value]="campo.draftValue"
+                            autocomplete="off"
+                            (click)="$event.stopPropagation()"
+                            (input)="onRutDraftInput(campo.id, $event)"
                             (keydown.enter)="validateField(campo.id, $event)"
-                            (keydown.escape)="cancelField(campo.id, $event)" />
+                            (keydown.escape)="cancelField(campo.id, $event)"
+                          />
                         </ng-container>
                       </ng-template>
 
+                      <!-- Texto libre -->
                       <ng-template #textInputTpl>
-                        <input class="field-input" [value]="campo.draftValue" (click)="$event.stopPropagation()"
+                        <input
+                          class="field-input"
+                          [value]="campo.draftValue"
+                          (click)="$event.stopPropagation()"
                           (input)="updateDraftValue(campo.id, $any($event.target).value)"
                           (keydown.enter)="validateField(campo.id, $event)"
-                          (keydown.escape)="cancelField(campo.id, $event)" />
+                          (keydown.escape)="cancelField(campo.id, $event)"
+                        />
                       </ng-template>
+
                     </ng-template>
                   </ng-template>
                 </span>
+
+                <!-- Acción por fila: editar / guardar -->
                 <span class="row-actions" *ngIf="isPendingValidation">
-                  <small class="mobile-caption">Accion</small>
-                  <button type="button" class="action-btn primary" [class.is-editing]="campo.editing"
-                    [class.is-validated]="campo.validated && !campo.editing" [disabled]="isFieldSaving(campo)"
-                    [title]="primaryActionTitle(campo)" (click)="onPrimaryAction(campo.id, $event)">
-                    <mat-icon [class.spin]="isFieldSaving(campo)">{{ primaryActionIcon(campo) }}</mat-icon>
+                  <small class="mobile-caption">Acción</small>
+                  <button
+                    type="button"
+                    class="action-btn"
+                    [class.action-btn--editing]="campo.editing"
+                    [class.action-btn--validated]="campo.validated && !campo.editing"
+                    [disabled]="isFieldSaving(campo)"
+                    [title]="primaryActionTitle(campo)"
+                    (click)="onPrimaryAction(campo.id, $event)"
+                  >
+                    <mat-icon [class.spin]="isFieldSaving(campo)" aria-hidden="true">
+                      {{ primaryActionIcon(campo) }}
+                    </mat-icon>
                   </button>
                 </span>
-              </div>
 
-              <div class="notifications-list" *ngIf="notificationCount()">
-                <h4>Notas</h4>
+              </div><!-- /compare-row -->
+
+              <!-- Notas OCR -->
+              <div class="notifications-list" *ngIf="notificationCount()" role="status" aria-live="polite">
+                <h4>
+                  <mat-icon aria-hidden="true">warning_amber</mat-icon>
+                  Notas pendientes
+                </h4>
                 <ul>
                   <li *ngFor="let item of notificacionesFactura()">{{ item }}</li>
                 </ul>
               </div>
-            </section>
-          </ng-container>
-        </div>
 
+            </section><!-- /compare-pane -->
+
+          </ng-container>
+        </div><!-- /split-layout -->
+
+        <!-- ── 4. Acciones de confirmación ──────────────────────────── -->
         <footer class="confirm-footer" *ngIf="isPendingAutorizacion || isRechazada">
-          <button *ngIf="isPendingAutorizacion" type="button" class="confirm-btn"
+          <button
+            *ngIf="isPendingAutorizacion"
+            type="button"
+            class="confirm-btn"
             [disabled]="!canValidarYPublicar"
-            [title]="hasPendingOcrNotes ? 'Resuelve las notas OCR antes de publicar' : 'Validar y publicar la factura'"
-            (click)="validarYPublicar()">
+            [title]="hasPendingOcrNotes
+              ? 'Resuelve las notas pendientes antes de publicar'
+              : 'Validar y publicar la factura'"
+            (click)="validarYPublicar()"
+          >
+            <mat-icon aria-hidden="true">verified</mat-icon>
             Validar y publicar
           </button>
-          <button *ngIf="isRechazada" type="button" class="confirm-btn corregir-btn"
-            (click)="corregirYReenviar()">
+
+          <button
+            *ngIf="isRechazada"
+            type="button"
+            class="confirm-btn confirm-btn--corregir"
+            (click)="corregirYReenviar()"
+          >
+            <mat-icon aria-hidden="true">replay</mat-icon>
             Corregir y reenviar
           </button>
         </footer>
-      </mat-expansion-panel>
-    </mat-accordion>
+
+      </div><!-- /panel-content -->
+
+    </app-expansion-panel>
+
   </main>
 </section>

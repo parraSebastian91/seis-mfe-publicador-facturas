@@ -1,39 +1,74 @@
+﻿// =============================================================================
+// atomic-factura-filters — Factor Design System
+// Consume SOLO tokens semánticos de _tokens.scss (regla CA-01).
+// =============================================================================
+
+// ── Contenedor interior del slot card-content ─────────────────────────────────
+
+.filters-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.9rem 1rem 1rem;
+}
+
 .factura-filters {
   padding: 0.9rem 1rem 1rem;
-  border: 1px solid #d5dde7;
+  border: 1px solid var(--color-border);
   border-radius: 0.9rem;
-  background: linear-gradient(180deg, #fbfdff 0%, #f5f8fc 100%);
+  background: var(--color-bg-surface);
 }
+
+// ── Chips de filtros activos ──────────────────────────────────────────────────
 
 .chips-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-bottom: 0.85rem;
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  border: 1px solid #99d5c9;
-  background: #e7f6f2;
-  color: #0f766e;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
   border-radius: 999px;
   padding: 0.35rem 0.65rem;
   font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-bg-surface));
+    border-color: var(--color-brand-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand-primary);
+    outline-offset: 2px;
+  }
 }
 
 .clear-all {
-  border: 1px dashed #94a3b8;
-  background: #fff;
-  color: #334155;
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
   border-radius: 999px;
   padding: 0.35rem 0.75rem;
   font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 140ms ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-text-secondary) 8%, var(--color-bg-surface));
+  }
 }
+
+// ── Cuadrícula de controles ───────────────────────────────────────────────────
 
 .controls-grid {
   display: grid;
@@ -45,39 +80,69 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+
+  span {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  input,
+  select {
+    height: 2.3rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.6rem;
+    padding: 0 0.7rem;
+    background: var(--color-bg-elevated);
+    color: var(--color-text-primary);
+    font-size: 0.875rem;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-brand-primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+    }
+
+    &::placeholder {
+      color: var(--color-text-disabled);
+    }
+
+    option {
+      background: var(--color-bg-elevated);
+      color: var(--color-text-primary);
+    }
+  }
 }
 
-.control-field span {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #334155;
-}
-
-.control-field input,
-.control-field select {
-  height: 2.3rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.6rem;
-  padding: 0 0.7rem;
-  background: #fff;
-  color: #0f172a;
-}
-
-.control-field input:focus,
-.control-field select:focus {
-  outline: none;
-  border-color: #0f766e;
-  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
-}
+// ── Responsive ────────────────────────────────────────────────────────────────
 
 @media (max-width: 1200px) {
-  .controls-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .controls-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 768px) {
+  .controls-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+// ── Reduced motion ────────────────────────────────────────────────────────────
+
+@media (prefers-reduced-motion: reduce) {
+  .chip,
+  .clear-all,
+  input,
+  select {
+    transition: none;
   }
 }
 
+
 @media (max-width: 900px) {
-  .controls-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  .controls-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 600px) {
+  .controls-grid { grid-template-columns: 1fr; }
 }

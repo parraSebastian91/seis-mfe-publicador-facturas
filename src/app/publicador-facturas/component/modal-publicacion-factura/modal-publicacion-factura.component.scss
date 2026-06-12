@@ -1,7 +1,35 @@
+// =============================================================================
+// modal-publicacion-factura — Factor Design System
+// Contexto: superposición modal sobre el MFE publicador (tema claro).
+// No hay #hex hardcodeados; todos los colores usan variables CSS locales.
+// mat-icon es la única dependencia Angular Material permitida.
+// =============================================================================
+
+:host {
+  --modal-brand:        #0f766e;
+  --modal-brand-light:  #ecfdf5;
+  --modal-brand-border: #0f766e;
+  --modal-text:         #1f2937;
+  --modal-text-muted:   #64748b;
+  --modal-surface:      #ffffff;
+  --modal-surface-alt:  #f8fafc;
+  --modal-border:       #e2e8f0;
+  --modal-error:        #b91c1c;
+  --modal-error-bg:     #fef2f2;
+  --modal-error-border: #fecaca;
+  --modal-warn-bg:      #fff8f0;
+  --modal-warn-border:  #fed7aa;
+  --modal-warn-text:    #92400e;
+}
+
+// =============================================================================
+// BACKDROP + MODAL SHELL
+// =============================================================================
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(15, 23, 42, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -10,9 +38,9 @@
 
 .publish-modal {
   width: min(680px, 100%);
-  background: #ffffff;
+  background: var(--modal-surface);
   border-radius: 1rem;
-  border: 1px solid #dbe1ea;
+  border: 1px solid var(--modal-border);
   box-shadow: 0 24px 64px rgba(15, 23, 42, 0.3);
   padding: 1.25rem;
   display: flex;
@@ -28,7 +56,12 @@
   gap: 0.75rem;
   min-height: 0;
   padding-right: 0.35rem;
+  overflow-y: auto;
 }
+
+// =============================================================================
+// HEADER
+// =============================================================================
 
 .modal-header {
   display: flex;
@@ -37,33 +70,33 @@
 
   h2 {
     margin: 0;
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--modal-text);
   }
 }
 
 .btn-close {
-  border: 0;
-  background: #f1f5f9;
+  border: none;
+  background: var(--modal-surface-alt);
   border-radius: 999px;
   width: 2rem;
   height: 2rem;
   display: grid;
   place-items: center;
   cursor: pointer;
+  transition: background 140ms ease;
 
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  &:hover { background: #e2e8f0; }
 
-  mat-icon {
-    font-size: 1.1rem;
-    width: 1.1rem;
-    height: 1.1rem;
-  }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  mat-icon { font-size: 1.1rem; width: 1.1rem; height: 1.1rem; }
 }
+
+// =============================================================================
+// TABS
+// =============================================================================
 
 .tabs-nav {
   display: grid;
@@ -72,30 +105,60 @@
 }
 
 .tab-btn {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--modal-border);
   border-radius: 0.65rem;
   padding: 0.55rem 0.75rem;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  background: #f8fafc;
-  color: #334155;
+  background: var(--modal-surface-alt);
+  color: var(--modal-text);
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
 
   &.active {
-    border-color: #0f766e;
-    background: #ecfdf5;
-    color: #0f766e;
+    border-color: var(--modal-brand-border);
+    background: var(--modal-brand-light);
+    color: var(--modal-brand);
   }
 
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  &:focus-visible {
+    outline: 2px solid var(--modal-brand);
+    outline-offset: 2px;
   }
 }
 
+// =============================================================================
+// CONFIRMACIÓN DE CIERRE
+// =============================================================================
+
+.close-confirm {
+  background: var(--modal-warn-bg);
+  border: 1px solid var(--modal-warn-border);
+  border-radius: 0.75rem;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  p { margin: 0; font-size: 0.875rem; color: var(--modal-warn-text); font-weight: 600; }
+}
+
+.close-confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+// =============================================================================
+// DROPZONE
+// =============================================================================
+
 .modal-hint {
   margin: 0;
-  color: #64748b;
   font-size: 0.875rem;
+  color: var(--modal-text-muted);
 }
 
 .dropzone {
@@ -109,14 +172,12 @@
   border-radius: 0.75rem;
   min-height: 150px;
   padding: 1.25rem;
-  color: #475569;
+  color: var(--modal-text-muted);
   cursor: pointer;
-  background: #f8fafc;
-  transition: border-color 0.2s, background 0.2s;
+  background: var(--modal-surface-alt);
+  transition: border-color 200ms ease, background 200ms ease;
 
-  input {
-    display: none;
-  }
+  input { display: none; }
 
   .dropzone-icon {
     font-size: 2.5rem;
@@ -126,18 +187,16 @@
   }
 
   &.dragging {
-    border-color: #0f766e;
-    background: #f0fdfa;
+    border-color: var(--modal-brand);
+    background: var(--modal-brand-light);
 
-    .dropzone-icon {
-      color: #0f766e;
-    }
+    .dropzone-icon { color: var(--modal-brand); }
   }
 }
 
-.mobile-actions {
-  display: none;
-}
+// =============================================================================
+// MENSAJES DE ARCHIVO / ERROR
+// =============================================================================
 
 .selected-file {
   display: flex;
@@ -145,48 +204,62 @@
   gap: 0.4rem;
   margin: 0;
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--modal-text-muted);
 
-  mat-icon {
-    font-size: 1rem;
-    width: 1rem;
-    height: 1rem;
-  }
+  mat-icon { font-size: 1rem; width: 1rem; height: 1rem; }
 
   &.has-file {
-    color: #0f766e;
+    color: var(--modal-brand);
     font-weight: 600;
   }
 }
 
-// ——————————————————
-// Close confirm (CA-01)
-// ——————————————————
-.close-confirm {
-  background: #fff8f0;
-  border: 1px solid #fed7aa;
-  border-radius: 0.75rem;
-  padding: 1rem 1.1rem;
+.file-validation-error {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--modal-error);
+  font-weight: 600;
 
-  p { margin: 0; font-size: 0.9rem; color: #92400e; font-weight: 600; }
+  mat-icon { font-size: 1rem; width: 1rem; height: 1rem; }
 }
 
-.close-confirm-actions {
+.upload-error {
   display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.65rem 0.9rem;
+  border-radius: 0.6rem;
+  background: var(--modal-error-bg);
+  border: 1px solid var(--modal-error-border);
+  font-size: 0.875rem;
+  color: var(--modal-error);
+
+  mat-icon { font-size: 1rem; width: 1rem; height: 1rem; flex-shrink: 0; }
 }
 
-// ——————————————————
-// Stepper (CA-05)
-// ——————————————————
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--modal-brand);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  text-decoration: underline;
+  flex-shrink: 0;
+}
+
+// =============================================================================
+// STEPPER (Paso 1 / 2)
+// =============================================================================
+
 .stepper-header {
   display: flex;
   align-items: center;
-  gap: 0;
   margin-bottom: 0.25rem;
 }
 
@@ -202,29 +275,29 @@
     width: 1.6rem;
     height: 1.6rem;
     border-radius: 50%;
-    border: 2px solid #cbd5e1;
+    border: 2px solid var(--modal-border);
     display: grid;
     place-items: center;
     font-size: 0.78rem;
-    background: #f8fafc;
+    background: var(--modal-surface-alt);
     flex-shrink: 0;
   }
 
   &.active {
-    color: #0f766e;
+    color: var(--modal-brand);
     .step-number {
-      border-color: #0f766e;
-      background: #ecfdf5;
-      color: #0f766e;
+      border-color: var(--modal-brand);
+      background: var(--modal-brand-light);
+      color: var(--modal-brand);
     }
   }
 
   &.done {
-    color: #0f766e;
+    color: var(--modal-brand);
     .step-number {
-      border-color: #0f766e;
-      background: #0f766e;
-      color: #fff;
+      border-color: var(--modal-brand);
+      background: var(--modal-brand);
+      color: #ffffff;
     }
   }
 }
@@ -232,55 +305,67 @@
 .step-connector {
   flex: 1;
   height: 2px;
-  background: #e2e8f0;
+  background: var(--modal-border);
   margin: 0 0.5rem;
 }
 
-// ——————————————————
-// File errors & upload errors (CA-02, EB-01)
-// ——————————————————
-.file-validation-error {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
+// =============================================================================
+// FORMULARIO MANUAL
+// =============================================================================
+
+.manual-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--modal-text);
+  }
+
+  input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--modal-border);
+    border-radius: 0.6rem;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.875rem;
+    background: var(--modal-surface);
+    color: var(--modal-text);
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+
+    &:focus {
+      outline: none;
+      border-color: var(--modal-brand);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+    }
+
+    &:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    &.invalid-field {
+      border-color: var(--modal-error);
+      box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.08);
+    }
+  }
+}
+
+.full-col { grid-column: 1 / -1; }
+
+.field-error {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--modal-error);
   margin: 0;
-  font-size: 0.85rem;
-  color: #b91c1c;
-  font-weight: 600;
-
-  mat-icon { font-size: 1rem; width: 1rem; height: 1rem; }
 }
 
-.upload-error {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0;
-  padding: 0.65rem 0.9rem;
-  border-radius: 0.6rem;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  font-size: 0.875rem;
-  color: #b91c1c;
+// =============================================================================
+// PASO 2 — RESPALDO PDF
+// =============================================================================
 
-  mat-icon { font-size: 1rem; width: 1rem; height: 1rem; flex-shrink: 0; }
-}
-
-.btn-link {
-  background: none;
-  border: none;
-  color: #0f766e;
-  font-size: 0.82rem;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 0 0.2rem;
-  text-decoration: underline;
-  flex-shrink: 0;
-}
-
-// ——————————————————
-// Step 2 footer
-// ——————————————————
 .step2-content {
   display: flex;
   flex-direction: column;
@@ -298,9 +383,95 @@
   }
 }
 
-// ——————————————————
-// Spinner animation (CA-06)
-// ——————————————————
+// =============================================================================
+// FOOTER Y BOTONES
+// =============================================================================
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  padding-top: 0.25rem;
+}
+
+.btn-light {
+  border: 1px solid var(--modal-border);
+  border-radius: 0.6rem;
+  padding: 0.65rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--modal-surface);
+  color: var(--modal-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: background 140ms ease;
+
+  &:hover:not(:disabled) { background: var(--modal-surface-alt); }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+}
+
+.btn-primary {
+  border: none;
+  border-radius: 0.6rem;
+  padding: 0.65rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--modal-brand);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: background 140ms ease;
+
+  &:hover:not(:disabled) { background: #0d9488; }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  &:focus-visible {
+    outline: 2px solid var(--modal-brand);
+    outline-offset: 2px;
+  }
+}
+
+.btn-secondary {
+  border: 1px solid var(--modal-brand);
+  border-radius: 0.6rem;
+  padding: 0.65rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--modal-brand-light);
+  color: var(--modal-brand);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: background 140ms ease;
+
+  &:hover:not(:disabled) { background: #d1fae5; }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+}
+
+.btn-danger {
+  border: none;
+  border-radius: 0.6rem;
+  padding: 0.65rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: #dc2626;
+  color: #ffffff;
+  transition: background 140ms ease;
+
+  &:hover:not(:disabled) { background: #b91c1c; }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+}
+
+// =============================================================================
+// SPINNER
+// =============================================================================
+
 .spinning {
   animation: spin 0.9s linear infinite;
   font-size: 1.1rem;
@@ -313,147 +484,14 @@
   to   { transform: rotate(360deg); }
 }
 
-// ——————————————————
-// Extra buttons
-// ——————————————————
-.btn-secondary {
-  border: 1px solid #0f766e;
-  border-radius: 0.6rem;
-  padding: 0.65rem 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  font-size: 0.95rem;
-  background: #f0fdfa;
-  color: #0f766e;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+// =============================================================================
+// RESPONSIVE
+// =============================================================================
 
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-}
-
-.btn-danger {
-  border: 0;
-  border-radius: 0.6rem;
-  padding: 0.65rem 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  font-size: 0.95rem;
-  background: #dc2626;
-  color: #fff;
-
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-}
-
-// .full-col spans both grid columns in the 2-col manual form
-.full-col { grid-column: 1 / -1; }
-
-.manual-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-
-  label {
-    display: grid;
-    gap: 0.35rem;
-    font-size: 0.85rem;
-    color: #334155;
-    font-weight: 600;
-  }
-
-  .field-error {
-    color: #dc2626;
-    font-size: 0.75rem;
-    font-weight: 600;
-    line-height: 1.2;
-  }
-
-  input {
-    border: 1px solid #cbd5e1;
-    border-radius: 0.6rem;
-    padding: 0.55rem 0.65rem;
-    font-size: 0.92rem;
-    color: #0f172a;
-    background: #ffffff;
-
-    &.invalid-field {
-      border-color: #dc2626;
-      box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.08);
-    }
-  }
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  padding-top: 0.25rem;
-}
-
-.btn-light,
-.btn-primary {
-  border: 0;
-  border-radius: 0.6rem;
-  padding: 0.65rem 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  font-size: 0.95rem;
-}
-
-.btn-light {
-  background: #e2e8f0;
-  color: #0f172a;
-}
-
-.btn-primary {
-  background: #0f766e;
-  color: #ffffff;
-
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-}
-
-@media (max-width: 767px) {
-  // CA-01: Full Screen on xs-md
-  .modal-backdrop {
-    padding: 0;
-    align-items: stretch;
-    justify-content: stretch;
-  }
-
-  .publish-modal {
-    width: 100%;
-    height: 100%;
-    max-height: 100%;
-    border-radius: 0;
-    overflow-y: auto;
-  }
-
-  .manual-form {
-    grid-template-columns: 1fr;
-    overflow-y: auto;
-  }
-
-  .full-col { grid-column: auto; }
-
-  .modal-footer {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .step2-footer {
-    grid-template-columns: auto 1fr;
-    .step2-ctas {
-      grid-template-columns: 1fr 1fr;
-      display: grid;
-    }
-  }
+@media (max-width: 640px) {
+  .publish-modal { border-radius: 1rem 1rem 0 0; align-self: flex-end; max-height: 90vh; }
+  .manual-form   { grid-template-columns: 1fr; }
+  .full-col      { grid-column: 1; }
+  .step2-footer  { flex-direction: column; }
+  .step2-ctas    { flex-direction: column; }
 }

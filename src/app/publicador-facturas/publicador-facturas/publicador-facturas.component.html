@@ -1,37 +1,49 @@
 <section class="publicador-wrapper">
 
-  <header class="header-row">
-    <div>
-      <h1>Publicador de Facturas</h1>
-      <p>Carga, validación y publicación de comprobantes.</p>
-    </div>
-    <div class="header-actions">
-      <button type="button" class="btn-filtros-mobile" *ngIf="facturas.length" (click)="openMobileFiltersModal()">
-        Filtros
-        <span class="filtros-count" *ngIf="activeFilterCount > 0">{{ activeFilterCount }}</span>
-      </button>
-      <button type="button" class="btn-publicar" (click)="openUploadModal()">Publicar</button>
-    </div>
-  </header>
+  <!-- ── app-card como contenedor principal de la sección ── -->
+  <app-card [elevated]="true" [hoverLift]="false">
 
-  <div class="contenido">
-    <div class="estado-chips" *ngIf="facturas.length">
-      <button
-        *ngFor="let chip of estadoChips"
-        type="button"
-        class="estado-chip"
-        [class.active]="isChipActive(chip.value)"
-        (click)="toggleEstadoChip(chip.value)">
-        {{ chip.label }}
-      </button>
+    <!-- TÍTULO: header + botones de acción -->
+    <div card-title class="pf-card-header">
+      <div class="pf-card-title-text">
+        <h1>Publicador de Facturas</h1>
+        <p>Carga, validación y publicación de comprobantes.</p>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="btn-filtros-mobile" *ngIf="facturas.length" (click)="openMobileFiltersModal()">
+          Filtros
+          <span class="filtros-count" *ngIf="activeFilterCount > 0">{{ activeFilterCount }}</span>
+        </button>
+        <button type="button" class="btn-publicar" (click)="openUploadModal()">
+          <mat-icon aria-hidden="true">add</mat-icon>
+          Publicar
+        </button>
+      </div>
     </div>
 
-    <div class="filtro-row" *ngIf="facturas.length">
-      <app-atomic-factura-filters [facturas]="facturas" [isAdmin]="isAdminUser" [filters]="activeFilters"
-        (filtersChange)="onFiltersChange($event)">
-      </app-atomic-factura-filters>
+    <!-- CONTENIDO: filtros + lista de facturas -->
+    <div card-content class="pf-card-content">
+
+      <!-- Chips de filtrado rápido por estado -->
+      <div class="estado-chips" *ngIf="facturas.length">
+        <button *ngFor="let chip of estadoChips" type="button" class="estado-chip"
+          [class.active]="isChipActive(chip.value)" (click)="toggleEstadoChip(chip.value)">
+          {{ chip.label }}
+        </button>
+      </div>
+
+      <!-- Panel de filtros avanzados (desktop) -->
+      <div class="filtro-row" *ngIf="facturas.length">
+        <app-atomic-factura-filters [facturas]="facturas" [isAdmin]="isAdminUser" [filters]="activeFilters"
+          (filtersChange)="onFiltersChange($event)">
+        </app-atomic-factura-filters>
+      </div>
     </div>
 
+  </app-card>
+
+  <app-card [elevated]="true" [hoverLift]="false" [loading]="loading">
+    <!-- Lista de facturas -->
     <div class="contenedor-lista" *ngIf="filteredFacturas.length">
       <ul class="estado-lista">
         <li *ngFor="let factura of paginatedFacturas; trackBy: trackByFacturaId"
@@ -47,33 +59,32 @@
       </div>
     </div>
 
+    <!-- Estado vacío: sin facturas en total -->
     <div class="estado-vacio-cta" *ngIf="!facturas.length">
-      <mat-icon class="empty-icon">receipt_long</mat-icon>
+      <mat-icon class="empty-icon" aria-hidden="true">receipt_long</mat-icon>
       <h2 class="empty-title">No tienes facturas aún</h2>
       <p class="empty-desc">Publica tu primera factura para comenzar a recibir financiamiento.</p>
       <button type="button" class="btn-publicar" (click)="openUploadModal()">+ Nueva Factura</button>
     </div>
 
-    <p class="estado-vacio" *ngIf="facturas.length && !filteredFacturas.length">No hay facturas que coincidan con los
-      filtros seleccionados.</p>
-  </div>
+    <!-- Estado vacío: sin resultados con los filtros aplicados -->
+    <p class="estado-vacio" *ngIf="facturas.length && !filteredFacturas.length" aria-live="polite">
+      No hay facturas que coincidan con los filtros seleccionados.
+    </p>
+  </app-card>
+
 </section>
 
+<!-- ── Modales fuera del card para no interferir con z-index ── -->
+
 <app-modal-publicacion-factura [isOpen]="isPublicationModalOpen" [isSubmitting]="isPublishing"
-  [metadata]="publicationMetadata"
-  [errorMessage]="modalErrorMessage"
-  (closeModal)="closePublicationModal()" (submitFile)="handleFilePublish($event)"
-  (submitForm)="publicarFactura($event)">
+  [metadata]="publicationMetadata" [errorMessage]="modalErrorMessage" (closeModal)="closePublicationModal()"
+  (submitFile)="handleFilePublish($event)" (submitForm)="publicarFactura($event)">
 </app-modal-publicacion-factura>
 
-<app-terms-and-conditions-modal
-  [isOpen]="!!pendingTncFactura"
-  [factura]="pendingTncFactura"
-  [versionTerminos]="pendingTncVersionTerminos"
-  [isSubmitting]="isTncSubmitting"
-  [errorMessage]="tncErrorMessage"
-  (accepted)="handleTncAccepted()"
-  (dismissed)="handleTncDismissed()">
+<app-terms-and-conditions-modal [isOpen]="!!pendingTncFactura" [factura]="pendingTncFactura"
+  [versionTerminos]="pendingTncVersionTerminos" [isSubmitting]="isTncSubmitting" [errorMessage]="tncErrorMessage"
+  (accepted)="handleTncAccepted()" (dismissed)="handleTncDismissed()">
 </app-terms-and-conditions-modal>
 
 <div class="mobile-filters-modal" *ngIf="isMobileFiltersModalOpen" (click)="closeMobileFiltersModal()">
@@ -83,11 +94,9 @@
       <h2>Filtros</h2>
       <button type="button" class="btn-close-filters" (click)="closeMobileFiltersModal()">Cerrar</button>
     </header>
-
     <app-atomic-factura-filters [facturas]="facturas" [isAdmin]="isAdminUser" [filters]="mobileDraftFilters"
       (filtersChange)="onMobileFiltersDraftChange($event)">
     </app-atomic-factura-filters>
-
     <footer class="mobile-filters-footer">
       <button type="button" class="btn-cancel-filters" (click)="cancelMobileFilters()">Cancelar</button>
       <button type="button" class="btn-apply-filters" (click)="applyMobileFilters()">Aplicar</button>
