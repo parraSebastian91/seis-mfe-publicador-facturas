@@ -5,12 +5,8 @@
       app-expansion-panel reemplaza mat-accordion + mat-expansion-panel.
       [attention] activa microinteracción de rebote+destello cuando hay notas OCR pendientes.
     -->
-    <app-expansion-panel
-      [expanded]="panelOpenState()"
-      (expandedChange)="panelOpenState.set($event)"
-      [attention]="hasPendingOcrNotes"
-      attentionVariant="warning"
-    >
+    <app-expansion-panel [expanded]="panelOpenState()" (expandedChange)="panelOpenState.set($event)"
+      [attention]="hasPendingOcrNotes" attentionVariant="warning">
 
       <!-- ══════════════════════════════════════════════════
            SLOT: HEADER — Estado + Resumen + Indicador
@@ -32,11 +28,8 @@
         </div>
 
         <!-- Indicador visual de notificaciones/ofertas (sin click para evitar UX confusa) -->
-        <span
-          class="notif-indicator"
-          [class.notif-indicator--active]="ofertasCount() > 0"
-          [attr.aria-label]="ofertasCount() > 0 ? ofertasCount() + ' ofertas activas' : undefined"
-        >
+        <span class="notif-indicator" [class.notif-indicator--active]="ofertasCount() > 0"
+          [attr.aria-label]="ofertasCount() > 0 ? ofertasCount() + ' ofertas activas' : undefined">
           <mat-icon aria-hidden="true">
             {{ ofertasCount() > 0 ? 'notifications_active' : 'notifications_none' }}
           </mat-icon>
@@ -68,36 +61,22 @@
         <!-- ── 2. Barra de herramientas ───────────────────────────────── -->
         <div class="panel-tools" role="toolbar" aria-label="Acciones de factura">
 
-          <button
-            type="button"
-            class="tool-btn"
-            [disabled]="facturaOriginal().url_factura === 'N/A'"
-            (click)="togglePdfView()"
-            title="Ver foto de la factura"
-          >
+          <button type="button" class="tool-btn" [disabled]="facturaOriginal().url_factura === 'N/A'"
+            (click)="togglePdfView()" title="Ver foto de la factura">
             <mat-icon aria-hidden="true">preview</mat-icon>
             <span class="tool-label">Ver foto</span>
           </button>
 
-          <button
-            type="button"
-            class="tool-btn"
-            [disabled]="!canUploadRespaldo"
-            (click)="requestUploadRespaldo()"
-            title="Subir respaldo"
-          >
+          <button type="button" class="tool-btn" [disabled]="!canUploadRespaldo" (click)="requestUploadRespaldo()"
+            title="Subir respaldo">
             <mat-icon aria-hidden="true">attach_file</mat-icon>
             <span class="tool-label">Subir respaldo</span>
           </button>
 
-          <button
-            type="button"
-            class="tool-btn"
-            [class.tool-btn--alert]="ofertasCount() > 0"
+          <button type="button" class="tool-btn" [class.tool-btn--alert]="ofertasCount() > 0"
             (click)="toggleNotificationSidebar()"
             [attr.aria-label]="ofertasCount() > 0 ? 'Ver ' + ofertasCount() + ' notificaciones' : 'Ver notificaciones'"
-            title="Ver detalle y notificaciones"
-          >
+            title="Ver detalle y notificaciones">
             <mat-icon aria-hidden="true">
               {{ ofertasCount() > 0 ? 'notifications_active' : 'notifications' }}
             </mat-icon>
@@ -122,10 +101,7 @@
 
             <!-- Panel PDF / imagen -->
             <section class="pdf-pane" *ngIf="showPdfView() && imageSrc()">
-              <app-image-panzoom-viewer
-                *ngIf="imageSrc()"
-                [imageSrc]="imageSrc() ?? ''"
-                [altText]="'Imagen de factura'"
+              <app-image-panzoom-viewer *ngIf="imageSrc()" [imageSrc]="imageSrc() ?? ''" [altText]="'Imagen de factura'"
                 [mobileMode]="isMobileView()">
               </app-image-panzoom-viewer>
               <p *ngIf="!imageSrc()" class="pdf-empty">
@@ -145,11 +121,8 @@
               </div>
 
               <!-- Filas de campos -->
-              <div
-                class="compare-row"
-                *ngFor="let campo of camposFactura(); trackBy: trackByCampoId"
-                [class.compare-row--validated]="campo.validated"
-              >
+              <div class="compare-row" *ngFor="let campo of camposFactura(); trackBy: trackByCampoId"
+                [class.compare-row--validated]="campo.validated">
                 <!-- Nombre del campo -->
                 <span class="label">
                   <small class="mobile-caption">Campo</small>
@@ -163,21 +136,18 @@
                   <!-- Vista de solo lectura -->
                   <ng-container *ngIf="!campo.editing; else editFieldTpl">
                     {{ (campo.detectedOptions.length > 1 && !campo.validated)
-                        ? pendingValidationLabel
-                        : (campo.value || '-') }}
+                    ? pendingValidationLabel
+                    : (campo.value || '-') }}
                   </ng-container>
 
                   <!-- Vista de edición -->
                   <ng-template #editFieldTpl>
 
                     <!-- Select cuando hay opciones detectadas por OCR -->
-                    <ng-container *ngIf="campo.detectedOptions.length > 1 && !campo.usingCustomValue; else manualInputTpl">
-                      <select
-                        class="field-select"
-                        [value]="campo.draftValue"
-                        (click)="$event.stopPropagation()"
-                        (change)="onDetectedOptionSelected(campo.id, $any($event.target).value)"
-                      >
+                    <ng-container
+                      *ngIf="campo.detectedOptions.length > 1 && !campo.usingCustomValue; else manualInputTpl">
+                      <select class="field-select" [value]="campo.draftValue" (click)="$event.stopPropagation()"
+                        (change)="onDetectedOptionSelected(campo.id, $any($event.target).value)">
                         <option value="" disabled>{{ selectPlaceholderLabel }}</option>
                         <option *ngFor="let option of campo.detectedOptions" [value]="option">{{ option }}</option>
                         <option [value]="otherValueOption">Otro valor</option>
@@ -189,8 +159,7 @@
 
                       <!-- Fecha de vencimiento → datepicker ng-bootstrap -->
                       <ng-container *ngIf="campo.id === 'fechaVencimiento'; else montoInputTpl">
-                        <app-atomic-datepicker
-                          [value]="campo.draftValue"
+                        <app-atomic-datepicker [value]="campo.draftValue"
                           (valueChange)="updateDraftValue(campo.id, $event)"
                           (enterPressed)="validateField(campo.id, $event)"
                           (escapePressed)="cancelField(campo.id, $event)">
@@ -200,44 +169,29 @@
                       <!-- Monto → solo numérico con formato CLP -->
                       <ng-template #montoInputTpl>
                         <ng-container *ngIf="campo.id === 'montoTotal'; else rutInputTpl">
-                          <input
-                            class="field-input"
-                            [value]="campo.draftValue"
-                            inputmode="numeric"
-                            autocomplete="off"
-                            (click)="$event.stopPropagation()"
-                            (input)="onMontoDraftInput(campo.id, $event)"
+                          <input class="field-input" [value]="campo.draftValue" inputmode="numeric" autocomplete="off"
+                            (click)="$event.stopPropagation()" (input)="onMontoDraftInput(campo.id, $event)"
                             (keydown.enter)="validateField(campo.id, $event)"
-                            (keydown.escape)="cancelField(campo.id, $event)"
-                          />
+                            (keydown.escape)="cancelField(campo.id, $event)" />
                         </ng-container>
                       </ng-template>
 
                       <!-- RUT deudor → formato XX.XXX.XXX-X -->
                       <ng-template #rutInputTpl>
                         <ng-container *ngIf="campo.id === 'rutDeudor'; else textInputTpl">
-                          <input
-                            class="field-input"
-                            [value]="campo.draftValue"
-                            autocomplete="off"
-                            (click)="$event.stopPropagation()"
-                            (input)="onRutDraftInput(campo.id, $event)"
+                          <input class="field-input" [value]="campo.draftValue" autocomplete="off"
+                            (click)="$event.stopPropagation()" (input)="onRutDraftInput(campo.id, $event)"
                             (keydown.enter)="validateField(campo.id, $event)"
-                            (keydown.escape)="cancelField(campo.id, $event)"
-                          />
+                            (keydown.escape)="cancelField(campo.id, $event)" />
                         </ng-container>
                       </ng-template>
 
                       <!-- Texto libre -->
                       <ng-template #textInputTpl>
-                        <input
-                          class="field-input"
-                          [value]="campo.draftValue"
-                          (click)="$event.stopPropagation()"
+                        <input class="field-input" [value]="campo.draftValue" (click)="$event.stopPropagation()"
                           (input)="updateDraftValue(campo.id, $any($event.target).value)"
                           (keydown.enter)="validateField(campo.id, $event)"
-                          (keydown.escape)="cancelField(campo.id, $event)"
-                        />
+                          (keydown.escape)="cancelField(campo.id, $event)" />
                       </ng-template>
 
                     </ng-template>
@@ -247,15 +201,9 @@
                 <!-- Acción por fila: editar / guardar -->
                 <span class="row-actions" *ngIf="isPendingValidation">
                   <small class="mobile-caption">Acción</small>
-                  <button
-                    type="button"
-                    class="action-btn"
-                    [class.action-btn--editing]="campo.editing"
-                    [class.action-btn--validated]="campo.validated && !campo.editing"
-                    [disabled]="isFieldSaving(campo)"
-                    [title]="primaryActionTitle(campo)"
-                    (click)="onPrimaryAction(campo.id, $event)"
-                  >
+                  <button type="button" class="action-btn" [class.action-btn--editing]="campo.editing"
+                    [class.action-btn--validated]="campo.validated && !campo.editing" [disabled]="isFieldSaving(campo)"
+                    [title]="primaryActionTitle(campo)" (click)="onPrimaryAction(campo.id, $event)">
                     <mat-icon [class.spin]="isFieldSaving(campo)" aria-hidden="true">
                       {{ primaryActionIcon(campo) }}
                     </mat-icon>
@@ -263,6 +211,83 @@
                 </span>
 
               </div><!-- /compare-row -->
+
+              <!-- ══════════════════════════════════════════════════
+                   SECCIÓN DE ADJUNTOS
+                   Muestra los documentos asociados a la factura.
+                   Al hacer click en un adjunto, se carga en el visor panzoom (Lado A).
+                   El botón de subida usa el mecanismo existente de requestUploadRespaldo().
+                   Pendiente: cuando el backend exponga el endpoint de adjuntos,
+                   adjuntosList derivará de esa llamada en lugar del imageSrc actual.
+              ══════════════════════════════════════════════════ -->
+              <section class="adjuntos-section" aria-label="Documentos adjuntos">
+
+                <header class="adjuntos-header">
+                  <h4 class="adjuntos-title">
+                    <mat-icon aria-hidden="true">folder_open</mat-icon>
+                    Documentos adjuntos
+                    <span class="adjuntos-count" *ngIf="adjuntosList().length">{{ adjuntosList().length }}</span>
+                  </h4>
+                  <button
+                    *ngIf="canUploadRespaldo"
+                    type="button"
+                    class="adjunto-add-btn"
+                    (click)="requestUploadRespaldo()"
+                    title="Agregar documento adjunto">
+                    <mat-icon aria-hidden="true">add</mat-icon>
+                    <span>Agregar</span>
+                  </button>
+                </header>
+
+                <!-- Lista de adjuntos disponibles -->
+                <ul class="adjuntos-list" role="listbox" aria-label="Documentos disponibles para visualizar">
+
+                  <li
+                    *ngFor="let adj of adjuntosList(); trackBy: trackByAdjuntoId"
+                    class="adjunto-item"
+                    role="option"
+                    [class.adjunto-item--active]="selectedAdjuntoId() === adj.id"
+                    [attr.aria-selected]="selectedAdjuntoId() === adj.id"
+                    [attr.aria-label]="'Ver ' + adj.nombre + ' (' + adj.tipo + ')'"
+                    tabindex="0"
+                    (click)="selectAdjunto(adj)"
+                    (keydown.enter)="selectAdjunto(adj)"
+                    (keydown.space)="$event.preventDefault(); selectAdjunto(adj)">
+
+                    <!-- Ícono del tipo de media -->
+                    <span class="adjunto-icon-wrap" aria-hidden="true">
+                      <mat-icon class="adjunto-media-icon">{{ adj.mediaIcon }}</mat-icon>
+                    </span>
+
+                    <!-- Info del adjunto -->
+                    <div class="adjunto-info">
+                      <span class="adjunto-nombre">{{ adj.nombre }}</span>
+                      <span class="adjunto-meta">{{ adj.tipo }}</span>
+                    </div>
+
+                    <!-- Indicador de activo -->
+                    <mat-icon
+                      class="adjunto-active-icon"
+                      *ngIf="selectedAdjuntoId() === adj.id"
+                      aria-hidden="true">
+                      visibility
+                    </mat-icon>
+                  </li>
+
+                  <!-- Estado vacío: sin adjuntos disponibles -->
+                  <li class="adjunto-empty" *ngIf="!adjuntosList().length" aria-label="Sin documentos adjuntos">
+                    <mat-icon aria-hidden="true">cloud_upload</mat-icon>
+                    <span>Sin adjuntos. Sube el PDF de respaldo para visualizarlo aquí.</span>
+                  </li>
+
+                </ul>
+
+                <!-- Tipos de media admitidos (orientación al usuario) -->
+                <p class="adjuntos-hint" *ngIf="canUploadRespaldo">
+                  Formatos admitidos: PDF, JPEG, PNG, WEBP · Máx. 10 MB por archivo.
+                </p>
+
+              </section>
 
               <!-- Notas OCR -->
               <div class="notifications-list" *ngIf="notificationCount()" role="status" aria-live="polite">
@@ -282,26 +307,16 @@
 
         <!-- ── 4. Acciones de confirmación ──────────────────────────── -->
         <footer class="confirm-footer" *ngIf="isPendingAutorizacion || isRechazada">
-          <button
-            *ngIf="isPendingAutorizacion"
-            type="button"
-            class="confirm-btn"
-            [disabled]="!canValidarYPublicar"
+          <button *ngIf="isPendingAutorizacion" type="button" class="confirm-btn" [disabled]="!canValidarYPublicar"
             [title]="hasPendingOcrNotes
               ? 'Resuelve las notas pendientes antes de publicar'
-              : 'Validar y publicar la factura'"
-            (click)="validarYPublicar()"
-          >
+              : 'Validar y publicar la factura'" (click)="validarYPublicar()">
             <mat-icon aria-hidden="true">verified</mat-icon>
             Validar y publicar
           </button>
 
-          <button
-            *ngIf="isRechazada"
-            type="button"
-            class="confirm-btn confirm-btn--corregir"
-            (click)="corregirYReenviar()"
-          >
+          <button *ngIf="isRechazada" type="button" class="confirm-btn confirm-btn--corregir"
+            (click)="corregirYReenviar()">
             <mat-icon aria-hidden="true">replay</mat-icon>
             Corregir y reenviar
           </button>

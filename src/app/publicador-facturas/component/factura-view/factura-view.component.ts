@@ -14,6 +14,55 @@ interface FacturaFieldEditable {
   validated: boolean;
 }
 
+// Tipos de adjunto soportados por el sistema
+export interface AdjuntoItem {
+  /** Identificador único del adjunto (assetId o correlationId temporal) */
+  id: string;
+  /** Nombre descriptivo del archivo */
+  nombre: string;
+  /** Tipo semántico del documento (para la UI) */
+  tipo: AdjuntoTipo;
+  /** MIME type del archivo */
+  mediaType: string;
+  /** URL de acceso al recurso */
+  url: string;
+  /** Ícono de Material Icons según el mediaType */
+  mediaIcon: string;
+  /** Fecha de subida (ISO string, opcional) */
+  fecha?: string;
+}
+
+export type AdjuntoTipo =
+  | 'Factura original'
+  | 'Respaldo PDF'
+  | 'Documento legal'
+  | 'Imagen'
+  | 'Otro';
+
+/** Tipos de media admitidos por el visor de adjuntos */
+export const SUPPORTED_MEDIA_TYPES: Record<string, { label: string; icon: string; tipo: AdjuntoTipo }> = {
+  'application/pdf':  { label: 'PDF',   icon: 'picture_as_pdf', tipo: 'Respaldo PDF' },
+  'image/jpeg':       { label: 'JPEG',  icon: 'image',          tipo: 'Imagen' },
+  'image/png':        { label: 'PNG',   icon: 'image',          tipo: 'Imagen' },
+  'image/webp':       { label: 'WEBP',  icon: 'image',          tipo: 'Imagen' },
+};
+
+function resolveMediaIcon(mediaType: string): string {
+  return SUPPORTED_MEDIA_TYPES[mediaType]?.icon ?? 'attach_file';
+}
+
+function resolveMediaTypeFromUrl(url: string): string {
+  const lower = url.toLowerCase();
+  if (lower.includes('.pdf'))  return 'application/pdf';
+  if (lower.includes('.webp')) return 'image/webp';
+  if (lower.includes('.png'))  return 'image/png';
+  if (lower.startsWith('data:image/')) {
+    const match = url.match(/^data:(image\/[a-z]+);/);
+    return match?.[1] ?? 'image/jpeg';
+  }
+  return 'image/jpeg';
+}
+
 interface FacturaFieldUpdateEvent {
   factura: FacturaType;
   campoNombre: string;
@@ -62,6 +111,35 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   readonly splitLayoutLoading = signal(false);
   readonly isMobileView = signal(false);
   readonly pendingFieldId = signal<string | null>(null);
+
+  /** Adjunto actualmente seleccionado para visualizar en el panzoom viewer */
+  readonly selectedAdjuntoId = signal<string | null>(null);
+
+  /**
+   * Lista de adjuntos disponibles para esta factura.
+   * Por ahora deriva de los datos actuales del modelo (assetId / url_factura).
+   * Cuando el backend exponga un endpoint de adjuntos, este computed se
+   * reemplazará por una señal cargada asincrónicamente.
+   */
+  readonly adjuntosList = computed<AdjuntoItem[]>(() => {
+    const factura = this.facturaOriginal();
+    const src = this.imageSrc();
+    const items: AdjuntoItem[] = [];
+
+    if (src) {
+      const mediaType = resolveMediaTypeFromUrl(src);
+      items.push({
+        id: factura.assetId || 'factura-original',
+        nombre: this.imageName() || 'Factura original',
+        tipo: 'Factura original',
+        mediaType,
+        mediaIcon: resolveMediaIcon(mediaType),
+        url: src,
+      });
+    }
+
+    return items;
+  });
 
   readonly estadoFactura = signal('En validacion');
   readonly estadoConfirmado = signal(false);
@@ -342,6 +420,23 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
 
   trackByCampoId(index: number, field: FacturaFieldEditable): string {
     return field.id || String(index);
+  }
+
+  trackByAdjuntoId(_index: number, adj: AdjuntoItem): string {
+    return adj.id;
+  }
+
+  /**
+   * Selecciona un adjunto para visualizarlo en el panel panzoom.
+   * Si el panel PDF no está visible, lo activa automáticamente.
+   */
+  selectAdjunto(adj: AdjuntoItem): void {
+    this.selectedAdjuntoId.set(adj.id);
+    this.imageSrc.set(adj.url);
+    this.imageName.set(adj.nombre);
+    if (!this.showPdfView()) {
+      this.showPdfView.set(true);
+    }
   }
 
   onPrimaryAction(fieldId: string, event: Event): void {

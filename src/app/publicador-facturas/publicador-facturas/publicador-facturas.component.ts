@@ -686,7 +686,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     if (eventType === 'oferta.nueva' || eventType === 'nueva_oferta') {
       const updatedFactura: FacturaType = {
         ...target,
-        total_ofertas: (target.total_ofertas ?? 0) + 1
+        total_ofertas: Number(target.total_ofertas ?? 0) + 1
       };
       this.actualizarFacturaInMemory(updatedFactura);
     }
