@@ -1,7 +1,7 @@
 <section class="publicador-wrapper">
 
   <!-- ── app-card como contenedor principal de la sección ── -->
-  <app-card [elevated]="true" [hoverLift]="false">
+  <app-card [elevated]="true" [hoverLift]="false" *ngIf="facturas.length > 0">
 
     <!-- TÍTULO: header + botones de acción -->
     <div card-title class="pf-card-header">

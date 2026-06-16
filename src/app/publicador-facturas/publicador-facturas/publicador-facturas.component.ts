@@ -578,7 +578,8 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
   private async loadFacturas(organizacionUUID: string): Promise<void> {
     try {
-      const facturas = await this.facturasService.getFacturas(organizacionUUID);
+      
+      const facturas = await this.facturasService.getFacturas(organizacionUUID, organizacionUUID);
       // Las continuaciones async dentro de effect() corren fuera de la Angular Zone.
       // ngZone.run() garantiza que las mutaciones de estado activen Change Detection.
       this.ngZone.run(() => {
