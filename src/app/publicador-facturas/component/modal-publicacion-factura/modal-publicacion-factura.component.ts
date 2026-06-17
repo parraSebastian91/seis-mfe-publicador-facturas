@@ -1,5 +1,19 @@
-import { Component, EventEmitter, Input, OnDestroy, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { NgbDateStruct } from '@ng-bootstrap/ng-bootstrap';
+import { firstValueFrom } from 'rxjs';
+
+export interface MediaCategoryExtensionRow {
+    extension: string;
+    mime: string;
+    descripcion: string | null;
+}
+
+export interface MediaCategoryRow {
+    codigo: number;
+    nombre: string;
+    extensiones: MediaCategoryExtensionRow[];
+}
 
 export interface ModalPublishMetadata {
     numeroFacturaExistentes: number[];
@@ -26,13 +40,38 @@ export interface FacturaFormularioPublicacion {
 
 type ManualField = 'numeroFactura' | 'rutDeudor' | 'nombreRazonSocialDeudor' | 'montoTotal' | 'fechaEmision' | 'fechaVencimiento';
 
+// ── Adjuntos (Paso 3) ──────────────────────────────────────────────────────────
+export interface AdjuntoCategoria {
+    id: string;
+    nombre: string;
+    descripcion?: string;
+    mimeTypesAdmitidos?: string[];
+}
+
+export type AdjuntoUploadStatus = 'idle' | 'uploading' | 'success' | 'error';
+
+export interface AdjuntoRow {
+    rowId: string;         // identificador local de la fila
+    categoriaId: string;   // id de la categoría seleccionada
+    file: File | null;
+    isDragging: boolean;
+    validationError: string | null;
+    status: AdjuntoUploadStatus;
+    uploadProgress: number; // 0–100
+    uploadedUrl: string | null;
+    uploadError: string | null;
+}
+
 @Component({
     selector: 'app-modal-publicacion-factura',
     templateUrl: './modal-publicacion-factura.component.html',
     styleUrl: './modal-publicacion-factura.component.scss',
     standalone: false
 })
-export class ModalPublicacionFacturaComponent implements OnDestroy {
+export class ModalPublicacionFacturaComponent implements OnInit, OnDestroy {
+    private readonly http = inject(HttpClient);
+    private readonly defaultAllowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+
     @Input() isOpen = false;
     @Input() isSubmitting = false;
     @Input() errorMessage = '';
@@ -47,20 +86,42 @@ export class ModalPublicacionFacturaComponent implements OnDestroy {
     private readonly inputValidationDebounceMs = 300;
     private readonly touchDebounceTimers: Partial<Record<ManualField, ReturnType<typeof setTimeout>>> = {};
 
-    // Tab / step state
-    activeTab: 'automatica' | 'manual' = 'automatica';
-    manualStep: 1 | 2 = 1;
+    // Wizard is always manual — tabs removed
+    manualStep: 1 | 2 | 3 = 1;
     showCloseConfirm = false;
 
-    // Automática (Caso 3)
-    isDragging = false;
-    selectedFile: File | null = null;
-    fileValidationError: string | null = null;
-
-    // Manual paso 2 — respaldo PDF (Caso 2)
+    // Paso 2 — respaldo PDF
     isDraggingRespaldo = false;
     respaldoFile: File | null = null;
     respaldoValidationError: string | null = null;
+
+    // Paso 3 — adjuntos dinámicos
+    categorias: AdjuntoCategoria[] = [];
+    loadingCategorias = false;
+    adjuntos: AdjuntoRow[] = [];
+
+    /** IDs de categorías ya asignadas a alguna fila */
+    get categoriasTomadas(): Set<string> {
+        return new Set(this.adjuntos.map(a => a.categoriaId).filter(Boolean));
+    }
+
+    /** Categorías disponibles para añadir (aún no asignadas) */
+    categoriasDisponibles(rowId: string): AdjuntoCategoria[] {
+        const fila = this.adjuntos.find(a => a.rowId === rowId);
+        return this.categorias.filter(
+            c => !this.categoriasTomadas.has(c.id) || c.id === fila?.categoriaId
+        );
+    }
+
+    /** Puede añadir otra fila si hay categorías sin asignar */
+    get puedeAgregarAdjunto(): boolean {
+        return this.categoriasTomadas.size < this.categorias.length;
+    }
+
+    /** Todas las filas con archivo han terminado de subir */
+    get adjuntosListos(): boolean {
+        return this.adjuntos.every(a => !a.file || a.status === 'success');
+    }
 
     manualForm = {
         numeroFactura: '',
@@ -88,6 +149,10 @@ export class ModalPublicacionFacturaComponent implements OnDestroy {
     constructor() {
         this.manualForm.fechaVencimiento = this.suggestedDateIso;
         this.manualForm.fechaEmision = this.todayIso;
+    }
+
+    ngOnInit(): void {
+        this.loadCategorias();
     }
 
     ngOnDestroy(): void {
@@ -133,77 +198,220 @@ export class ModalPublicacionFacturaComponent implements OnDestroy {
     // Tabs / stepper
     // ——————————————————
 
-    selectTab(tab: 'automatica' | 'manual'): void {
-        if (this.isSubmitting) return;
-        // EB-03: preserve form data; discard automática file if switching to manual
-        if (tab === 'manual') {
-            this.selectedFile = null;
-            this.fileValidationError = null;
-        }
-        this.activeTab = tab;
-    }
-
     nextStep(): void {
-        this.markAllFieldsTouched();
-        if (!this.isManualFormValid()) return;
-        this.manualStep = 2;
-        this.respaldoFile = null;
-        this.respaldoValidationError = null;
+        if (this.manualStep === 1) {
+            this.markAllFieldsTouched();
+            if (!this.isManualFormValid()) return;
+            this.manualStep = 2;
+            this.respaldoFile = null;
+            this.respaldoValidationError = null;
+            return;
+        }
+        if (this.manualStep === 2) {
+            this.manualStep = 3;
+            return;
+        }
     }
 
     prevStep(): void {
-        this.manualStep = 1;
+        if (this.manualStep === 3) { this.manualStep = 2; return; }
+        if (this.manualStep === 2) { this.manualStep = 1; return; }
     }
 
     // ——————————————————
-    // Automática — Dropzone (Caso 3)
+    // Paso 3 — Categorías + Adjuntos
     // ——————————————————
 
-    onDragOver(event: DragEvent): void {
-        event.preventDefault();
-        if (this.isSubmitting) return;
-        this.isDragging = true;
+
+    private async loadCategorias(): Promise<void> {
+        this.loadingCategorias = true;
+        try {
+            const res = await firstValueFrom(
+                this.http.get<{ data: MediaCategoryRow[] }>(
+                    '/api/bff/catalogo/media-category',
+                    { withCredentials: true }
+                ),
+            );
+            this.categorias = res?.data.map((data) => {
+                const categoria = {
+                    id: String(data.codigo),
+                    nombre: data.nombre,
+                    descripcion: data.nombre,
+                    mimeTypesAdmitidos: data.extensiones
+                        .map(ext => ext.mime)
+                        .filter(Boolean)
+                };
+                return categoria;
+            }) ?? [];
+        } catch {
+            // Si el endpoint aún no existe, opera sin categorías
+            this.categorias = [
+                { id: 'orden-compra', nombre: 'Orden de Compra' },
+                { id: 'guia-despacho', nombre: 'Guía de Despacho' },
+                { id: 'contrato', nombre: 'Contrato' },
+                { id: 'certificado', nombre: 'Certificado' },
+                { id: 'otro', nombre: 'Otro' },
+            ];
+        } finally {
+            this.loadingCategorias = false;
+        }
     }
 
-    onDragLeave(event: DragEvent): void {
-        event.preventDefault();
-        this.isDragging = false;
+    agregarFilaAdjunto(): void {
+        if (!this.puedeAgregarAdjunto) return;
+        const primeraLibre = this.categorias.find(c => !this.categoriasTomadas.has(c.id));
+        this.adjuntos.push({
+            rowId: `adj-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            categoriaId: primeraLibre?.id ?? '',
+            file: null,
+            isDragging: false,
+            validationError: null,
+            status: 'idle',
+            uploadProgress: 0,
+            uploadedUrl: null,
+            uploadError: null,
+        });
     }
 
-    onDrop(event: DragEvent): void {
+    eliminarFilaAdjunto(rowId: string): void {
+        this.adjuntos = this.adjuntos.filter(a => a.rowId !== rowId);
+    }
+
+    onCategoriaCambiada(rowId: string, categoriaId: string): void {
+        const row = this.adjuntos.find(a => a.rowId === rowId);
+        if (!row) return;
+
+        row.categoriaId = categoriaId;
+
+        // Si el usuario ya cargó archivo y cambia la categoría, se revalida contra el nuevo set permitido.
+        if (row.file && !this.isMimeTypeAllowedForRow(row, row.file.type)) {
+            row.validationError = this.buildMimeTypeErrorMessage(this.getAllowedMimeTypesForRow(row));
+            row.file = null;
+            row.status = 'idle';
+            row.uploadedUrl = null;
+            row.uploadError = null;
+            row.uploadProgress = 0;
+        }
+    }
+
+    onAdjuntoDragOver(event: DragEvent, rowId: string): void {
         event.preventDefault();
-        this.isDragging = false;
-        if (this.isSubmitting) return;
+        const row = this.adjuntos.find(a => a.rowId === rowId);
+        if (row) row.isDragging = true;
+    }
+
+    onAdjuntoDragLeave(event: DragEvent, rowId: string): void {
+        event.preventDefault();
+        const row = this.adjuntos.find(a => a.rowId === rowId);
+        if (row) row.isDragging = false;
+    }
+
+    onAdjuntoDrop(event: DragEvent, rowId: string): void {
+        event.preventDefault();
+        const row = this.adjuntos.find(a => a.rowId === rowId);
+        if (!row) return;
+        row.isDragging = false;
         const file = event.dataTransfer?.files?.[0];
-        if (file) this.setAutoFile(file);
+        if (file) this.setAdjuntoFile(row, file);
     }
 
-    onFileSelected(event: Event): void {
-        if (this.isSubmitting) return;
+    onAdjuntoFileSelected(event: Event, rowId: string): void {
+        const row = this.adjuntos.find(a => a.rowId === rowId);
+        if (!row) return;
         const input = event.target as HTMLInputElement | null;
         const file = input?.files?.[0];
-        if (file) this.setAutoFile(file);
+        if (file) this.setAdjuntoFile(row, file);
         if (input) input.value = '';
     }
 
-    private setAutoFile(file: File): void {
-        this.fileValidationError = null;
-        if (file.type !== 'application/pdf') {
-            this.fileValidationError = 'Solo se aceptan archivos en formato PDF.';
-            this.selectedFile = null;
+    private setAdjuntoFile(row: AdjuntoRow, file: File): void {
+        row.validationError = null;
+        row.status = 'idle';
+        row.uploadedUrl = null;
+        row.uploadError = null;
+
+        const allowedMimeTypes = this.getAllowedMimeTypesForRow(row);
+        if (!this.isMimeTypeAllowedForRow(row, file.type)) {
+            row.validationError = this.buildMimeTypeErrorMessage(allowedMimeTypes);
+            row.file = null;
             return;
         }
         if (file.size > this.maxFileSizeBytes) {
-            this.fileValidationError = `El archivo supera el límite de ${this.maxFileSizeMb} MB.`;
-            this.selectedFile = null;
+            row.validationError = `El archivo supera el límite de ${this.maxFileSizeMb} MB.`;
+            row.file = null;
             return;
         }
-        this.selectedFile = file;
+        row.file = file;
+        void this.uploadAdjunto(row);
     }
 
-    submitSelectedFile(): void {
-        if (!this.selectedFile || this.isSubmitting) return;
-        this.submitFile.emit(this.selectedFile);
+    private getAllowedMimeTypesForRow(row: AdjuntoRow): string[] {
+        const categoria = this.categorias.find(c => c.id === row.categoriaId);
+        const allowed = (categoria?.mimeTypesAdmitidos ?? [])
+            .map(mime => String(mime ?? '').trim().toLowerCase())
+            .filter(Boolean);
+
+        return allowed.length > 0 ? allowed : this.defaultAllowedMimeTypes;
+    }
+
+    private isMimeTypeAllowedForRow(row: AdjuntoRow, mimeType: string): boolean {
+        const normalizedMimeType = String(mimeType ?? '').trim().toLowerCase();
+        if (!normalizedMimeType) {
+            return false;
+        }
+        const allowed = new Set(this.getAllowedMimeTypesForRow(row));
+        return allowed.has(normalizedMimeType);
+    }
+
+    private buildMimeTypeErrorMessage(allowedMimeTypes: string[]): string {
+        const formatted = allowedMimeTypes.join(', ');
+        return `Formato no permitido. Formatos admitidos: ${formatted}.`;
+    }
+
+    private async uploadAdjunto(row: AdjuntoRow): Promise<void> {
+        row.status = 'uploading';
+        row.uploadProgress = 0;
+        try {
+            // 1. Obtener presigned URL
+            const presignedRes = await firstValueFrom(
+                this.http.post<{ data: { url: string; key: string } }>(
+                    '/api/bff/publicador/adjunto-presigned-url',
+                    { categoriaId: row.categoriaId, fileName: row.file!.name, fileType: row.file!.type },
+                    { withCredentials: true },
+                ),
+            );
+            const presignedUrl = presignedRes?.data?.url;
+            if (!presignedUrl) throw new Error('Presigned URL no disponible.');
+
+            // 2. Subir al bucket con XMLHttpRequest para trackear progreso
+            await new Promise<void>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', presignedUrl);
+                xhr.setRequestHeader('Content-Type', row.file!.type);
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        row.uploadProgress = Math.round((e.loaded / e.total) * 100);
+                    }
+                };
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) resolve();
+                    else reject(new Error(`Upload failed: ${xhr.status}`));
+                };
+                xhr.onerror = () => reject(new Error('Network error during upload.'));
+                xhr.send(row.file!);
+            });
+
+            row.uploadedUrl = presignedRes.data.key;
+            row.status = 'success';
+            row.uploadProgress = 100;
+        } catch (err: any) {
+            row.status = 'error';
+            row.uploadError = err?.message ?? 'Error al subir el archivo.';
+        }
+    }
+
+    trackByRowId(_index: number, row: AdjuntoRow): string {
+        return row.rowId;
     }
 
     // ——————————————————
@@ -506,7 +714,6 @@ export class ModalPublicacionFacturaComponent implements OnDestroy {
     }
 
     private hasAnyDataEntered(): boolean {
-        if (this.activeTab === 'automatica') return !!this.selectedFile;
         const keys = Object.keys(this.manualForm) as Array<keyof typeof this.manualForm>;
         const formHasData = keys.some(key => {
             const v = this.manualForm[key];
@@ -514,19 +721,16 @@ export class ModalPublicacionFacturaComponent implements OnDestroy {
             if (key === 'fechaVencimiento' && v === this.suggestedDateIso) return false;
             return !!String(v ?? '').trim();
         });
-        return formHasData || this.manualStep === 2 || !!this.respaldoFile;
+        return formHasData || this.manualStep > 1 || !!this.respaldoFile || this.adjuntos.length > 0;
     }
 
     private resetAll(): void {
         this.manualStep = 1;
-        this.activeTab = 'automatica';
         this.showCloseConfirm = false;
-        this.selectedFile = null;
-        this.fileValidationError = null;
-        this.isDragging = false;
         this.respaldoFile = null;
         this.respaldoValidationError = null;
         this.isDraggingRespaldo = false;
+        this.adjuntos = [];
         this.manualForm = {
             numeroFactura: '',
             rutDeudor: '',
