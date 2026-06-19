@@ -1,8 +1,9 @@
 import { Component, computed, EffectRef, Injector, NgZone, OnDestroy, OnInit, Signal, effect, inject } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { Subscription, firstValueFrom } from 'rxjs';
 import { AutorizacionPublicacionDto, createdBy, FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, NotificationSocketService, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos } from 'shared-utils';
 import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
-import { FacturaData, FacturaFormularioPublicacion, ModalPublishMetadata } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
+import { FacturaData, FacturaFormularioPublicacion, ModalPublishMetadata, AdjuntoParaSubir } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
 import { FacturaConfirmRequestEvent, FacturaRespaldoRequestEvent } from '../component/factura-view/factura-view.component';
 import Swal from 'sweetalert2';
@@ -87,6 +88,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   constructor(
     private readonly injector: Injector,
     private readonly ngZone: NgZone,
+    private readonly http: HttpClient,
     private readonly objectUploadService: ObjectUploadService,
     private readonly uploadModalService: UploadModalService,
     private readonly userStateService: UserStateService,
@@ -307,6 +309,42 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
         this.isPublicationModalOpen = false;
         this.modalErrorMessage = '';
 
+        // Subir el respaldo PDF (Paso 2) si fue proporcionado
+        const respaldoFile = (event as FacturaFormularioPublicacion).respaldoFile;
+        if (respaldoFile && facturaCreada.facturaId) {
+          try {
+            const { uuid } = await this.resolveCurrentUserName();
+            await this.objectUploadService.uploadFileUsingPresignedUrl(
+              this.apiBase,
+              PATH_TYPES.DTE_FACTURA_RESPALDO || 'DTE-factura-respaldo',
+              respaldoFile,
+              uuid,
+              this.orgSelected(),
+              facturaCreada.facturaId
+            );
+          } catch (err) {
+            console.error('Error al subir respaldo:', err);
+            // No bloqueante: la factura ya fue creada
+          }
+        }
+
+        // Subir adjuntos (Paso 3) usando presigned URLs individuales
+        const adjuntos = (event as FacturaFormularioPublicacion).adjuntos ?? [];
+        if (adjuntos.length && facturaCreada.facturaId) {
+          const { uuid } = await this.resolveCurrentUserName();
+          await Promise.allSettled(
+            adjuntos.map(adj => this.objectUploadService.uploadFileUsingPresignedUrl(
+              this.apiBase,
+              adj.categoriaId,
+              adj.file,
+              uuid,
+              this.orgSelected(),
+              facturaCreada.facturaId
+            ))
+            // adjuntos.map(adj => this.uploadSingleAdjunto(adj, facturaCreada.facturaId))
+          );
+        }
+
         // Paso 3: Obtener términos vigentes del backend
         let versionTerminos: VersionTerminos | undefined;
         try {
@@ -427,6 +465,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     const randomChunk = Math.random().toString(36).slice(2, 8);
     return `tmp-${Date.now()}-${randomChunk}`;
   }
+
 
   private normalizeText(value: unknown): string {
     return String(value ?? '').trim().toUpperCase();
@@ -578,7 +617,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
   private async loadFacturas(organizacionUUID: string): Promise<void> {
     try {
-      
+
       const facturas = await this.facturasService.getFacturas(organizacionUUID, organizacionUUID);
       // Las continuaciones async dentro de effect() corren fuera de la Angular Zone.
       // ngZone.run() garantiza que las mutaciones de estado activen Change Detection.

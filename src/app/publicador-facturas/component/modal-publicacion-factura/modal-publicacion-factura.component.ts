@@ -36,11 +36,20 @@ export interface FacturaFormularioPublicacion {
     type: 'formulario';
     data: FacturaData;
     respaldoFile?: File;
+    /** Adjuntos pendientes de subir (se cargan al bucket DESPUÉS de crear el registro de factura). */
+    adjuntos?: AdjuntoParaSubir[];
+}
+
+/** Adjunto listo para subir, entregado al padre junto con el evento de publicación. */
+export interface AdjuntoParaSubir {
+    categoriaId: string;
+    file: File;
 }
 
 type ManualField = 'numeroFactura' | 'rutDeudor' | 'nombreRazonSocialDeudor' | 'montoTotal' | 'fechaEmision' | 'fechaVencimiento';
 
 // ── Adjuntos (Paso 3) ──────────────────────────────────────────────────────────
+
 export interface AdjuntoCategoria {
     id: string;
     nombre: string;
@@ -48,7 +57,8 @@ export interface AdjuntoCategoria {
     mimeTypesAdmitidos?: string[];
 }
 
-export type AdjuntoUploadStatus = 'idle' | 'uploading' | 'success' | 'error';
+// 'pending' = archivo validado y listo; la subida ocurre en el padre DESPUÉS de crear el registro de factura.
+export type AdjuntoUploadStatus = 'idle' | 'pending' | 'uploading' | 'success' | 'error';
 
 export interface AdjuntoRow {
     rowId: string;         // identificador local de la fila
@@ -118,9 +128,9 @@ export class ModalPublicacionFacturaComponent implements OnInit, OnDestroy {
         return this.categoriasTomadas.size < this.categorias.length;
     }
 
-    /** Todas las filas con archivo han terminado de subir */
+    /** Todas las filas tienen archivo válido (status 'pending') o no tienen archivo (status 'idle'). */
     get adjuntosListos(): boolean {
-        return this.adjuntos.every(a => !a.file || a.status === 'success');
+        return this.adjuntos.every(a => a.status !== 'error');
     }
 
     manualForm = {
@@ -341,8 +351,11 @@ export class ModalPublicacionFacturaComponent implements OnInit, OnDestroy {
             row.file = null;
             return;
         }
-        row.file = file;
-        void this.uploadAdjunto(row);
+        // Archivo válido: queda en estado 'pending'.
+        // La subida al bucket se inicia DESPUÉS de que el padre cree el registro de factura
+        // y disponga del facturaId, pasando el archivo via AdjuntoParaSubir en el evento submitForm.
+        row.file   = file;
+        row.status = 'pending';
     }
 
     private getAllowedMimeTypesForRow(row: AdjuntoRow): string[] {
@@ -467,13 +480,28 @@ export class ModalPublicacionFacturaComponent implements OnInit, OnDestroy {
     /** Caso 1: sin respaldo PDF */
     submitWithoutRespaldo(): void {
         if (this.isSubmitting) return;
-        this.submitForm.emit({ type: 'formulario', data: this.buildFacturaData() });
+        this.submitForm.emit({
+            type: 'formulario',
+            data: this.buildFacturaData(),
+            adjuntos: this.buildAdjuntosParaSubir(),
+        });
     }
 
     /** Caso 2: con respaldo PDF */
     submitWithRespaldo(): void {
         if (!this.respaldoFile || this.isSubmitting) return;
-        this.submitForm.emit({ type: 'formulario', data: this.buildFacturaData(), respaldoFile: this.respaldoFile });
+        this.submitForm.emit({
+            type: 'formulario',
+            data: this.buildFacturaData(),
+            respaldoFile: this.respaldoFile,
+            adjuntos: this.buildAdjuntosParaSubir(),
+        });
+    }
+
+    private buildAdjuntosParaSubir(): AdjuntoParaSubir[] {
+        return this.adjuntos
+            .filter(a => a.file && a.status === 'pending')
+            .map(a => ({ categoriaId: a.categoriaId, file: a.file! }));
     }
 
     private buildFacturaData(): FacturaData {

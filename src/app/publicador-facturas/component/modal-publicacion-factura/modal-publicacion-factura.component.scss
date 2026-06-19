@@ -573,8 +573,7 @@
   background: var(--modal-surface);
   transition: border-color 150ms ease, background 150ms ease;
   &.adj-dragging { border-color: var(--modal-brand); background: var(--modal-brand-light); }
-  &.adj-has-file { border-style: solid; border-color: rgba(15,118,110,.30); }
-  &.adj-success  { border-color: rgba(22,163,74,.40); background: rgba(22,163,74,.04); }
+  &.adj-pending  { border-style: solid; border-color: rgba(15,118,110,.35); background: rgba(15,118,110,.05); }
 }
 
 .adj-dropzone-icon { font-size: 22px; width: 22px; height: 22px; color: #94a3b8; }

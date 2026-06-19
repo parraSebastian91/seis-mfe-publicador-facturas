@@ -245,39 +245,29 @@
               <label
                 class="adj-dropzone"
                 [class.adj-dragging]="adj.isDragging"
-                [class.adj-has-file]="!!adj.file"
-                [class.adj-success]="adj.status === 'success'"
+                [class.adj-pending]="adj.status === 'pending'"
                 (dragover)="onAdjuntoDragOver($event, adj.rowId)"
                 (dragleave)="onAdjuntoDragLeave($event, adj.rowId)"
                 (drop)="onAdjuntoDrop($event, adj.rowId)">
 
-                <!-- Estado: sin archivo -->
-                <ng-container *ngIf="!adj.file && adj.status === 'idle'">
+                <!-- Sin archivo (idle) -->
+                <ng-container *ngIf="adj.status === 'idle'">
                   <mat-icon class="adj-dropzone-icon">cloud_upload</mat-icon>
                   <span class="adj-dropzone-label">Arrastra aquí o haz clic</span>
                   <span class="adj-dropzone-hint">PDF, JPEG, PNG, WEBP · Máx. {{ maxFileSizeMb }} MB</span>
                 </ng-container>
 
-                <!-- Estado: subiendo -->
-                <ng-container *ngIf="adj.status === 'uploading'">
-                  <mat-icon class="spinning adj-upload-icon">cloud_upload</mat-icon>
-                  <span class="adj-dropzone-label">Subiendo {{ adj.uploadProgress }}%</span>
-                  <div class="adj-progress-bar" role="progressbar" [attr.aria-valuenow]="adj.uploadProgress" aria-valuemin="0" aria-valuemax="100">
-                    <div class="adj-progress-fill" [style.width.%]="adj.uploadProgress"></div>
-                  </div>
-                </ng-container>
-
-                <!-- Estado: éxito -->
-                <ng-container *ngIf="adj.status === 'success'">
-                  <mat-icon class="adj-success-icon">check_circle</mat-icon>
+                <!-- Archivo seleccionado y válido (pending — se subirá al crear la factura) -->
+                <ng-container *ngIf="adj.status === 'pending'">
+                  <mat-icon class="adj-success-icon">check_circle_outline</mat-icon>
                   <span class="adj-dropzone-label">{{ adj.file?.name }}</span>
-                  <span class="adj-dropzone-hint">Subido correctamente</span>
+                  <span class="adj-dropzone-hint">Listo · se subirá al publicar la factura</span>
                 </ng-container>
 
-                <!-- Estado: error de subida -->
+                <!-- Error de validación -->
                 <ng-container *ngIf="adj.status === 'error'">
-                  <mat-icon class="adj-error-icon">cloud_off</mat-icon>
-                  <span class="adj-dropzone-label">Error al subir</span>
+                  <mat-icon class="adj-error-icon">error_outline</mat-icon>
+                  <span class="adj-dropzone-label">Archivo rechazado</span>
                   <span class="adj-dropzone-hint">{{ adj.uploadError }}</span>
                 </ng-container>
 
@@ -285,7 +275,6 @@
                   type="file"
                   accept="application/pdf,image/jpeg,image/png,image/webp"
                   hidden
-                  [disabled]="adj.status === 'uploading' || adj.status === 'success'"
                   (change)="onAdjuntoFileSelected($event, adj.rowId)" />
               </label>
 
@@ -300,7 +289,7 @@
             <button
               type="button"
               class="adj-remove-btn"
-              [disabled]="adj.status === 'uploading'"
+              [disabled]="isSubmitting"
               (click)="eliminarFilaAdjunto(adj.rowId)"
               [attr.aria-label]="'Eliminar adjunto ' + adj.categoriaId">
               <mat-icon>delete_outline</mat-icon>
