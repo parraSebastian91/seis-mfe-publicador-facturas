@@ -6,14 +6,11 @@ import { firstValueFrom, Subscription } from 'rxjs';
 import { DrawerService, facturaEstado, FacturaResponseUpdateDTO, FacturaType, NotificationSocketService } from 'shared-utils';
 import { FacturaSidebarContentComponent, FacturaSidebarEvent } from '../factura-sidebar-content/factura-sidebar-content.component';
 
-/** Estados en los que el adjunto principal se pre-firma de forma eager al cargar la factura */
+/** Estados en los que el adjunto principal se carga de forma eager al cargar la factura */
 const EAGER_PRESIGN_STATES = new Set<string>([
   facturaEstado.PENDIENTE_VALIDACION,
   facturaEstado.PENDIENTE_AUTORIZACION,
 ]);
-
-/** TTL de seguridad: se renueva la URL 30 s antes de que expire */
-const PRESIGN_SAFETY_MARGIN_MS = 30_000;
 
 interface FacturaFieldEditable {
   id: string;
@@ -109,8 +106,13 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   private readonly drawerService = inject(DrawerService);
   private readonly http = inject(HttpClient);
   private readonly receivedSocketCorrelationIds = new Set<string>();
-  /** Caché de URLs prefirmadas: assetId → { url, expiresAt } */
-  private readonly presignedCache = new Map<string, { url: string; expiresAt: number }>();
+  /**
+   * Caché de blob: URLs locales: assetId → blobUrl.
+   * Los blob URLs son: solo válidos en esta pestaña, no compartibles,
+   * y se destruyen al llamar URL.revokeObjectURL().
+   * La URL de MinIO nunca llega al frontend.
+   */
+  private readonly blobUrlCache = new Map<string, string>();
   private splitLoadingTimeout?: ReturnType<typeof setTimeout>;
   private drawerSub?: Subscription;
 
@@ -233,8 +235,7 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['factura'] && this.factura) {
       const updatedFactura = changes['factura'].currentValue as FacturaType;
-      // Limpiar caché de URLs prefirmadas al cambiar de factura
-      this.presignedCache.clear();
+      // Limpiar blob URLs previos al cambiar de factura (liberar memoria)\n      this.blobUrlCache.forEach(url => URL.revokeObjectURL(url));\n      this.blobUrlCache.clear();
       this.loadingAdjuntoId.set(null);
       this.facturaOriginal.set(updatedFactura);
       this.estadoFactura.set(this.prettyStatus(updatedFactura.status));
@@ -262,6 +263,9 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   ngOnDestroy(): void {
     this.clearSplitLoadingTimeout();
     this.drawerSub?.unsubscribe();
+    // Liberar todos los blob URLs para evitar memory leaks
+    this.blobUrlCache.forEach(url => URL.revokeObjectURL(url));
+    this.blobUrlCache.clear();
   }
 
   get panelTitleStatus(): string {
@@ -456,37 +460,35 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
 
   /**
    * Selecciona un adjunto para visualizarlo en el panel panzoom.
-   * - Si tiene URL prefirmada en caché válida: carga instantánea.
-   * - Si no: lazy fetch al BFF → firma en MinIO → muestra spinner en el ítem.
+   * Descarga el contenido vía BFF (proxy seguro) y crea un blob: URL local.
+   * La URL de MinIO nunca llega al frontend — el blob: URL es no compartible
+   * y se destruye al revocar o al cerrar la pestaña.
    */
   async selectAdjunto(adj: AdjuntoItem): Promise<void> {
     this.selectedAdjuntoId.set(adj.id);
     this.imageName.set(adj.nombre);
     if (!this.showPdfView()) this.showPdfView.set(true);
 
-    // Hit de caché: URL aún válida
-    const cached = this.presignedCache.get(adj.id);
-    if (cached && cached.expiresAt > Date.now()) {
-      this.imageSrc.set(cached.url);
+    // Cache hit: blob URL local ya válido para esta sesión
+    const cached = this.blobUrlCache.get(adj.id);
+    if (cached) {
+      this.imageSrc.set(cached);
       return;
     }
 
-    // Lazy fetch
+    // Fetch vía BFF (proxy) — el BFF valida sesión y devuelve los bytes
     this.loadingAdjuntoId.set(adj.id);
     this.imageSrc.set(undefined);
     try {
-      const res = await firstValueFrom(
-        this.http.get<{ data: { url: string; ttlSeconds: number } }>(
-          `/api/bff/object/${adj.id}/presigned-url`,
-          { params: { orgUuid: this.facturaOriginal().ownerUUID }, withCredentials: true },
+      const blob = await firstValueFrom(
+        this.http.get(
+          `/api/bff/object/${adj.id}/view`,
+          { params: { orgUuid: this.facturaOriginal().ownerUUID }, responseType: 'blob', withCredentials: true },
         ),
       );
-      const ttl = (res.data.ttlSeconds ?? 900) * 1000;
-      this.presignedCache.set(adj.id, {
-        url: res.data.url,
-        expiresAt: Date.now() + ttl - PRESIGN_SAFETY_MARGIN_MS,
-      });
-      this.imageSrc.set(res.data.url);
+      const blobUrl = URL.createObjectURL(blob);
+      this.blobUrlCache.set(adj.id, blobUrl);
+      this.imageSrc.set(blobUrl);
     } catch {
       this.imageSrc.set(undefined);
     } finally {
@@ -1175,30 +1177,29 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     const adjuntos = (factura as any).adjuntos as FacturaAdjuntoType[] | undefined;
     const principal = adjuntos?.find(a => a.es_principal) ?? adjuntos?.[0];
 
-    // Eager: pre-firmar el adjunto principal solo en estados accionables
+    // Estados accionables: cargar el adjunto principal de forma eager vía proxy seguro
     if (principal?.asset_id && EAGER_PRESIGN_STATES.has(factura.status)) {
-      // Mostrar URL de bucket mientras llega la prefirmada (evita pantalla en blanco)
+      // Mostrar URL de bucket mientras llega el blob (evita pantalla en blanco)
       if (principal.url_path) {
         this.imageSrc.set(principal.url_path);
         this.imageName.set(this.extractFileName(principal.url_path));
       }
       try {
-        const res = await firstValueFrom(
-          this.http.get<{ data: { url: string; ttlSeconds: number } }>(
-            `/api/bff/object/${principal.asset_id}/presigned-url`,
-            { params: { orgUuid: this.facturaOriginal().ownerUUID }, withCredentials: true },
+        const blob = await firstValueFrom(
+          this.http.get(
+            `/api/bff/object/${principal.asset_id}/view`,
+            { params: { orgUuid: factura.ownerUUID }, responseType: 'blob', withCredentials: true },
           ),
         );
-        const ttl = (res.data.ttlSeconds ?? 900) * 1000;
-        this.presignedCache.set(principal.asset_id, {
-          url: res.data.url,
-          expiresAt: Date.now() + ttl - PRESIGN_SAFETY_MARGIN_MS,
-        });
-        this.imageSrc.set(res.data.url);
-        this.imageName.set(this.extractFileName(res.data.url) || principal.descripcion || 'Factura');
+        const blobUrl = URL.createObjectURL(blob);
+        const prev = this.blobUrlCache.get(principal.asset_id);
+        if (prev) URL.revokeObjectURL(prev);
+        this.blobUrlCache.set(principal.asset_id, blobUrl);
+        this.imageSrc.set(blobUrl);
+        this.imageName.set(principal.descripcion || 'Factura');
         return;
       } catch {
-        // Error al pre-firmar: deja la URL de bucket como fallback (ya seteada arriba)
+        // Error al descargar: deja la URL de bucket como fallback (ya seteada arriba)
         return;
       }
     }
