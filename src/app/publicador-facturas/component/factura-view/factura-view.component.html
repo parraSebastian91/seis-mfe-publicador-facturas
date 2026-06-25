@@ -247,6 +247,7 @@
                     class="adjunto-item"
                     role="option"
                     [class.adjunto-item--active]="selectedAdjuntoId() === adj.id"
+                    [class.adjunto-item--loading]="loadingAdjuntoId() === adj.id"
                     [attr.aria-selected]="selectedAdjuntoId() === adj.id"
                     [attr.aria-label]="'Ver ' + adj.nombre + ' (' + adj.tipo + ')'"
                     tabindex="0"
@@ -254,9 +255,10 @@
                     (keydown.enter)="selectAdjunto(adj)"
                     (keydown.space)="$event.preventDefault(); selectAdjunto(adj)">
 
-                    <!-- Ícono del tipo de media -->
+                    <!-- Ícono del tipo de media / spinner de carga -->
                     <span class="adjunto-icon-wrap" aria-hidden="true">
-                      <mat-icon class="adjunto-media-icon">{{ adj.mediaIcon }}</mat-icon>
+                      <mat-spinner *ngIf="loadingAdjuntoId() === adj.id" diameter="18"></mat-spinner>
+                      <mat-icon *ngIf="loadingAdjuntoId() !== adj.id" class="adjunto-media-icon">{{ adj.mediaIcon }}</mat-icon>
                     </span>
 
                     <!-- Info del adjunto -->
@@ -268,7 +270,7 @@
                     <!-- Indicador de activo -->
                     <mat-icon
                       class="adjunto-active-icon"
-                      *ngIf="selectedAdjuntoId() === adj.id"
+                      *ngIf="selectedAdjuntoId() === adj.id && loadingAdjuntoId() !== adj.id"
                       aria-hidden="true">
                       visibility
                     </mat-icon>

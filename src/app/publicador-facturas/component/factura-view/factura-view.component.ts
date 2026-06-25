@@ -1,7 +1,19 @@
+import { FacturaAdjuntoType } from 'shared-utils';
+
 import { Component, computed, effect, EventEmitter, HostListener, inject, Input, OnChanges, OnDestroy, Output, signal, SimpleChanges } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { DrawerService, facturaEstado, FacturaResponseUpdateDTO, FacturaType, NotificationSocketService } from 'shared-utils';
 import { FacturaSidebarContentComponent, FacturaSidebarEvent } from '../factura-sidebar-content/factura-sidebar-content.component';
+
+/** Estados en los que el adjunto principal se pre-firma de forma eager al cargar la factura */
+const EAGER_PRESIGN_STATES = new Set<string>([
+  facturaEstado.PENDIENTE_VALIDACION,
+  facturaEstado.PENDIENTE_AUTORIZACION,
+]);
+
+/** TTL de seguridad: se renueva la URL 30 s antes de que expire */
+const PRESIGN_SAFETY_MARGIN_MS = 30_000;
 
 interface FacturaFieldEditable {
   id: string;
@@ -34,14 +46,14 @@ export interface AdjuntoItem {
 
 export type AdjuntoTipo =
   | 'Factura original'
-  | 'Respaldo PDF'
+  | 'Respaldo'
   | 'Documento legal'
   | 'Imagen'
   | 'Otro';
 
 /** Tipos de media admitidos por el visor de adjuntos */
 export const SUPPORTED_MEDIA_TYPES: Record<string, { label: string; icon: string; tipo: AdjuntoTipo }> = {
-  'application/pdf':  { label: 'PDF',   icon: 'picture_as_pdf', tipo: 'Respaldo PDF' },
+  'application/pdf':  { label: 'PDF',   icon: 'picture_as_pdf', tipo: 'Respaldo' },
   'image/jpeg':       { label: 'JPEG',  icon: 'image',          tipo: 'Imagen' },
   'image/png':        { label: 'PNG',   icon: 'image',          tipo: 'Imagen' },
   'image/webp':       { label: 'WEBP',  icon: 'image',          tipo: 'Imagen' },
@@ -95,7 +107,10 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   readonly pendingValidationLabel = 'VALIDAR DATO';
   private readonly notificationSocketService = inject(NotificationSocketService);
   private readonly drawerService = inject(DrawerService);
+  private readonly http = inject(HttpClient);
   private readonly receivedSocketCorrelationIds = new Set<string>();
+  /** Caché de URLs prefirmadas: assetId → { url, expiresAt } */
+  private readonly presignedCache = new Map<string, { url: string; expiresAt: number }>();
   private splitLoadingTimeout?: ReturnType<typeof setTimeout>;
   private drawerSub?: Subscription;
 
@@ -114,6 +129,8 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
 
   /** Adjunto actualmente seleccionado para visualizar en el panzoom viewer */
   readonly selectedAdjuntoId = signal<string | null>(null);
+  /** ID del adjunto cuya URL prefirmada se está obteniendo (para mostrar spinner en el ítem) */
+  readonly loadingAdjuntoId = signal<string | null>(null);
 
   /**
    * Lista de adjuntos disponibles para esta factura.
@@ -122,23 +139,31 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
    * reemplazará por una señal cargada asincrónicamente.
    */
   readonly adjuntosList = computed<AdjuntoItem[]>(() => {
-    const factura = this.facturaOriginal();
-    const src = this.imageSrc();
-    const items: AdjuntoItem[] = [];
+    const facturaAdjuntos = (this.facturaOriginal() as any).adjuntos as FacturaAdjuntoType[] | undefined;
+    if (!facturaAdjuntos?.length) return [];
 
-    if (src) {
-      const mediaType = resolveMediaTypeFromUrl(src);
-      items.push({
-        id: factura.assetId || 'factura-original',
-        nombre: this.imageName() || 'Factura original',
-        tipo: 'Factura original',
+    return facturaAdjuntos.map(adj => {
+      let tipo: AdjuntoTipo = 'Otro';
+      switch (adj.tipo) {
+        case 'DTE-factura-respaldo':
+        case 'DTE-factura':
+          tipo = 'Factura original';
+          break;
+        case 'DTE-respaldo':
+          tipo = 'Respaldo';
+          break;
+      }
+      const url = adj.url_path || '';
+      const mediaType = resolveMediaTypeFromUrl(url);
+      return {
+        id: adj.asset_id || 'factura-original',
+        nombre: adj.descripcion || 'Adjunto',
+        tipo,
         mediaType,
         mediaIcon: resolveMediaIcon(mediaType),
-        url: src,
-      });
-    }
-
-    return items;
+        url,
+      } as AdjuntoItem;
+    });
   });
 
   readonly estadoFactura = signal('En validacion');
@@ -208,12 +233,15 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['factura'] && this.factura) {
       const updatedFactura = changes['factura'].currentValue as FacturaType;
+      // Limpiar caché de URLs prefirmadas al cambiar de factura
+      this.presignedCache.clear();
+      this.loadingAdjuntoId.set(null);
       this.facturaOriginal.set(updatedFactura);
       this.estadoFactura.set(this.prettyStatus(updatedFactura.status));
       this.estadoConfirmado.set(false);
       this.ofertasFactura.set(this.readOffersCount(updatedFactura));
       this.initializeSplitLayoutLoading(updatedFactura);
-      this.resolveImageSource(updatedFactura);
+      void this.resolveImageSource(updatedFactura);
       this.camposFactura.set(this.buildFields(updatedFactura));
 
       if (updatedFactura.notas?.length) {
@@ -428,14 +456,41 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
 
   /**
    * Selecciona un adjunto para visualizarlo en el panel panzoom.
-   * Si el panel PDF no está visible, lo activa automáticamente.
+   * - Si tiene URL prefirmada en caché válida: carga instantánea.
+   * - Si no: lazy fetch al BFF → firma en MinIO → muestra spinner en el ítem.
    */
-  selectAdjunto(adj: AdjuntoItem): void {
+  async selectAdjunto(adj: AdjuntoItem): Promise<void> {
     this.selectedAdjuntoId.set(adj.id);
-    this.imageSrc.set(adj.url);
     this.imageName.set(adj.nombre);
-    if (!this.showPdfView()) {
-      this.showPdfView.set(true);
+    if (!this.showPdfView()) this.showPdfView.set(true);
+
+    // Hit de caché: URL aún válida
+    const cached = this.presignedCache.get(adj.id);
+    if (cached && cached.expiresAt > Date.now()) {
+      this.imageSrc.set(cached.url);
+      return;
+    }
+
+    // Lazy fetch
+    this.loadingAdjuntoId.set(adj.id);
+    this.imageSrc.set(undefined);
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ data: { url: string; ttlSeconds: number } }>(
+          `/api/bff/object/${adj.id}/presigned-url`,
+          { params: { orgUuid: this.facturaOriginal().ownerUUID }, withCredentials: true },
+        ),
+      );
+      const ttl = (res.data.ttlSeconds ?? 900) * 1000;
+      this.presignedCache.set(adj.id, {
+        url: res.data.url,
+        expiresAt: Date.now() + ttl - PRESIGN_SAFETY_MARGIN_MS,
+      });
+      this.imageSrc.set(res.data.url);
+    } catch {
+      this.imageSrc.set(undefined);
+    } finally {
+      this.loadingAdjuntoId.set(null);
     }
   }
 
@@ -1116,13 +1171,48 @@ export class FacturaViewComponent implements OnChanges, OnDestroy {
     this.splitLoadingTimeout = undefined;
   }
 
-  private resolveImageSource(factura: FacturaType): void {
-    const fromService = this.extractImageSourceFromFactura(factura);
+  private async resolveImageSource(factura: FacturaType): Promise<void> {
+    const adjuntos = (factura as any).adjuntos as FacturaAdjuntoType[] | undefined;
+    const principal = adjuntos?.find(a => a.es_principal) ?? adjuntos?.[0];
 
-    if (!fromService) {
+    // Eager: pre-firmar el adjunto principal solo en estados accionables
+    if (principal?.asset_id && EAGER_PRESIGN_STATES.has(factura.status)) {
+      // Mostrar URL de bucket mientras llega la prefirmada (evita pantalla en blanco)
+      if (principal.url_path) {
+        this.imageSrc.set(principal.url_path);
+        this.imageName.set(this.extractFileName(principal.url_path));
+      }
+      try {
+        const res = await firstValueFrom(
+          this.http.get<{ data: { url: string; ttlSeconds: number } }>(
+            `/api/bff/object/${principal.asset_id}/presigned-url`,
+            { params: { orgUuid: this.facturaOriginal().ownerUUID }, withCredentials: true },
+          ),
+        );
+        const ttl = (res.data.ttlSeconds ?? 900) * 1000;
+        this.presignedCache.set(principal.asset_id, {
+          url: res.data.url,
+          expiresAt: Date.now() + ttl - PRESIGN_SAFETY_MARGIN_MS,
+        });
+        this.imageSrc.set(res.data.url);
+        this.imageName.set(this.extractFileName(res.data.url) || principal.descripcion || 'Factura');
+        return;
+      } catch {
+        // Error al pre-firmar: deja la URL de bucket como fallback (ya seteada arriba)
+        return;
+      }
+    }
+
+    // Estado no accionable o sin adjuntos: usar URL de bucket directamente
+    if (principal?.url_path) {
+      this.imageSrc.set(principal.url_path);
+      this.imageName.set(this.extractFileName(principal.url_path));
       return;
     }
 
+    // Fallback final: url_factura u otros campos del modelo
+    const fromService = this.extractImageSourceFromFactura(factura);
+    if (!fromService) return;
     this.imageSrc.set(fromService);
     this.imageName.set(this.extractFileName(fromService));
   }

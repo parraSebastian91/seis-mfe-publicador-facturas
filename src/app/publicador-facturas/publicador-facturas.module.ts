@@ -8,6 +8,7 @@ import { PublicadorFacturasComponent } from './publicador-facturas/publicador-fa
 import { FacturaViewComponent } from './component/factura-view/factura-view.component';
 // Única excepción Angular Material permitida: solo iconografía, sin estilos adicionales.
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CdkAutofill } from '@angular/cdk/text-field';
 import { ImagePanzoomViewerComponent } from './component/image-panzoom-viewer/image-panzoom-viewer.component';
 import { ModalPublicacionFacturaComponent } from './component/modal-publicacion-factura/modal-publicacion-factura.component';
@@ -47,6 +48,7 @@ registerLocaleData(localeEsCl);
     FormsModule,
     PublicadorFacturasRoutingModule,
     MatIconModule,
+    MatProgressSpinnerModule,
     NgbDatepickerModule,
     CdkAutofill,
     A11yModule,
