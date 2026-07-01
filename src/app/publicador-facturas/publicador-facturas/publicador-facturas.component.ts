@@ -7,6 +7,7 @@ import { FacturaData, FacturaFormularioPublicacion, ModalPublishMetadata, Adjunt
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
 import { FacturaConfirmRequestEvent, FacturaRespaldoRequestEvent } from '../component/factura-view/factura-view.component';
 import Swal from 'sweetalert2';
+import { environment } from '../../../../../seis-portal/src/environments/environment';
 
 interface FacturaFieldUpdateEvent {
   factura: FacturaType;
@@ -24,7 +25,7 @@ interface FacturaFieldUpdateEvent {
   standalone: false
 })
 export class PublicadorFacturasComponent implements OnInit, OnDestroy {
-  private readonly apiBase = 'http://localhost:8000';
+  private readonly apiBase = environment.getBaseUrl();
   private readonly respaldoModalContextPrefix = 'factura-respaldo:';
   private readonly publishedHighlightDurationMs = 2400;
   private readonly statusPriority: Record<string, number> = Object.values(facturaEstado).reduce((acc, estado, index) => {
@@ -202,8 +203,8 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
   /**
    * Se ejecuta cuando Confirma validacion de formulario factura.
-   * @param event 
-   * @returns 
+   * @param event
+   * @returns
    */
   async handleFacturaConfirmRequest(event: FacturaConfirmRequestEvent): Promise<void> {
     if (!event.data.factura.facturaId) {
@@ -579,7 +580,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
 
   /**
    * Bloque que resalta la factura publicada recientemente
-   * 
+   *
    */
 
   isFacturaRecentlyPublished(factura: FacturaType): boolean {
@@ -947,7 +948,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   private async resolveCurrentUserName(): Promise<{ username: string; uuid: string }> {
     let currentUserName = (this.userStateService.userName() || '').trim();
     if (!currentUserName) {
-      const profile = await this.userProfileService.getUserProfile(this.apiBase);
+      const profile = await this.userProfileService.getUserProfile();
       currentUserName = (profile?.username || '').trim();
       if (currentUserName) {
         this.userStateService.patch({ username: currentUserName });
