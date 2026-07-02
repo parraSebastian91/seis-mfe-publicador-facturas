@@ -28,6 +28,7 @@ import {
   CardComponent,
   CardTitleDirective,
   CardFooterDirective,
+  AdjuntosListComponent,
 } from 'shared-utils';
 
 registerLocaleData(localeEsCl);
@@ -61,6 +62,7 @@ registerLocaleData(localeEsCl);
     CardComponent,
     CardTitleDirective,
     CardFooterDirective,
+    AdjuntosListComponent,
   ],
   providers: [
     { provide: LOCALE_ID, useValue: 'es-CL' },

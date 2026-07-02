@@ -1,9 +1,19 @@
-import { FacturaAdjuntoType } from 'shared-utils';
-
 import { Component, computed, effect, EventEmitter, HostListener, inject, Input, OnChanges, OnDestroy, Output, signal, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom, Subscription } from 'rxjs';
-import { DrawerService, facturaEstado, FacturaResponseUpdateDTO, FacturaType, NotificationSocketService } from 'shared-utils';
+import {
+  AdjuntoItem,
+  AdjuntosListComponent,
+  DrawerService,
+  FacturaAdjuntoType,
+  facturaEstado,
+  FacturaResponseUpdateDTO,
+  FacturaType,
+  NotificationSocketService,
+  resolveMediaIcon,
+  resolveMediaTypeFromUrl,
+  SUPPORTED_MEDIA_TYPES,
+} from 'shared-utils';
 import { FacturaSidebarContentComponent, FacturaSidebarEvent } from '../factura-sidebar-content/factura-sidebar-content.component';
 
 /** Estados en los que el adjunto principal se carga de forma eager al cargar la factura */
@@ -23,54 +33,8 @@ interface FacturaFieldEditable {
   validated: boolean;
 }
 
-// Tipos de adjunto soportados por el sistema
-export interface AdjuntoItem {
-  /** Identificador único del adjunto (assetId o correlationId temporal) */
-  id: string;
-  /** Nombre descriptivo del archivo */
-  nombre: string;
-  /** Tipo semántico del documento (para la UI) */
-  tipo: AdjuntoTipo;
-  /** MIME type del archivo */
-  mediaType: string;
-  /** URL de acceso al recurso */
-  url: string;
-  /** Ícono de Material Icons según el mediaType */
-  mediaIcon: string;
-  /** Fecha de subida (ISO string, opcional) */
-  fecha?: string;
-}
-
-export type AdjuntoTipo =
-  | 'Factura original'
-  | 'Respaldo'
-  | 'Documento legal'
-  | 'Imagen'
-  | 'Otro';
-
-/** Tipos de media admitidos por el visor de adjuntos */
-export const SUPPORTED_MEDIA_TYPES: Record<string, { label: string; icon: string; tipo: AdjuntoTipo }> = {
-  'application/pdf':  { label: 'PDF',   icon: 'picture_as_pdf', tipo: 'Respaldo' },
-  'image/jpeg':       { label: 'JPEG',  icon: 'image',          tipo: 'Imagen' },
-  'image/png':        { label: 'PNG',   icon: 'image',          tipo: 'Imagen' },
-  'image/webp':       { label: 'WEBP',  icon: 'image',          tipo: 'Imagen' },
-};
-
-function resolveMediaIcon(mediaType: string): string {
-  return SUPPORTED_MEDIA_TYPES[mediaType]?.icon ?? 'attach_file';
-}
-
-function resolveMediaTypeFromUrl(url: string): string {
-  const lower = url.toLowerCase();
-  if (lower.includes('.pdf'))  return 'application/pdf';
-  if (lower.includes('.webp')) return 'image/webp';
-  if (lower.includes('.png'))  return 'image/png';
-  if (lower.startsWith('data:image/')) {
-    const match = url.match(/^data:(image\/[a-z]+);/);
-    return match?.[1] ?? 'image/jpeg';
-  }
-  return 'image/jpeg';
-}
+// AdjuntoItem, AdjuntoTipo, SUPPORTED_MEDIA_TYPES, resolveMediaIcon, resolveMediaTypeFromUrl
+// → importados desde shared-utils
 
 interface FacturaFieldUpdateEvent {
   factura: FacturaType;

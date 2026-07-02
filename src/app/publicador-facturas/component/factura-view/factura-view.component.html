@@ -213,83 +213,16 @@
               </div><!-- /compare-row -->
 
               <!-- ══════════════════════════════════════════════════
-                   SECCIÓN DE ADJUNTOS
-                   Muestra los documentos asociados a la factura.
-                   Al hacer click en un adjunto, se carga en el visor panzoom (Lado A).
-                   El botón de subida usa el mecanismo existente de requestUploadRespaldo().
-                   Pendiente: cuando el backend exponga el endpoint de adjuntos,
-                   adjuntosList derivará de esa llamada en lugar del imageSrc actual.
+                   SECCIÓN DE ADJUNTOS — componente atómico shared
               ══════════════════════════════════════════════════ -->
-              <section class="adjuntos-section" aria-label="Documentos adjuntos">
-
-                <header class="adjuntos-header">
-                  <h4 class="adjuntos-title">
-                    <mat-icon aria-hidden="true">folder_open</mat-icon>
-                    Documentos adjuntos
-                    <span class="adjuntos-count" *ngIf="adjuntosList().length">{{ adjuntosList().length }}</span>
-                  </h4>
-                  <button
-                    *ngIf="canUploadRespaldo"
-                    type="button"
-                    class="adjunto-add-btn"
-                    (click)="requestUploadRespaldo()"
-                    title="Agregar documento adjunto">
-                    <mat-icon aria-hidden="true">add</mat-icon>
-                    <span>Agregar</span>
-                  </button>
-                </header>
-
-                <!-- Lista de adjuntos disponibles -->
-                <ul class="adjuntos-list" role="listbox" aria-label="Documentos disponibles para visualizar">
-
-                  <li
-                    *ngFor="let adj of adjuntosList(); trackBy: trackByAdjuntoId"
-                    class="adjunto-item"
-                    role="option"
-                    [class.adjunto-item--active]="selectedAdjuntoId() === adj.id"
-                    [class.adjunto-item--loading]="loadingAdjuntoId() === adj.id"
-                    [attr.aria-selected]="selectedAdjuntoId() === adj.id"
-                    [attr.aria-label]="'Ver ' + adj.nombre + ' (' + adj.tipo + ')'"
-                    tabindex="0"
-                    (click)="selectAdjunto(adj)"
-                    (keydown.enter)="selectAdjunto(adj)"
-                    (keydown.space)="$event.preventDefault(); selectAdjunto(adj)">
-
-                    <!-- Ícono del tipo de media / spinner de carga -->
-                    <span class="adjunto-icon-wrap" aria-hidden="true">
-                      <mat-spinner *ngIf="loadingAdjuntoId() === adj.id" diameter="18"></mat-spinner>
-                      <mat-icon *ngIf="loadingAdjuntoId() !== adj.id" class="adjunto-media-icon">{{ adj.mediaIcon }}</mat-icon>
-                    </span>
-
-                    <!-- Info del adjunto -->
-                    <div class="adjunto-info">
-                      <span class="adjunto-nombre">{{ adj.nombre }}</span>
-                      <span class="adjunto-meta">{{ adj.tipo }}</span>
-                    </div>
-
-                    <!-- Indicador de activo -->
-                    <mat-icon
-                      class="adjunto-active-icon"
-                      *ngIf="selectedAdjuntoId() === adj.id && loadingAdjuntoId() !== adj.id"
-                      aria-hidden="true">
-                      visibility
-                    </mat-icon>
-                  </li>
-
-                  <!-- Estado vacío: sin adjuntos disponibles -->
-                  <li class="adjunto-empty" *ngIf="!adjuntosList().length" aria-label="Sin documentos adjuntos">
-                    <mat-icon aria-hidden="true">cloud_upload</mat-icon>
-                    <span>Sin adjuntos. Sube el PDF de respaldo para visualizarlo aquí.</span>
-                  </li>
-
-                </ul>
-
-                <!-- Tipos de media admitidos (orientación al usuario) -->
-                <p class="adjuntos-hint" *ngIf="canUploadRespaldo">
-                  Formatos admitidos: PDF, JPEG, PNG, WEBP · Máx. 10 MB por archivo.
-                </p>
-
-              </section>
+              <lib-adjuntos-list
+                [adjuntos]="adjuntosList()"
+                [selectedId]="selectedAdjuntoId()"
+                [loadingId]="loadingAdjuntoId()"
+                [canUpload]="canUploadRespaldo"
+                (adjuntoSelected)="selectAdjunto($event)"
+                (uploadRequested)="requestUploadRespaldo()"
+              ></lib-adjuntos-list>
 
               <!-- Notas OCR -->
               <div class="notifications-list" *ngIf="notificationCount()" role="status" aria-live="polite">
