@@ -1,18 +1,7 @@
-:root {
-	--primary: #1976d2;
-	--secondary: #114d8a;
-	--focus-background: #5e63ff;
-	--focus-font-color: #ffffff;
-	--font-color: #000;
-	--accent: #ff4081;
-	--warn: #f44336;
-	--line-clr: #42434a;
-	--background-menu: #11121a;
-	--background-body: #11121a;
-	--background-toolbar: #ffffff;
-	--on-primary: #ffffff;
-}
+/* You can add global styles to this file, and also import other style files */
+@import '../../shared-utils/src/lib/styles/tokens';
 
+/* Reset de estilos globales */
 html,
 body {
 	width: 100%;
@@ -21,7 +10,7 @@ body {
 
 body {
 	margin: 0;
-	font-family: Roboto, "Helvetica Neue", sans-serif;
-	background-color: #f4f7fb;
-	color: var(--font-color, #1f2937);
+	font-family: var(--font-sans, 'Plus Jakarta Sans', sans-serif);
+	background-color: var(--color-bg-base, #0D1655);
+	color: var(--color-text-primary, #fff);
 }
