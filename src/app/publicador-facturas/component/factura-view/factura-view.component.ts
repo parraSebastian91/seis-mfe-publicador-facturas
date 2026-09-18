@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom, Subscription } from 'rxjs';
 import {
   AdjuntoItem,
+  AdjuntoTipo,
   AdjuntosListComponent,
   DrawerService,
   FacturaAdjuntoType,
