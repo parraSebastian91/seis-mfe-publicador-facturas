@@ -5,7 +5,7 @@
     <header class="modal-header">
       <h2 id="modal-title">Nueva factura</h2>
       <button type="button" class="btn-close" (click)="tryClose()" [disabled]="isSubmitting" aria-label="Cerrar">
-        <mat-icon>close</mat-icon>
+        <app-icon name="close" />
       </button>
     </header>
 
@@ -51,7 +51,7 @@
 
       <!-- ── Banner de incentivo (se muestra en los 3 pasos) ───────────── -->
       <div class="incentive-banner" aria-live="polite">
-        <mat-icon class="incentive-icon" aria-hidden="true">tips_and_updates</mat-icon>
+        <app-icon class="incentive-icon" aria-hidden="true" name="tips_and_updates" />
         <p class="incentive-text">
           <strong>Recomendación:</strong> Proveer documentación complementaria aumenta la confianza
           de los financiadores y optimiza la velocidad de evaluación de tu factura.
@@ -140,7 +140,7 @@
           <footer class="modal-footer full-col">
             <button type="button" class="btn-light" (click)="tryClose()" [disabled]="isSubmitting">Cancelar</button>
             <button type="submit" class="btn-primary" [disabled]="isSubmitting">
-              Siguiente <mat-icon>arrow_forward</mat-icon>
+              Siguiente <app-icon name="arrow_forward" />
             </button>
           </footer>
 
@@ -160,36 +160,36 @@
         <label class="dropzone" [class.dragging]="isDraggingRespaldo"
           (dragover)="onDragOverRespaldo($event)" (dragleave)="onDragLeaveRespaldo($event)" (drop)="onDropRespaldo($event)">
           <input type="file" accept="application/pdf" (change)="onRespaldoFileSelected($event)" [disabled]="isSubmitting" />
-          <mat-icon class="dropzone-icon">picture_as_pdf</mat-icon>
+          <app-icon class="dropzone-icon" name="picture_as_pdf" />
           <span>Arrastra el PDF de la factura aquí o haz clic para seleccionar (máx. {{ maxFileSizeMb }} MB).</span>
         </label>
 
         <p class="file-validation-error" *ngIf="respaldoValidationError" role="alert">
-          <mat-icon>error_outline</mat-icon>
+          <app-icon name="error_outline" />
           {{ respaldoValidationError }}
         </p>
 
         <p class="selected-file" [class.has-file]="!!respaldoFile">
-          <mat-icon>{{ respaldoFile ? 'check_circle' : 'info' }}</mat-icon>
+          <app-icon [name]="respaldoFile ? 'check_circle' : 'info'" />
           <span *ngIf="respaldoFile">{{ respaldoFile.name }} · {{ formatFileSize(respaldoFile.size) }}</span>
           <span *ngIf="!respaldoFile">Ningún archivo seleccionado</span>
         </p>
 
         <p class="upload-error" *ngIf="errorMessage" role="alert">
-          <mat-icon>error</mat-icon>
+          <app-icon name="error" />
           {{ errorMessage }}
         </p>
 
         <footer class="modal-footer step2-footer">
           <button type="button" class="btn-light" (click)="prevStep()" [disabled]="isSubmitting">
-            <mat-icon>arrow_back</mat-icon> Anterior
+            <app-icon name="arrow_back" /> Anterior
           </button>
           <div class="step2-ctas">
             <button type="button" class="btn-secondary" (click)="nextStep()" [disabled]="isSubmitting">
-              Omitir <mat-icon>skip_next</mat-icon>
+              Omitir <app-icon name="skip_next" />
             </button>
             <button type="button" class="btn-primary" (click)="nextStep()" [disabled]="isSubmitting">
-              Continuar <mat-icon>arrow_forward</mat-icon>
+              Continuar <app-icon name="arrow_forward" />
             </button>
           </div>
         </footer>
@@ -208,7 +208,7 @@
 
         <!-- Estado de carga de categorías -->
         <div class="adj-loading" *ngIf="loadingCategorias" aria-live="polite">
-          <mat-icon class="spinning">sync</mat-icon>
+          <app-icon class="spinning" name="sync" />
           Cargando tipos de documentos disponibles...
         </div>
 
@@ -252,21 +252,21 @@
 
                 <!-- Sin archivo (idle) -->
                 <ng-container *ngIf="adj.status === 'idle'">
-                  <mat-icon class="adj-dropzone-icon">cloud_upload</mat-icon>
+                  <app-icon class="adj-dropzone-icon" name="cloud_upload" />
                   <span class="adj-dropzone-label">Arrastra aquí o haz clic</span>
                   <span class="adj-dropzone-hint">PDF, JPEG, PNG, WEBP · Máx. {{ maxFileSizeMb }} MB</span>
                 </ng-container>
 
                 <!-- Archivo seleccionado y válido (pending — se subirá al crear la factura) -->
                 <ng-container *ngIf="adj.status === 'pending'">
-                  <mat-icon class="adj-success-icon">check_circle_outline</mat-icon>
+                  <app-icon class="adj-success-icon" name="check_circle_outline" />
                   <span class="adj-dropzone-label">{{ adj.file?.name }}</span>
                   <span class="adj-dropzone-hint">Listo · se subirá al publicar la factura</span>
                 </ng-container>
 
                 <!-- Error de validación -->
                 <ng-container *ngIf="adj.status === 'error'">
-                  <mat-icon class="adj-error-icon">error_outline</mat-icon>
+                  <app-icon class="adj-error-icon" name="error_outline" />
                   <span class="adj-dropzone-label">Archivo rechazado</span>
                   <span class="adj-dropzone-hint">{{ adj.uploadError }}</span>
                 </ng-container>
@@ -280,7 +280,7 @@
 
               <!-- Error de validación local -->
               <small class="file-validation-error adj-validation-error" *ngIf="adj.validationError" role="alert">
-                <mat-icon>error_outline</mat-icon>
+                <app-icon name="error_outline" />
                 {{ adj.validationError }}
               </small>
             </div>
@@ -292,7 +292,7 @@
               [disabled]="isSubmitting"
               (click)="eliminarFilaAdjunto(adj.rowId)"
               [attr.aria-label]="'Eliminar adjunto ' + adj.categoriaId">
-              <mat-icon>delete_outline</mat-icon>
+              <app-icon name="delete_outline" />
             </button>
 
           </div><!-- /adj-row -->
@@ -303,19 +303,19 @@
             class="adj-add-btn"
             *ngIf="puedeAgregarAdjunto"
             (click)="agregarFilaAdjunto()">
-            <mat-icon>add</mat-icon>
+            <app-icon name="add" />
             Agregar documento adjunto
           </button>
 
           <!-- Mensaje cuando no hay categorías disponibles -->
           <p class="adj-empty-hint" *ngIf="!puedeAgregarAdjunto && adjuntos.length === categorias.length && categorias.length > 0">
-            <mat-icon>info</mat-icon>
+            <app-icon name="info" />
             Se han añadido todas las categorías disponibles.
           </p>
 
           <!-- Mensaje cuando no hay categorías del backend -->
           <p class="adj-empty-hint" *ngIf="categorias.length === 0">
-            <mat-icon>info</mat-icon>
+            <app-icon name="info" />
             No hay categorías de adjuntos disponibles por el momento.
           </p>
 
@@ -323,19 +323,19 @@
 
         <footer class="modal-footer step2-footer">
           <button type="button" class="btn-light" (click)="prevStep()" [disabled]="isSubmitting">
-            <mat-icon>arrow_back</mat-icon> Anterior
+            <app-icon name="arrow_back" /> Anterior
           </button>
           <div class="step2-ctas">
             <button type="button" class="btn-secondary"
               (click)="submitWithoutRespaldo()"
               [disabled]="isSubmitting || !adjuntosListos">
-              <mat-icon *ngIf="isSubmitting" class="spinning">sync</mat-icon>
+              <app-icon *ngIf="isSubmitting" class="spinning" name="sync" />
               {{ isSubmitting ? 'Publicando...' : 'Publicar sin respaldo' }}
             </button>
             <button type="button" class="btn-primary"
               [disabled]="!respaldoFile || !!respaldoValidationError || isSubmitting || !adjuntosListos"
               (click)="submitWithRespaldo()">
-              <mat-icon *ngIf="isSubmitting" class="spinning">sync</mat-icon>
+              <app-icon *ngIf="isSubmitting" class="spinning" name="sync" />
               {{ isSubmitting ? 'Publicando...' : 'Publicar con respaldo' }}
             </button>
           </div>

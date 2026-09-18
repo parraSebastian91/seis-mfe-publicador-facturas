@@ -12,7 +12,7 @@
     <div class="tnc-header">
       <h2 id="tnc-modal-title" class="tnc-title">Términos y Condiciones de Publicación</h2>
       <button type="button" class="tnc-close" (click)="onDismiss()" [disabled]="isSubmitting" aria-label="Cerrar">
-        <mat-icon>close</mat-icon>
+        <app-icon name="close" />
       </button>
     </div>
 
@@ -31,7 +31,7 @@
         Revisar publicación
       </button>
       <button type="button" class="btn-aceptar" (click)="onAccept()" [disabled]="isSubmitting">
-        <mat-icon *ngIf="isSubmitting" class="icon-spin">sync</mat-icon>
+        <app-icon *ngIf="isSubmitting" class="icon-spin" name="sync" />
         <span>{{ isSubmitting ? 'Procesando...' : 'Aceptar términos' }}</span>
       </button>
     </div>

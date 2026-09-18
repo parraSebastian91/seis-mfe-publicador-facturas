@@ -1,11 +1,17 @@
 <section class="image-viewer-shell">
   <div class="toolbar">
-    <button type="button" *ngIf="mobileMode" (click)="toggleInteraction()">
+    <button *ngIf="mobileMode" app-button variant="light" type="button" (click)="toggleInteraction()">
       {{ interactionEnabled ? 'Bloquear gesto' : 'Activar gesto' }}
     </button>
-    <button type="button" (click)="zoomOut()">-</button>
-    <button type="button" (click)="reset()">Reset</button>
-    <button type="button" (click)="zoomIn()">+</button>
+    <button app-icon-button type="button" (click)="zoomOut()" aria-label="Alejar">
+      <app-icon name="zoom_out" />
+    </button>
+    <button app-icon-button type="button" (click)="reset()" aria-label="Restablecer zoom">
+      <app-icon name="restart_alt" />
+    </button>
+    <button app-icon-button type="button" (click)="zoomIn()" aria-label="Acercar">
+      <app-icon name="zoom_in" />
+    </button>
   </div>
 
   <div class="viewport" #viewport [class.interaction-enabled]="interactionEnabled">

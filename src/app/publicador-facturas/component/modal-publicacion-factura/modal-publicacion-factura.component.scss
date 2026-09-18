@@ -2,7 +2,6 @@
 // modal-publicacion-factura — Factor Design System
 // Contexto: superposición modal sobre el MFE publicador (tema claro).
 // No hay #hex hardcodeados; todos los colores usan variables CSS locales.
-// mat-icon es la única dependencia Angular Material permitida.
 // =============================================================================
 
 :host {
@@ -91,7 +90,7 @@
 
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  mat-icon { font-size: 1.1rem; width: 1.1rem; height: 1.1rem; }
+  app-icon { font-size: 1.1rem; width: 1.1rem; height: 1.1rem; }
 }
 
 // =============================================================================
@@ -213,7 +212,7 @@
   font-size: 0.875rem;
   color: var(--modal-text-muted);
 
-  mat-icon { font-size: 1rem; width: 1rem; height: 1rem; }
+  app-icon { font-size: 1rem; width: 1rem; height: 1rem; }
 
   &.has-file {
     color: var(--modal-brand);
@@ -230,7 +229,7 @@
   color: var(--modal-error);
   font-weight: 600;
 
-  mat-icon { font-size: 1rem; width: 1rem; height: 1rem; }
+  app-icon { font-size: 1rem; width: 1rem; height: 1rem; }
 }
 
 .upload-error {
@@ -245,7 +244,7 @@
   font-size: 0.875rem;
   color: var(--modal-error);
 
-  mat-icon { font-size: 1rem; width: 1rem; height: 1rem; flex-shrink: 0; }
+  app-icon { font-size: 1rem; width: 1rem; height: 1rem; flex-shrink: 0; }
 }
 
 .btn-link {
@@ -514,7 +513,7 @@
   font-size: .83rem;
   color: var(--modal-text-muted);
   padding: 8px 0;
-  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+  app-icon { font-size: 16px; width: 16px; height: 16px; }
 }
 
 .adj-list { display: flex; flex-direction: column; gap: 10px; }
@@ -625,7 +624,7 @@
   flex-shrink: 0;
   margin-top: 22px;
   transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
-  mat-icon { font-size: 17px; width: 17px; height: 17px; }
+  app-icon { font-size: 17px; width: 17px; height: 17px; }
   &:hover:not(:disabled) { background: var(--modal-error-bg); border-color: var(--modal-error-border); color: var(--modal-error); }
   &:disabled { opacity: .38; cursor: not-allowed; }
 }
@@ -644,7 +643,7 @@
   cursor: pointer;
   transition: background 140ms ease;
   align-self: flex-start;
-  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+  app-icon { font-size: 16px; width: 16px; height: 16px; }
   &:hover { background: #d1fae5; }
   &:focus-visible { outline: 2px solid var(--modal-brand); outline-offset: 2px; }
 }
@@ -657,7 +656,7 @@
   color: var(--modal-text-muted);
   margin: 0;
   padding: 6px 0;
-  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+  app-icon { font-size: 16px; width: 16px; height: 16px; }
 }
 
 @media (max-width: 640px) {

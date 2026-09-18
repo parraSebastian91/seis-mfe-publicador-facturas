@@ -1,7 +1,6 @@
 import { Component, EventEmitter, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatIconModule } from '@angular/material/icon';
-import { DrawerContent, DrawerService } from 'shared-utils';
+import { DrawerContent, DrawerService, IconComponent } from 'shared-utils';
 import { FacturaType } from 'shared-utils';
 
 // ── Tipos de entrada/salida ──────────────────────────────────────────────────
@@ -30,12 +29,12 @@ export type FacturaSidebarEvent =
 @Component({
   selector: 'app-factura-sidebar-content',
   standalone: true,
-  imports: [CommonModule, MatIconModule],
+  imports: [CommonModule, IconComponent],
   template: `
     <!-- Ofertas -->
     <section class="sidebar-section">
       <h4 class="sidebar-section-title">
-        <mat-icon class="section-icon">sell</mat-icon>
+        <app-icon name="sell" size="16" />
         Ofertas
       </h4>
 
@@ -43,7 +42,7 @@ export type FacturaSidebarEvent =
         <p class="sidebar-empty">Sin ofertas recibidas aún.</p>
       } @else {
         <div class="sidebar-offers-count">
-          <mat-icon class="sidebar-offer-icon">sell</mat-icon>
+          <app-icon name="sell" size="16" />
           <span>{{ drawerInputs.ofertasCount }} oferta(s) recibida(s)</span>
         </div>
       }
@@ -54,11 +53,11 @@ export type FacturaSidebarEvent =
     <!-- Estado -->
     <section class="sidebar-section">
       <h4 class="sidebar-section-title">
-        <mat-icon class="section-icon">info</mat-icon>
+        <app-icon name="info" size="16" />
         Actividad
       </h4>
       <div class="activity-item">
-        <mat-icon class="activity-icon">fact_check</mat-icon>
+        <app-icon name="fact_check" size="16" />
         <span>Estado actual: <strong>{{ drawerInputs.estadoFactura }}</strong></span>
       </div>
     </section>
@@ -68,7 +67,7 @@ export type FacturaSidebarEvent =
     <!-- Notificaciones / notas OCR -->
     <section class="sidebar-section">
       <h4 class="sidebar-section-title">
-        <mat-icon class="section-icon">notifications</mat-icon>
+        <app-icon name="notifications" size="16" />
         Mensajes del sistema
       </h4>
 
@@ -78,7 +77,7 @@ export type FacturaSidebarEvent =
         <ul class="notif-list">
           @for (nota of drawerInputs.notificaciones; track nota) {
             <li class="notif-item">
-              <mat-icon class="notif-icon">arrow_right</mat-icon>
+              <app-icon name="arrow_right" size="16" />
               <span>{{ nota }}</span>
             </li>
           }
@@ -102,8 +101,6 @@ export type FacturaSidebarEvent =
       letter-spacing: .04em;
       color: var(--text-secondary, #666);
     }
-
-    .section-icon { font-size: 16px; width: 16px; height: 16px; }
 
     .sidebar-empty {
       font-size: .875rem;
@@ -148,7 +145,7 @@ export type FacturaSidebarEvent =
       line-height: 1.4;
     }
 
-    .notif-icon { font-size: 16px; width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; }
+    app-icon { flex-shrink: 0; }
   `],
 })
 export class FacturaSidebarContentComponent

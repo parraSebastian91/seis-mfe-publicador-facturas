@@ -15,7 +15,7 @@
           <span class="filtros-count" *ngIf="activeFilterCount > 0">{{ activeFilterCount }}</span>
         </button>
         <button type="button" class="btn-publicar" (click)="openUploadModal()">
-          <mat-icon aria-hidden="true">add</mat-icon>
+          <app-icon aria-hidden="true" name="add" />
           Publicar
         </button>
       </div>
@@ -61,7 +61,7 @@
 
     <!-- Estado vacío: sin facturas en total -->
     <div class="estado-vacio-cta" *ngIf="!facturas.length">
-      <mat-icon class="empty-icon" aria-hidden="true">receipt_long</mat-icon>
+      <app-icon class="empty-icon" aria-hidden="true" name="receipt_long" />
       <h2 class="empty-title">No tienes facturas aún</h2>
       <p class="empty-desc">Publica tu primera factura para comenzar a recibir financiamiento.</p>
       <button type="button" class="btn-publicar" (click)="openUploadModal()">+ Nueva Factura</button>

@@ -1,12 +1,12 @@
 <!-- ─── Loading ───────────────────────────────────────────────────────────── -->
 <div class="detalle-loading" *ngIf="isLoading">
-  <mat-icon class="loading-icon">hourglass_empty</mat-icon>
+  <app-icon class="loading-icon" name="hourglass_empty" />
   <p>Cargando factura...</p>
 </div>
 
 <!-- ─── Error ─────────────────────────────────────────────────────────────── -->
 <div class="detalle-error" *ngIf="!isLoading && loadError">
-  <mat-icon>error_outline</mat-icon>
+  <app-icon name="error_outline" />
   <p>{{ loadError }}</p>
 </div>
 
@@ -16,7 +16,7 @@
 
   <!-- Breadcrumb -->
   <button type="button" class="volver-btn" (click)="goBack()">
-    <mat-icon>arrow_back</mat-icon>
+    <app-icon name="arrow_back" />
     Volver a mis facturas
   </button>
 
@@ -28,7 +28,7 @@
         <span class="estado-badge status-{{ statusClass(factura.status) }}">{{ factura.status | titlecase }}</span>
       </div>
       <span class="factura-num-ofertas">
-        <mat-icon>local_offer</mat-icon>
+        <app-icon name="local_offer" />
         {{ factura.total_ofertas }} oferta(s)
       </span>
     </div>
@@ -58,13 +58,13 @@
 
     <!-- Empty state — nunca hubo -->
     <div class="ofertas-empty" *ngIf="!ofertas.length">
-      <mat-icon class="empty-icon">inbox</mat-icon>
+      <app-icon class="empty-icon" name="inbox" />
       <p>Aún no has recibido ofertas para esta factura.</p>
     </div>
 
     <!-- Empty state — ya no activas (EB-03) -->
     <div class="ofertas-empty ofertas-empty--info" *ngIf="hasOnlyInactiveOfertas">
-      <mat-icon class="empty-icon">history</mat-icon>
+      <app-icon class="empty-icon" name="history" />
       <p>Las ofertas recibidas ya no están disponibles. Tu factura sigue publicada y puede recibir nuevas ofertas.</p>
     </div>
 
@@ -83,7 +83,7 @@
                   width="40" height="40">
               </div>
               <div class="ejecutivo-avatar-placeholder" *ngIf="!oferta.ejecutivoAvatarUrl">
-                <mat-icon>account_circle</mat-icon>
+                <app-icon name="account_circle" />
               </div>
               <div class="ejecutivo-info">
                 <span class="ejecutivo-nombre">{{ oferta.ejecutivoNombre }}</span>
@@ -142,7 +142,7 @@
             <button type="button" class="btn-chat"
               title="Ver negociación"
               (click)="openChat(oferta)">
-              <mat-icon>chat_bubble_outline</mat-icon>
+              <app-icon name="chat_bubble_outline" />
               Ver chat
             </button>
 
@@ -179,7 +179,7 @@
     <!-- Comparar seleccionadas -->
     <div class="comparar-cta" *ngIf="selectedOfertaIds.size >= 2">
       <button type="button" class="btn-comparar" (click)="openCompareModal()">
-        <mat-icon>compare</mat-icon>
+        <app-icon name="compare" />
         Comparar seleccionadas ({{ selectedOfertaIds.size }})
       </button>
     </div>
@@ -202,7 +202,7 @@
     <div class="dialog-header">
       <h3 id="confirm-accept-title">¿Confirmar aceptación de oferta?</h3>
       <button type="button" class="dialog-close" (click)="closeAcceptConfirm()" [disabled]="isAccepting" aria-label="Cerrar">
-        <mat-icon>close</mat-icon>
+        <app-icon name="close" />
       </button>
     </div>
 
@@ -233,7 +233,7 @@
         <span class="dialog-val">{{ confirmOferta.liquidoRecibir | currency:'CLP':'$':'1.0-0' }}</span>
       </div>
       <p class="dialog-warning">
-        <mat-icon>warning_amber</mat-icon>
+        <app-icon name="warning_amber" />
         Al aceptar, las demás ofertas activas se rechazarán automáticamente.
       </p>
       <div class="dialog-error" role="alert" *ngIf="acceptError">{{ acceptError }}</div>
@@ -265,7 +265,7 @@
     <div class="compare-header">
       <h3 id="compare-modal-title">Comparar Ofertas</h3>
       <button type="button" class="compare-close" (click)="closeCompareModal()" aria-label="Cerrar comparación">
-        <mat-icon>close</mat-icon>
+        <app-icon name="close" />
       </button>
     </div>
 

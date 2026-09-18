@@ -30,9 +30,7 @@
         <!-- Indicador visual de notificaciones/ofertas (sin click para evitar UX confusa) -->
         <span class="notif-indicator" [class.notif-indicator--active]="ofertasCount() > 0"
           [attr.aria-label]="ofertasCount() > 0 ? ofertasCount() + ' ofertas activas' : undefined">
-          <mat-icon aria-hidden="true">
-            {{ ofertasCount() > 0 ? 'notifications_active' : 'notifications_none' }}
-          </mat-icon>
+          <app-icon aria-hidden="true" [name]="ofertasCount() > 0 ? 'notifications_active' : 'notifications_none'" />
           <span class="notif-badge" *ngIf="ofertasCount() > 0" aria-hidden="true">
             {{ ofertasCount() }}
           </span>
@@ -63,13 +61,13 @@
 
           <button type="button" class="tool-btn" [disabled]="facturaOriginal().url_factura === 'N/A'"
             (click)="togglePdfView()" title="Ver foto de la factura">
-            <mat-icon aria-hidden="true">preview</mat-icon>
+            <app-icon aria-hidden="true" name="preview" />
             <span class="tool-label">Ver foto</span>
           </button>
 
           <button type="button" class="tool-btn" [disabled]="!canUploadRespaldo" (click)="requestUploadRespaldo()"
             title="Subir respaldo">
-            <mat-icon aria-hidden="true">attach_file</mat-icon>
+            <app-icon aria-hidden="true" name="attach_file" />
             <span class="tool-label">Subir respaldo</span>
           </button>
 
@@ -77,9 +75,7 @@
             (click)="toggleNotificationSidebar()"
             [attr.aria-label]="ofertasCount() > 0 ? 'Ver ' + ofertasCount() + ' notificaciones' : 'Ver notificaciones'"
             title="Ver detalle y notificaciones">
-            <mat-icon aria-hidden="true">
-              {{ ofertasCount() > 0 ? 'notifications_active' : 'notifications' }}
-            </mat-icon>
+            <app-icon aria-hidden="true" [name]="ofertasCount() > 0 ? 'notifications_active' : 'notifications'" />
             <span class="tool-label">Notificaciones</span>
             <span class="notif-badge tool-badge" *ngIf="ofertasCount() > 0" aria-hidden="true">
               {{ ofertasCount() }}
@@ -204,9 +200,7 @@
                   <button type="button" class="action-btn" [class.action-btn--editing]="campo.editing"
                     [class.action-btn--validated]="campo.validated && !campo.editing" [disabled]="isFieldSaving(campo)"
                     [title]="primaryActionTitle(campo)" (click)="onPrimaryAction(campo.id, $event)">
-                    <mat-icon [class.spin]="isFieldSaving(campo)" aria-hidden="true">
-                      {{ primaryActionIcon(campo) }}
-                    </mat-icon>
+                    <app-icon [class.spin]="isFieldSaving(campo)" aria-hidden="true" [name]="primaryActionIcon(campo)" />
                   </button>
                 </span>
 
@@ -227,7 +221,7 @@
               <!-- Notas OCR -->
               <div class="notifications-list" *ngIf="notificationCount()" role="status" aria-live="polite">
                 <h4>
-                  <mat-icon aria-hidden="true">warning_amber</mat-icon>
+                  <app-icon aria-hidden="true" name="warning_amber" />
                   Notas pendientes
                 </h4>
                 <ul>
@@ -246,13 +240,13 @@
             [title]="hasPendingOcrNotes
               ? 'Resuelve las notas pendientes antes de publicar'
               : 'Validar y publicar la factura'" (click)="validarYPublicar()">
-            <mat-icon aria-hidden="true">verified</mat-icon>
+            <app-icon aria-hidden="true" name="verified" />
             Validar y publicar
           </button>
 
           <button *ngIf="isRechazada" type="button" class="confirm-btn confirm-btn--corregir"
             (click)="corregirYReenviar()">
-            <mat-icon aria-hidden="true">replay</mat-icon>
+            <app-icon aria-hidden="true" name="replay" />
             Corregir y reenviar
           </button>
         </footer>

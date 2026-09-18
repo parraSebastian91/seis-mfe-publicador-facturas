@@ -231,7 +231,7 @@ app-expansion-panel .ep__header {
   flex-shrink: 0;
   transition: border-color 200ms ease, background 200ms ease, color 200ms ease;
 
-  mat-icon {
+  app-icon {
     font-size: 18px;
     width: 18px;
     height: 18px;
@@ -384,7 +384,7 @@ app-expansion-panel .ep__header {
   cursor: pointer;
   transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
 
-  mat-icon {
+  app-icon {
     font-size: 16px;
     width: 16px;
     height: 16px;
@@ -608,7 +608,7 @@ app-expansion-panel .ep__header {
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease;
 
-  mat-icon {
+  app-icon {
     font-size: 17px;
     width: 17px;
     height: 17px;
@@ -682,7 +682,7 @@ app-expansion-panel .ep__header {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 
-  mat-icon {
+  app-icon {
     font-size: 15px;
     width: 15px;
     height: 15px;
@@ -721,7 +721,7 @@ app-expansion-panel .ep__header {
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 
-  mat-icon {
+  app-icon {
     font-size: 14px;
     width: 14px;
     height: 14px;
@@ -841,7 +841,7 @@ app-expansion-panel .ep__header {
   font-size: 0.8rem;
   line-height: 1.4;
 
-  mat-icon {
+  app-icon {
     font-size: 18px;
     width: 18px;
     height: 18px;
@@ -884,7 +884,7 @@ app-expansion-panel .ep__header {
     letter-spacing: 0.05em;
     color: #92400e;
 
-    mat-icon {
+    app-icon {
       font-size: 14px;
       width: 14px;
       height: 14px;
@@ -934,7 +934,7 @@ app-expansion-panel .ep__header {
   transition: background 140ms ease, box-shadow 140ms ease;
   box-shadow: 0 1px 4px rgba(15, 118, 110, 0.25);
 
-  mat-icon {
+  app-icon {
     font-size: 16px;
     width: 16px;
     height: 16px;
