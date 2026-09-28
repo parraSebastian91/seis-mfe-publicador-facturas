@@ -1,40 +1,21 @@
-<div class="tnc-backdrop"
-  *ngIf="isOpen"
-  (click)="onDismiss()"
-  (keydown.escape)="onDismiss()">
+<app-confirm-dialog
+  [open]="isOpen"
+  title="Términos y Condiciones de Publicación"
+  confirmLabel="Aceptar términos"
+  cancelLabel="Revisar publicación"
+  loadingLabel="Procesando..."
+  [loading]="isSubmitting"
+  [error]="errorMessage || null"
+  maxWidth="560px"
+  (confirmed)="onAccept()"
+  (cancelled)="onDismiss()">
 
-  <div class="tnc-panel"
-    aria-modal="true"
-    aria-labelledby="tnc-modal-title"
-    (click)="$event.stopPropagation()"
-    (keydown)="$event.stopPropagation()">
-
-    <div class="tnc-header">
-      <h2 id="tnc-modal-title" class="tnc-title">Términos y Condiciones de Publicación</h2>
-      <button type="button" class="tnc-close" (click)="onDismiss()" [disabled]="isSubmitting" aria-label="Cerrar">
-        <app-icon name="close" />
-      </button>
-    </div>
-
-    <div class="tnc-body">
-      <p class="tnc-factura-ref">{{ facturaLabel }}</p>
-      <h3 class="tnc-section-title">{{ tncTitle }}</h3>
-      <section class="tnc-content" aria-label="Contenido de términos y condiciones">
-        {{ tncText }}
-      </section>
-      <p class="tnc-version">Versión: {{ versionTerminos!.codigo }}</p>
-      <div class="tnc-error" role="alert" *ngIf="errorMessage">{{ errorMessage }}</div>
-    </div>
-
-    <div class="tnc-footer">
-      <button type="button" class="btn-revisar" (click)="onDismiss()" [disabled]="isSubmitting">
-        Revisar publicación
-      </button>
-      <button type="button" class="btn-aceptar" (click)="onAccept()" [disabled]="isSubmitting">
-        <app-icon *ngIf="isSubmitting" class="icon-spin" name="sync" />
-        <span>{{ isSubmitting ? 'Procesando...' : 'Aceptar términos' }}</span>
-      </button>
-    </div>
-
+  <div class="tnc">
+    <p class="tnc__factura-ref">{{ facturaLabel }}</p>
+    <h3 class="tnc__section-title">{{ tncTitle }}</h3>
+    <section class="tnc__content" aria-label="Contenido de términos y condiciones">
+      {{ tncText }}
+    </section>
+    <p class="tnc__version" *ngIf="versionTerminos">Versión: {{ versionTerminos.codigo }}</p>
   </div>
-</div>
+</app-confirm-dialog>
