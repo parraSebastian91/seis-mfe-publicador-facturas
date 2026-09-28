@@ -1,6 +1,5 @@
 import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { NgbDateStruct } from '@ng-bootstrap/ng-bootstrap';
 import { firstValueFrom } from 'rxjs';
 
 export interface MediaCategoryExtensionRow {
@@ -151,8 +150,6 @@ export class ModalPublicacionFacturaComponent implements OnInit, OnDestroy {
         fechaVencimiento: false
     };
 
-    readonly minDateStruct = this.toDateStruct(this.startOfToday());
-    readonly maxDateStruct = this.toDateStruct(this.startOfToday());
     readonly suggestedDateIso = this.toIsoDate(this.plusDays(this.startOfToday(), 30));
     readonly todayIso = this.toIsoDate(this.startOfToday());
 
@@ -782,14 +779,6 @@ export class ModalPublicacionFacturaComponent implements OnInit, OnDestroy {
             this.markFieldTouched(field);
             this.touchDebounceTimers[field] = undefined;
         }, this.inputValidationDebounceMs);
-    }
-
-    private toDateStruct(value: Date): NgbDateStruct {
-        return {
-            year: value.getFullYear(),
-            month: value.getMonth() + 1,
-            day: value.getDate()
-        };
     }
 
     private toIsoDate(value: Date): string {

@@ -111,29 +111,29 @@
 
           <label>
             Fecha Emisión
-            <app-atomic-datepicker
+            <app-datepicker
               [value]="manualForm.fechaEmision"
               [disabled]="isSubmitting"
               [placeholder]="'Ej: ' + todayIso"
-              [maxDate]="maxDateStruct"
+              [maxDate]="todayIso"
               [hasError]="shouldShowFieldError('fechaEmision')"
               (valueChange)="manualForm.fechaEmision = $event; markFieldTouched('fechaEmision')"
               (blurred)="markFieldTouched('fechaEmision')">
-            </app-atomic-datepicker>
+            </app-datepicker>
             <small class="field-error" *ngIf="shouldShowFieldError('fechaEmision')">{{ getFieldErrorMessage('fechaEmision') }}</small>
           </label>
 
           <label>
             Fecha Vencimiento
-            <app-atomic-datepicker
+            <app-datepicker
               [value]="manualForm.fechaVencimiento"
               [disabled]="isSubmitting"
               [placeholder]="'Ej: ' + suggestedDateIso"
-              [minDate]="minDateStruct"
+              [minDate]="todayIso"
               [hasError]="shouldShowFieldError('fechaVencimiento')"
               (valueChange)="manualForm.fechaVencimiento = $event; markFieldTouched('fechaVencimiento')"
               (blurred)="markFieldTouched('fechaVencimiento')">
-            </app-atomic-datepicker>
+            </app-datepicker>
             <small class="field-error" *ngIf="shouldShowFieldError('fechaVencimiento')">{{ getFieldErrorMessage('fechaVencimiento') }}</small>
           </label>
 

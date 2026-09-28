@@ -9,9 +9,6 @@ import { FacturaViewComponent } from './component/factura-view/factura-view.comp
 import { CdkAutofill } from '@angular/cdk/text-field';
 import { ImagePanzoomViewerComponent } from './component/image-panzoom-viewer/image-panzoom-viewer.component';
 import { ModalPublicacionFacturaComponent } from './component/modal-publicacion-factura/modal-publicacion-factura.component';
-// ng-bootstrap (no Angular Material): usado por AtomicDatepickerComponent.
-import { NgbDatepickerModule } from '@ng-bootstrap/ng-bootstrap';
-import { AtomicDatepickerComponent } from './component/atomic-datepicker/atomic-datepicker.component';
 import { AtomicFacturaFiltersComponent } from './component/atomic-factura-filters/atomic-factura-filters.component';
 import { A11yModule } from '@angular/cdk/a11y';
 import { TermsAndConditionsModalComponent } from './component/terms-and-conditions-modal/terms-and-conditions-modal.component';
@@ -29,6 +26,7 @@ import {
   ButtonComponent,
   IconButtonComponent,
   IconComponent,
+  DatepickerComponent,
 } from 'shared-utils';
 
 registerLocaleData(localeEsCl);
@@ -39,7 +37,6 @@ registerLocaleData(localeEsCl);
     FacturaViewComponent,
     ImagePanzoomViewerComponent,
     ModalPublicacionFacturaComponent,
-    AtomicDatepickerComponent,
     AtomicFacturaFiltersComponent,
     TermsAndConditionsModalComponent,
     FacturaDetalleComponent,
@@ -48,7 +45,6 @@ registerLocaleData(localeEsCl);
     CommonModule,
     FormsModule,
     PublicadorFacturasRoutingModule,
-    NgbDatepickerModule,
     CdkAutofill,
     A11yModule,
     NegotiationChatComponent,
@@ -64,6 +60,9 @@ registerLocaleData(localeEsCl);
     ButtonComponent,
     IconButtonComponent,
     IconComponent,
+    // Reemplaza AtomicDatepickerComponent + NgbDatepickerModule: con esto el MFE
+    // deja de depender de @ng-bootstrap/ng-bootstrap (era su único uso).
+    DatepickerComponent,
   ],
   providers: [
     { provide: LOCALE_ID, useValue: 'es-CL' },

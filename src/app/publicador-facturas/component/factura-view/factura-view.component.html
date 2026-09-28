@@ -153,13 +153,18 @@
                     <!-- Inputs manuales según tipo de campo -->
                     <ng-template #manualInputTpl>
 
-                      <!-- Fecha de vencimiento → datepicker ng-bootstrap -->
+                      <!-- Fecha de vencimiento → datepicker del design system -->
                       <ng-container *ngIf="campo.id === 'fechaVencimiento'; else montoInputTpl">
-                        <app-atomic-datepicker [value]="campo.draftValue"
-                          (valueChange)="updateDraftValue(campo.id, $event)"
-                          (enterPressed)="validateField(campo.id, $event)"
-                          (escapePressed)="cancelField(campo.id, $event)">
-                        </app-atomic-datepicker>
+                        <!-- El wrapper conserva el comportamiento de teclado que antes
+                             emitía AtomicDatepickerComponent: los eventos burbujean desde
+                             el input del datepicker. -->
+                        <span class="datepicker-host" (click)="$event.stopPropagation()"
+                          (keydown.enter)="validateField(campo.id, $event)"
+                          (keydown.escape)="cancelField(campo.id, $event)">
+                          <app-datepicker [value]="campo.draftValue"
+                            (valueChange)="updateDraftValue(campo.id, $event)">
+                          </app-datepicker>
+                        </span>
                       </ng-container>
 
                       <!-- Monto → solo numérico con formato CLP -->

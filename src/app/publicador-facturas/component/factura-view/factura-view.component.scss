@@ -561,6 +561,14 @@ app-expansion-panel .ep__header {
   margin-bottom: 2px;
 }
 
+// Wrapper del <app-datepicker> de shared-utils: solo aporta el contexto de
+// teclado/click que antes vivía dentro de AtomicDatepickerComponent. El estilo
+// del control lo trae el propio componente compartido.
+.datepicker-host {
+  display: block;
+  width: 100%;
+}
+
 // ── Inputs ───────────────────────────────────────────────────────────────────
 .field-input,
 .field-select {
