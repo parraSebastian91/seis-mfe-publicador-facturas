@@ -97,9 +97,9 @@
 
             <!-- Panel PDF / imagen -->
             <section class="pdf-pane" *ngIf="showPdfView() && imageSrc()">
-              <app-image-panzoom-viewer *ngIf="imageSrc()" [imageSrc]="imageSrc() ?? ''" [altText]="'Imagen de factura'"
+              <app-document-viewer *ngIf="imageSrc()" [src]="imageSrc()" [altText]="'Imagen de factura'"
                 [mobileMode]="isMobileView()">
-              </app-image-panzoom-viewer>
+              </app-document-viewer>
               <p *ngIf="!imageSrc()" class="pdf-empty">
                 Para visualizar la factura, súbela como respaldo.
               </p>

@@ -7,7 +7,6 @@ import { PublicadorFacturasRoutingModule } from './publicador-facturas-routing.m
 import { PublicadorFacturasComponent } from './publicador-facturas/publicador-facturas.component';
 import { FacturaViewComponent } from './component/factura-view/factura-view.component';
 import { CdkAutofill } from '@angular/cdk/text-field';
-import { ImagePanzoomViewerComponent } from './component/image-panzoom-viewer/image-panzoom-viewer.component';
 import { ModalPublicacionFacturaComponent } from './component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { AtomicFacturaFiltersComponent } from './component/atomic-factura-filters/atomic-factura-filters.component';
 import { A11yModule } from '@angular/cdk/a11y';
@@ -27,6 +26,7 @@ import {
   IconButtonComponent,
   IconComponent,
   DatepickerComponent,
+  DocumentViewerComponent,
 } from 'shared-utils';
 
 registerLocaleData(localeEsCl);
@@ -35,7 +35,6 @@ registerLocaleData(localeEsCl);
   declarations: [
     PublicadorFacturasComponent,
     FacturaViewComponent,
-    ImagePanzoomViewerComponent,
     ModalPublicacionFacturaComponent,
     AtomicFacturaFiltersComponent,
     TermsAndConditionsModalComponent,
@@ -63,6 +62,8 @@ registerLocaleData(localeEsCl);
     // Reemplaza AtomicDatepickerComponent + NgbDatepickerModule: con esto el MFE
     // deja de depender de @ng-bootstrap/ng-bootstrap (era su único uso).
     DatepickerComponent,
+    // Reemplaza ImagePanzoomViewerComponent; mismo visor que usa el ofertador.
+    DocumentViewerComponent,
   ],
   providers: [
     { provide: LOCALE_ID, useValue: 'es-CL' },
