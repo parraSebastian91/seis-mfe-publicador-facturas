@@ -1,5 +1,10 @@
 <!doctype html>
-<html lang="en">
+<!-- data-theme es obligatorio: _tokens.scss define los --color-* bajo
+     [data-theme="dark"]. Sin este atributo, en `ng serve` standalone (sin el
+     shell) ningún token resuelve y los componentes del design system quedan sin
+     color. En producción el MFE se monta en el DOM de seis-portal, que ya lo
+     setea; esto es lo que hace que el modo standalone sea usable. -->
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <title>SeisMfefPublicadorFacturas</title>

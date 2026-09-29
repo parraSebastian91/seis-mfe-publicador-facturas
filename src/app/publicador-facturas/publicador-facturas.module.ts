@@ -28,6 +28,8 @@ import {
   DatepickerComponent,
   DocumentViewerComponent,
   ConfirmDialogComponent,
+  ModalComponent,
+  ModalTitleDirective,
 } from 'shared-utils';
 
 registerLocaleData(localeEsCl);
@@ -65,8 +67,12 @@ registerLocaleData(localeEsCl);
     DatepickerComponent,
     // Reemplaza ImagePanzoomViewerComponent; mismo visor que usa el ofertador.
     DocumentViewerComponent,
-    // Shell de TermsAndConditionsModalComponent: ya no reimplementa el modal.
+    // Shell de TermsAndConditionsModalComponent y de la confirmación de
+    // abandono del wizard de publicación: ya no reimplementan el modal.
     ConfirmDialogComponent,
+    // Shell de ModalPublicacionFacturaComponent (wizard de 3 pasos).
+    ModalComponent,
+    ModalTitleDirective,
   ],
   providers: [
     { provide: LOCALE_ID, useValue: 'es-CL' },

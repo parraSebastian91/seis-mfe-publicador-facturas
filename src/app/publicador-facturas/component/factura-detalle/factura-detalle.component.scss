@@ -649,77 +649,11 @@
   }
 }
 
-// ─── Dialog Backdrop (shared) ────────────────────────────────────────────────
-
-.dialog-backdrop,
-.compare-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 1100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  backdrop-filter: blur(2px);
-}
-
-// ─── Accept Confirm Dialog (CA-07) ───────────────────────────────────────────
-
-.confirm-dialog {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-  width: 100%;
-  max-width: 480px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-
-  @media (max-width: 520px) {
-    max-width: 95vw;
-  }
-}
-
-.dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1.125rem 1.5rem 1rem;
-  border-bottom: 1px solid #e5e7eb;
-
-  h3 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #111827;
-  }
-}
-
-.dialog-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  color: #6b7280;
-  display: flex;
-  border-radius: 6px;
-  transition: background 0.15s;
-
-  &:hover:not(:disabled) {
-    background: #f3f4f6;
-    color: #111827;
-  }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-}
+// ─── Accept Confirm Dialog (CA-07) — solo el cuerpo ─────────────────────────
+// El shell (backdrop, panel, header, ×, footer, botones y bloque de error) lo
+// aporta app-confirm-dialog de shared-utils.
 
 .dialog-body {
-  padding: 1.25rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -774,127 +708,12 @@
   }
 }
 
-.dialog-error {
-  font-size: 0.82rem;
-  color: #b91c1c;
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
-  border-radius: 6px;
-  padding: 0.5rem 0.75rem;
-}
-
-.dialog-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.625rem;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #e5e7eb;
-  background: #f9fafb;
-
-  @media (max-width: 400px) {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-
-.btn-cancelar {
-  padding: 0.55rem 1.1rem;
-  font-size: 0.875rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: #fff;
-  color: #374151;
-  cursor: pointer;
-  font-weight: 500;
-
-  &:hover:not(:disabled) {
-    background: #f3f4f6;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.btn-confirmar-aceptar {
-  padding: 0.55rem 1.25rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  background: #16a34a;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.15s;
-
-  &:hover:not(:disabled) {
-    background: #15803d;
-  }
-
-  &:disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
-  }
-}
-
-// ─── Compare Modal (CA-08) ────────────────────────────────────────────────────
-
-.compare-modal {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-  width: 100%;
-  max-width: 720px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-
-  @media (max-width: 760px) {
-    max-width: 95vw;
-    max-height: 95vh;
-    border-radius: 8px;
-  }
-}
-
-.compare-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.125rem 1.5rem 1rem;
-  border-bottom: 1px solid #e5e7eb;
-  flex-shrink: 0;
-
-  h3 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #111827;
-  }
-}
-
-.compare-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  color: #6b7280;
-  display: flex;
-  border-radius: 6px;
-  transition: background 0.15s;
-
-  &:hover {
-    background: #f3f4f6;
-    color: #111827;
-  }
-}
+// ─── Compare Modal (CA-08) — solo el cuerpo ─────────────────────────────────
 
 .compare-body {
-  flex: 1;
+  // El alto del panel lo limita app-modal; acá solo scrollea la tabla.
+  max-height: 70vh;
   overflow: auto;
-  padding: 1.25rem 1.5rem;
 }
 
 .compare-table-wrapper {

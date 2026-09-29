@@ -1,52 +1,44 @@
 // =============================================================================
 // modal-publicacion-factura — Factor Design System
-// Contexto: superposición modal sobre el MFE publicador (tema claro).
-// No hay #hex hardcodeados; todos los colores usan variables CSS locales.
+// El shell (backdrop, panel, header, × de cerrar) lo aporta app-modal de
+// shared-utils, y los botones app-button. Acá queda solo el cuerpo del wizard.
+//
+// Las variables --modal-* eran una paleta privada de 13 hex en tema claro
+// (#ffffff, #1f2937, #0f766e...) sobre una app que corre en data-theme="dark":
+// un modal blanco flotando sobre fondo navy. Se conservan como alias para no
+// reescribir los ~75 var(--modal-*) del archivo, pero ahora derivan de los
+// tokens semánticos, así que el modal sigue el tema activo.
 // =============================================================================
 
 :host {
-  --modal-brand:        #0f766e;
-  --modal-brand-light:  #ecfdf5;
-  --modal-brand-border: #0f766e;
-  --modal-text:         #1f2937;
-  --modal-text-muted:   #64748b;
-  --modal-surface:      #ffffff;
-  --modal-surface-alt:  #f8fafc;
-  --modal-border:       #e2e8f0;
-  --modal-error:        #b91c1c;
-  --modal-error-bg:     #fef2f2;
-  --modal-error-border: #fecaca;
-  --modal-warn-bg:      #fff8f0;
-  --modal-warn-border:  #fed7aa;
-  --modal-warn-text:    #92400e;
+  --modal-brand:        var(--color-brand-primary);
+  --modal-brand-light:  color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
+  --modal-brand-border: var(--color-brand-primary);
+  --modal-text:         var(--color-text-primary);
+  --modal-text-muted:   var(--color-text-secondary);
+  --modal-surface:      var(--color-bg-elevated);
+  --modal-surface-alt:  var(--color-bg-surface);
+  --modal-border:       var(--color-border);
+  --modal-error:        var(--color-error);
+  --modal-error-bg:     color-mix(in srgb, var(--color-error) 12%, transparent);
+  --modal-error-border: color-mix(in srgb, var(--color-error) 40%, transparent);
+  --modal-warn-bg:      color-mix(in srgb, var(--color-warning) 12%, transparent);
+  --modal-warn-border:  color-mix(in srgb, var(--color-warning) 40%, transparent);
+  --modal-warn-text:    var(--color-warning);
 }
 
 // =============================================================================
-// BACKDROP + MODAL SHELL
+// CUERPO DEL WIZARD
 // =============================================================================
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
-
-.publish-modal {
-  width: min(680px, 100%);
-  background: var(--modal-surface);
-  border-radius: 1rem;
-  border: 1px solid var(--modal-border);
-  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.3);
-  padding: 1.25rem;
+.publish-wizard {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-height: calc(100vh - 140px);
-  overflow: hidden;
+  min-height: 0;
+  // El panel de app-modal no limita su alto: lo hace el wizard, y solo el
+  // contenido del paso scrollea — el stepper y el banner quedan fijos arriba.
+  max-height: calc(100vh - 220px);
 }
 
 .tab-content {
@@ -56,41 +48,6 @@
   min-height: 0;
   padding-right: 0.35rem;
   overflow-y: auto;
-}
-
-// =============================================================================
-// HEADER
-// =============================================================================
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  h2 {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--modal-text);
-  }
-}
-
-.btn-close {
-  border: none;
-  background: var(--modal-surface-alt);
-  border-radius: 999px;
-  width: 2rem;
-  height: 2rem;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  transition: background 140ms ease;
-
-  &:hover { background: #e2e8f0; }
-
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  app-icon { font-size: 1.1rem; width: 1.1rem; height: 1.1rem; }
 }
 
 // =============================================================================
@@ -136,28 +93,6 @@
 }
 
 // =============================================================================
-// CONFIRMACIÓN DE CIERRE
-// =============================================================================
-
-.close-confirm {
-  background: var(--modal-warn-bg);
-  border: 1px solid var(--modal-warn-border);
-  border-radius: 0.75rem;
-  padding: 1rem 1.1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-
-  p { margin: 0; font-size: 0.875rem; color: var(--modal-warn-text); font-weight: 600; }
-}
-
-.close-confirm-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}
-
-// =============================================================================
 // DROPZONE
 // =============================================================================
 
@@ -174,7 +109,7 @@
   justify-content: center;
   gap: 0.5rem;
   text-align: center;
-  border: 2px dashed #94a3b8;
+  border: 2px dashed var(--color-border);
   border-radius: 0.75rem;
   min-height: 150px;
   padding: 1.25rem;
@@ -189,7 +124,7 @@
     font-size: 2.5rem;
     width: 2.5rem;
     height: 2.5rem;
-    color: #94a3b8;
+    color: var(--color-text-disabled);
   }
 
   &.dragging {
@@ -275,7 +210,7 @@
   gap: 0.4rem;
   font-size: 0.82rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--color-text-disabled);
 
   .step-number {
     width: 1.6rem;
@@ -303,7 +238,7 @@
     .step-number {
       border-color: var(--modal-brand);
       background: var(--modal-brand);
-      color: #ffffff;
+      color: var(--color-brand-on-primary);
     }
   }
 }
@@ -400,80 +335,6 @@
   padding-top: 0.25rem;
 }
 
-.btn-light {
-  border: 1px solid var(--modal-border);
-  border-radius: 0.6rem;
-  padding: 0.65rem 1.1rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  background: var(--modal-surface);
-  color: var(--modal-text);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  transition: background 140ms ease;
-
-  &:hover:not(:disabled) { background: var(--modal-surface-alt); }
-  &:disabled { opacity: 0.45; cursor: not-allowed; }
-}
-
-.btn-primary {
-  border: none;
-  border-radius: 0.6rem;
-  padding: 0.65rem 1.1rem;
-  font-size: 0.875rem;
-  font-weight: 700;
-  cursor: pointer;
-  background: var(--modal-brand);
-  color: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  transition: background 140ms ease;
-
-  &:hover:not(:disabled) { background: #0d9488; }
-  &:disabled { opacity: 0.45; cursor: not-allowed; }
-
-  &:focus-visible {
-    outline: 2px solid var(--modal-brand);
-    outline-offset: 2px;
-  }
-}
-
-.btn-secondary {
-  border: 1px solid var(--modal-brand);
-  border-radius: 0.6rem;
-  padding: 0.65rem 1.1rem;
-  font-size: 0.875rem;
-  font-weight: 700;
-  cursor: pointer;
-  background: var(--modal-brand-light);
-  color: var(--modal-brand);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  transition: background 140ms ease;
-
-  &:hover:not(:disabled) { background: #d1fae5; }
-  &:disabled { opacity: 0.45; cursor: not-allowed; }
-}
-
-.btn-danger {
-  border: none;
-  border-radius: 0.6rem;
-  padding: 0.65rem 1.1rem;
-  font-size: 0.875rem;
-  font-weight: 700;
-  cursor: pointer;
-  background: #dc2626;
-  color: #ffffff;
-  transition: background 140ms ease;
-
-  &:hover:not(:disabled) { background: #b91c1c; }
-  &:disabled { opacity: 0.45; cursor: not-allowed; }
-}
-
 // =============================================================================
 // SPINNER
 // =============================================================================
@@ -495,7 +356,7 @@
 // =============================================================================
 
 @media (max-width: 640px) {
-  .publish-modal { border-radius: 1rem 1rem 0 0; align-self: flex-end; max-height: 90vh; }
+  .publish-wizard { max-height: calc(100vh - 160px); }
   .manual-form   { grid-template-columns: 1fr; }
   .full-col      { grid-column: 1; }
   .step2-footer  { flex-direction: column; }
@@ -575,9 +436,9 @@
   &.adj-pending  { border-style: solid; border-color: rgba(15,118,110,.35); background: rgba(15,118,110,.05); }
 }
 
-.adj-dropzone-icon { font-size: 22px; width: 22px; height: 22px; color: #94a3b8; }
+.adj-dropzone-icon { font-size: 22px; width: 22px; height: 22px; color: var(--color-text-disabled); }
 .adj-upload-icon   { font-size: 22px; width: 22px; height: 22px; color: var(--modal-brand); }
-.adj-success-icon  { font-size: 22px; width: 22px; height: 22px; color: #16a34a; }
+.adj-success-icon  { font-size: 22px; width: 22px; height: 22px; color: var(--color-success); }
 .adj-error-icon    { font-size: 22px; width: 22px; height: 22px; color: var(--modal-error); }
 
 .adj-dropzone-label {
@@ -644,7 +505,7 @@
   transition: background 140ms ease;
   align-self: flex-start;
   app-icon { font-size: 16px; width: 16px; height: 16px; }
-  &:hover { background: #d1fae5; }
+  &:hover { background: color-mix(in srgb, var(--color-brand-primary) 22%, transparent); }
   &:focus-visible { outline: 2px solid var(--modal-brand); outline-offset: 2px; }
 }
 

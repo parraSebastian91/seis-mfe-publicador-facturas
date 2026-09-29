@@ -188,23 +188,16 @@
 </div>
 
 <!-- ─── Accept Confirm Dialog (CA-07) ─────────────────────────────────────── -->
-<div class="dialog-backdrop"
-  *ngIf="confirmOferta"
-  (click)="closeAcceptConfirm()"
-  (keydown.escape)="closeAcceptConfirm()">
-
-  <div class="confirm-dialog"
-    aria-modal="true"
-    aria-labelledby="confirm-accept-title"
-    (click)="$event.stopPropagation()"
-    (keydown)="$event.stopPropagation()">
-
-    <div class="dialog-header">
-      <h3 id="confirm-accept-title">¿Confirmar aceptación de oferta?</h3>
-      <button type="button" class="dialog-close" (click)="closeAcceptConfirm()" [disabled]="isAccepting" aria-label="Cerrar">
-        <app-icon name="close" />
-      </button>
-    </div>
+<app-confirm-dialog
+  [open]="!!confirmOferta"
+  title="¿Confirmar aceptación de oferta?"
+  confirmLabel="Confirmar aceptación"
+  loadingLabel="Procesando..."
+  [loading]="isAccepting"
+  [error]="acceptError || null"
+  maxWidth="480px"
+  (confirmed)="confirmarAceptar()"
+  (cancelled)="closeAcceptConfirm()">
 
     <div class="dialog-body" *ngIf="confirmOferta">
       <div class="dialog-row">
@@ -236,40 +229,21 @@
         <app-icon name="warning_amber" />
         Al aceptar, las demás ofertas activas se rechazarán automáticamente.
       </p>
-      <div class="dialog-error" role="alert" *ngIf="acceptError">{{ acceptError }}</div>
     </div>
 
-    <div class="dialog-footer">
-      <button type="button" class="btn-cancelar" (click)="closeAcceptConfirm()" [disabled]="isAccepting">
-        Cancelar
-      </button>
-      <button type="button" class="btn-confirmar-aceptar" (click)="confirmarAceptar()" [disabled]="isAccepting">
-        {{ isAccepting ? 'Procesando...' : 'Confirmar aceptación' }}
-      </button>
-    </div>
-  </div>
-</div>
+</app-confirm-dialog>
 
-<!-- ─── Compare Modal (CA-08) ─────────────────────────────────────────────── -->
-<div class="compare-backdrop"
-  *ngIf="showCompareModal"
-  (click)="closeCompareModal()"
-  (keydown.escape)="closeCompareModal()">
+<!-- ─── Compare Modal (CA-08) ─────────────────────────────────────────────────
+     No es una confirmación: la acción de aceptar vive en cada columna de la
+     tabla, así que compone app-modal directo y no ConfirmDialog. -->
+<app-modal
+  [open]="showCompareModal"
+  maxWidth="min(920px, 95vw)"
+  (closed)="closeCompareModal()">
 
-  <div class="compare-modal"
-    aria-modal="true"
-    aria-labelledby="compare-modal-title"
-    (click)="$event.stopPropagation()"
-    (keydown)="$event.stopPropagation()">
+  <div modal-title>Comparar Ofertas</div>
 
-    <div class="compare-header">
-      <h3 id="compare-modal-title">Comparar Ofertas</h3>
-      <button type="button" class="compare-close" (click)="closeCompareModal()" aria-label="Cerrar comparación">
-        <app-icon name="close" />
-      </button>
-    </div>
-
-    <div class="compare-body">
+  <div class="compare-body">
       <div class="compare-table-wrapper">
         <table class="compare-table">
           <thead>
@@ -333,8 +307,7 @@
         </table>
       </div>
     </div>
-
-  </div><!-- /.detalle-wrapper -->
+</app-modal>
 
   <!-- ── CA-08: Chat panel (HU-26) ──────────────────────────────────────── -->
   <aside class="chat-sidebar" *ngIf="chatOferta" aria-label="Chat de negociación">

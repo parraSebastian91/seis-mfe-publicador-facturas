@@ -1,350 +1,353 @@
-<div class="modal-backdrop" *ngIf="isOpen" (click)="onBackdropClick()">
-  <section class="publish-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+<!-- El shell (backdrop, panel, header con título y ×) lo aporta app-modal.
+     (closed) cubre las tres vías de cierre y tryClose() ya bloquea si hay un
+     submit en vuelo; [closeDisabled] deshabilita el × de verdad. -->
+<app-modal
+  [open]="isOpen"
+  [closeDisabled]="isSubmitting"
+  maxWidth="680px"
+  (closed)="tryClose()">
 
-    <!-- Header -->
-    <header class="modal-header">
-      <h2 id="modal-title">Nueva factura</h2>
-      <button type="button" class="btn-close" (click)="tryClose()" [disabled]="isSubmitting" aria-label="Cerrar">
-        <app-icon name="close" />
-      </button>
-    </header>
+  <div modal-title>Nueva factura</div>
 
-    <!-- Confirmación de cierre -->
-    <div class="close-confirm" *ngIf="showCloseConfirm" role="alertdialog">
-      <p>¿Abandonar la factura? Los datos no se guardarán.</p>
-      <div class="close-confirm-actions">
-        <button type="button" class="btn-light" (click)="cancelClose()">Continuar editando</button>
-        <button type="button" class="btn-danger" (click)="confirmClose()">Sí, abandonar</button>
+  <div class="publish-wizard">
+    <!-- ── Stepper de 3 pasos ─────────────────────────────────────────── -->
+    <div class="stepper-header" role="list" aria-label="Progreso del asistente">
+
+      <div class="step-item" role="listitem"
+        [class.active]="manualStep === 1"
+        [class.done]="manualStep > 1">
+        <span class="step-number" aria-hidden="true">{{ manualStep > 1 ? '✓' : '1' }}</span>
+        <span class="step-label">Datos de Factura</span>
       </div>
+
+      <div class="step-connector" aria-hidden="true"></div>
+
+      <div class="step-item" role="listitem"
+        [class.active]="manualStep === 2"
+        [class.done]="manualStep > 2">
+        <span class="step-number" aria-hidden="true">{{ manualStep > 2 ? '✓' : '2' }}</span>
+        <span class="step-label">Factura</span>
+      </div>
+
+      <div class="step-connector" aria-hidden="true"></div>
+
+      <div class="step-item" role="listitem"
+        [class.active]="manualStep === 3">
+        <span class="step-number" aria-hidden="true">3</span>
+        <span class="step-label">Documentación Adjunta</span>
+      </div>
+
     </div>
 
-    <ng-container *ngIf="!showCloseConfirm">
+    <!-- ── Banner de incentivo (se muestra en los 3 pasos) ───────────── -->
+    <div class="incentive-banner" aria-live="polite">
+      <app-icon class="incentive-icon" aria-hidden="true" name="tips_and_updates" />
+      <p class="incentive-text">
+        <strong>Recomendación:</strong> Proveer documentación complementaria aumenta la confianza
+        de los financiadores y optimiza la velocidad de evaluación de tu factura.
+      </p>
+    </div>
 
-      <!-- ── Stepper de 3 pasos ─────────────────────────────────────────── -->
-      <div class="stepper-header" role="list" aria-label="Progreso del asistente">
+    <!-- ════════════════════════════════════════════════════════
+         PASO 1 — Datos de Factura
+    ════════════════════════════════════════════════════════ -->
+    <section class="tab-content" *ngIf="manualStep === 1"
+      id="wizard-panel-1" role="tabpanel" aria-labelledby="step-label-1">
 
-        <div class="step-item" role="listitem"
-          [class.active]="manualStep === 1"
-          [class.done]="manualStep > 1">
-          <span class="step-number" aria-hidden="true">{{ manualStep > 1 ? '✓' : '1' }}</span>
-          <span class="step-label">Datos de Factura</span>
-        </div>
+      <form class="manual-form" (submit)="$event.preventDefault(); nextStep()">
 
-        <div class="step-connector" aria-hidden="true"></div>
-
-        <div class="step-item" role="listitem"
-          [class.active]="manualStep === 2"
-          [class.done]="manualStep > 2">
-          <span class="step-number" aria-hidden="true">{{ manualStep > 2 ? '✓' : '2' }}</span>
-          <span class="step-label">Factura</span>
-        </div>
-
-        <div class="step-connector" aria-hidden="true"></div>
-
-        <div class="step-item" role="listitem"
-          [class.active]="manualStep === 3">
-          <span class="step-number" aria-hidden="true">3</span>
-          <span class="step-label">Documentación Adjunta</span>
-        </div>
-
-      </div>
-
-      <!-- ── Banner de incentivo (se muestra en los 3 pasos) ───────────── -->
-      <div class="incentive-banner" aria-live="polite">
-        <app-icon class="incentive-icon" aria-hidden="true" name="tips_and_updates" />
-        <p class="incentive-text">
-          <strong>Recomendación:</strong> Proveer documentación complementaria aumenta la confianza
-          de los financiadores y optimiza la velocidad de evaluación de tu factura.
-        </p>
-      </div>
-
-      <!-- ════════════════════════════════════════════════════════
-           PASO 1 — Datos de Factura
-      ════════════════════════════════════════════════════════ -->
-      <section class="tab-content" *ngIf="manualStep === 1"
-        id="wizard-panel-1" role="tabpanel" aria-labelledby="step-label-1">
-
-        <form class="manual-form" (submit)="$event.preventDefault(); nextStep()">
-
-          <label>
-            N° Factura (folio)
-            <input type="text" name="numeroFactura" [(ngModel)]="manualForm.numeroFactura" [disabled]="isSubmitting"
-              [class.invalid-field]="shouldShowFieldError('numeroFactura')" placeholder="Ej: 123456789"
-              inputmode="numeric" autocomplete="off"
-              (input)="onNumeroFacturaInput($event)" (blur)="markFieldTouched('numeroFactura')" required />
-            <small class="field-error" *ngIf="shouldShowFieldError('numeroFactura')">{{ getFieldErrorMessage('numeroFactura') }}</small>
-          </label>
-
-          <label>
-            RUT Deudor
-            <input type="text" name="rutDeudor" [(ngModel)]="manualForm.rutDeudor" [disabled]="isSubmitting"
-              [class.invalid-field]="shouldShowFieldError('rutDeudor')" placeholder="Ej: 12.345.678-9"
-              autocomplete="off" list="datalist-rut-deudor"
-              (input)="onRutInput($event)" (change)="onRutChange($event)" (blur)="markFieldTouched('rutDeudor')" required />
-            <datalist id="datalist-rut-deudor">
-              <option *ngFor="let d of metadata?.deudoresExistentes; trackBy: trackByDeudorRut" [value]="d.rut" [label]="d.nombre"></option>
-            </datalist>
-            <small class="field-error" *ngIf="shouldShowFieldError('rutDeudor')">{{ getFieldErrorMessage('rutDeudor') }}</small>
-          </label>
-
-          <label class="full-col">
-            Razón Social Deudor
-            <input type="text" name="nombreRazonSocialDeudor" [(ngModel)]="manualForm.nombreRazonSocialDeudor"
-              [disabled]="isSubmitting" [class.invalid-field]="shouldShowFieldError('nombreRazonSocialDeudor')"
-              placeholder="Ej: Comercial Acme SpA" autocomplete="off" list="datalist-nombre-deudor"
-              (input)="onNombreRazonSocialInput()" (change)="onNombreDeudorChange($event)"
-              (blur)="markFieldTouched('nombreRazonSocialDeudor')" required />
-            <datalist id="datalist-nombre-deudor">
-              <option *ngFor="let d of metadata?.deudoresExistentes; trackBy: trackByDeudorRut" [value]="d.nombre" [label]="d.rut"></option>
-            </datalist>
-            <small class="field-error" *ngIf="shouldShowFieldError('nombreRazonSocialDeudor')">{{ getFieldErrorMessage('nombreRazonSocialDeudor') }}</small>
-          </label>
-
-          <label class="full-col">
-            Monto Total
-            <input type="text" name="montoTotal" [(ngModel)]="manualForm.montoTotal" [disabled]="isSubmitting"
-              [class.invalid-field]="shouldShowFieldError('montoTotal')" placeholder="Ej: 1.250.000"
-              inputmode="numeric" autocomplete="off"
-              (input)="onMontoInput($event)" (blur)="markFieldTouched('montoTotal')" required />
-            <small class="field-error" *ngIf="shouldShowFieldError('montoTotal')">{{ getFieldErrorMessage('montoTotal') }}</small>
-          </label>
-
-          <label>
-            Fecha Emisión
-            <app-datepicker
-              [value]="manualForm.fechaEmision"
-              [disabled]="isSubmitting"
-              [placeholder]="'Ej: ' + todayIso"
-              [maxDate]="todayIso"
-              [hasError]="shouldShowFieldError('fechaEmision')"
-              (valueChange)="manualForm.fechaEmision = $event; markFieldTouched('fechaEmision')"
-              (blurred)="markFieldTouched('fechaEmision')">
-            </app-datepicker>
-            <small class="field-error" *ngIf="shouldShowFieldError('fechaEmision')">{{ getFieldErrorMessage('fechaEmision') }}</small>
-          </label>
-
-          <label>
-            Fecha Vencimiento
-            <app-datepicker
-              [value]="manualForm.fechaVencimiento"
-              [disabled]="isSubmitting"
-              [placeholder]="'Ej: ' + suggestedDateIso"
-              [minDate]="todayIso"
-              [hasError]="shouldShowFieldError('fechaVencimiento')"
-              (valueChange)="manualForm.fechaVencimiento = $event; markFieldTouched('fechaVencimiento')"
-              (blurred)="markFieldTouched('fechaVencimiento')">
-            </app-datepicker>
-            <small class="field-error" *ngIf="shouldShowFieldError('fechaVencimiento')">{{ getFieldErrorMessage('fechaVencimiento') }}</small>
-          </label>
-
-          <footer class="modal-footer full-col">
-            <button type="button" class="btn-light" (click)="tryClose()" [disabled]="isSubmitting">Cancelar</button>
-            <button type="submit" class="btn-primary" [disabled]="isSubmitting">
-              Siguiente <app-icon name="arrow_forward" />
-            </button>
-          </footer>
-
-        </form>
-      </section>
-
-      <!-- ════════════════════════════════════════════════════════
-           PASO 2 — Documento Principal (PDF de la factura)
-      ════════════════════════════════════════════════════════ -->
-      <section class="tab-content" *ngIf="manualStep === 2"
-        id="wizard-panel-2" role="tabpanel" aria-labelledby="step-label-2">
-
-        <p class="modal-hint">
-          El PDF de la factura es <strong>opcional</strong>. Puedes continuar sin él y adjuntarlo más tarde.
-        </p>
-
-        <label class="dropzone" [class.dragging]="isDraggingRespaldo"
-          (dragover)="onDragOverRespaldo($event)" (dragleave)="onDragLeaveRespaldo($event)" (drop)="onDropRespaldo($event)">
-          <input type="file" accept="application/pdf" (change)="onRespaldoFileSelected($event)" [disabled]="isSubmitting" />
-          <app-icon class="dropzone-icon" name="picture_as_pdf" />
-          <span>Arrastra el PDF de la factura aquí o haz clic para seleccionar (máx. {{ maxFileSizeMb }} MB).</span>
+        <label>
+          N° Factura (folio)
+          <input type="text" name="numeroFactura" [(ngModel)]="manualForm.numeroFactura" [disabled]="isSubmitting"
+            [class.invalid-field]="shouldShowFieldError('numeroFactura')" placeholder="Ej: 123456789"
+            inputmode="numeric" autocomplete="off"
+            (input)="onNumeroFacturaInput($event)" (blur)="markFieldTouched('numeroFactura')" required />
+          <small class="field-error" *ngIf="shouldShowFieldError('numeroFactura')">{{ getFieldErrorMessage('numeroFactura') }}</small>
         </label>
 
-        <p class="file-validation-error" *ngIf="respaldoValidationError" role="alert">
-          <app-icon name="error_outline" />
-          {{ respaldoValidationError }}
-        </p>
+        <label>
+          RUT Deudor
+          <input type="text" name="rutDeudor" [(ngModel)]="manualForm.rutDeudor" [disabled]="isSubmitting"
+            [class.invalid-field]="shouldShowFieldError('rutDeudor')" placeholder="Ej: 12.345.678-9"
+            autocomplete="off" list="datalist-rut-deudor"
+            (input)="onRutInput($event)" (change)="onRutChange($event)" (blur)="markFieldTouched('rutDeudor')" required />
+          <datalist id="datalist-rut-deudor">
+            <option *ngFor="let d of metadata?.deudoresExistentes; trackBy: trackByDeudorRut" [value]="d.rut" [label]="d.nombre"></option>
+          </datalist>
+          <small class="field-error" *ngIf="shouldShowFieldError('rutDeudor')">{{ getFieldErrorMessage('rutDeudor') }}</small>
+        </label>
 
-        <p class="selected-file" [class.has-file]="!!respaldoFile">
-          <app-icon [name]="respaldoFile ? 'check_circle' : 'info'" />
-          <span *ngIf="respaldoFile">{{ respaldoFile.name }} · {{ formatFileSize(respaldoFile.size) }}</span>
-          <span *ngIf="!respaldoFile">Ningún archivo seleccionado</span>
-        </p>
+        <label class="full-col">
+          Razón Social Deudor
+          <input type="text" name="nombreRazonSocialDeudor" [(ngModel)]="manualForm.nombreRazonSocialDeudor"
+            [disabled]="isSubmitting" [class.invalid-field]="shouldShowFieldError('nombreRazonSocialDeudor')"
+            placeholder="Ej: Comercial Acme SpA" autocomplete="off" list="datalist-nombre-deudor"
+            (input)="onNombreRazonSocialInput()" (change)="onNombreDeudorChange($event)"
+            (blur)="markFieldTouched('nombreRazonSocialDeudor')" required />
+          <datalist id="datalist-nombre-deudor">
+            <option *ngFor="let d of metadata?.deudoresExistentes; trackBy: trackByDeudorRut" [value]="d.nombre" [label]="d.rut"></option>
+          </datalist>
+          <small class="field-error" *ngIf="shouldShowFieldError('nombreRazonSocialDeudor')">{{ getFieldErrorMessage('nombreRazonSocialDeudor') }}</small>
+        </label>
 
-        <p class="upload-error" *ngIf="errorMessage" role="alert">
-          <app-icon name="error" />
-          {{ errorMessage }}
-        </p>
+        <label class="full-col">
+          Monto Total
+          <input type="text" name="montoTotal" [(ngModel)]="manualForm.montoTotal" [disabled]="isSubmitting"
+            [class.invalid-field]="shouldShowFieldError('montoTotal')" placeholder="Ej: 1.250.000"
+            inputmode="numeric" autocomplete="off"
+            (input)="onMontoInput($event)" (blur)="markFieldTouched('montoTotal')" required />
+          <small class="field-error" *ngIf="shouldShowFieldError('montoTotal')">{{ getFieldErrorMessage('montoTotal') }}</small>
+        </label>
 
-        <footer class="modal-footer step2-footer">
-          <button type="button" class="btn-light" (click)="prevStep()" [disabled]="isSubmitting">
-            <app-icon name="arrow_back" /> Anterior
+        <label>
+          Fecha Emisión
+          <app-datepicker
+            [value]="manualForm.fechaEmision"
+            [disabled]="isSubmitting"
+            [placeholder]="'Ej: ' + todayIso"
+            [maxDate]="todayIso"
+            [hasError]="shouldShowFieldError('fechaEmision')"
+            (valueChange)="manualForm.fechaEmision = $event; markFieldTouched('fechaEmision')"
+            (blurred)="markFieldTouched('fechaEmision')">
+          </app-datepicker>
+          <small class="field-error" *ngIf="shouldShowFieldError('fechaEmision')">{{ getFieldErrorMessage('fechaEmision') }}</small>
+        </label>
+
+        <label>
+          Fecha Vencimiento
+          <app-datepicker
+            [value]="manualForm.fechaVencimiento"
+            [disabled]="isSubmitting"
+            [placeholder]="'Ej: ' + suggestedDateIso"
+            [minDate]="todayIso"
+            [hasError]="shouldShowFieldError('fechaVencimiento')"
+            (valueChange)="manualForm.fechaVencimiento = $event; markFieldTouched('fechaVencimiento')"
+            (blurred)="markFieldTouched('fechaVencimiento')">
+          </app-datepicker>
+          <small class="field-error" *ngIf="shouldShowFieldError('fechaVencimiento')">{{ getFieldErrorMessage('fechaVencimiento') }}</small>
+        </label>
+
+        <footer class="modal-footer full-col">
+          <button type="button" app-button variant="light" (click)="tryClose()" [disabled]="isSubmitting">Cancelar</button>
+          <button type="submit" app-button variant="primary" [disabled]="isSubmitting">
+            Siguiente <app-icon name="arrow_forward" />
           </button>
-          <div class="step2-ctas">
-            <button type="button" class="btn-secondary" (click)="nextStep()" [disabled]="isSubmitting">
-              Omitir <app-icon name="skip_next" />
-            </button>
-            <button type="button" class="btn-primary" (click)="nextStep()" [disabled]="isSubmitting">
-              Continuar <app-icon name="arrow_forward" />
-            </button>
-          </div>
         </footer>
-      </section>
 
-      <!-- ════════════════════════════════════════════════════════
-           PASO 3 — Documentación Adjunta
-      ════════════════════════════════════════════════════════ -->
-      <section class="tab-content" *ngIf="manualStep === 3"
-        id="wizard-panel-3" role="tabpanel" aria-labelledby="step-label-3">
+      </form>
+    </section>
 
-        <p class="modal-hint">
-          Adjuntos <strong>opcionales</strong>. Cada categoría admite un archivo.
-          Los archivos se suben automáticamente al seleccionarlos.
-        </p>
+    <!-- ════════════════════════════════════════════════════════
+         PASO 2 — Documento Principal (PDF de la factura)
+    ════════════════════════════════════════════════════════ -->
+    <section class="tab-content" *ngIf="manualStep === 2"
+      id="wizard-panel-2" role="tabpanel" aria-labelledby="step-label-2">
 
-        <!-- Estado de carga de categorías -->
-        <div class="adj-loading" *ngIf="loadingCategorias" aria-live="polite">
-          <app-icon class="spinning" name="sync" />
-          Cargando tipos de documentos disponibles...
+      <p class="modal-hint">
+        El PDF de la factura es <strong>opcional</strong>. Puedes continuar sin él y adjuntarlo más tarde.
+      </p>
+
+      <label class="dropzone" [class.dragging]="isDraggingRespaldo"
+        (dragover)="onDragOverRespaldo($event)" (dragleave)="onDragLeaveRespaldo($event)" (drop)="onDropRespaldo($event)">
+        <input type="file" accept="application/pdf" (change)="onRespaldoFileSelected($event)" [disabled]="isSubmitting" />
+        <app-icon class="dropzone-icon" name="picture_as_pdf" />
+        <span>Arrastra el PDF de la factura aquí o haz clic para seleccionar (máx. {{ maxFileSizeMb }} MB).</span>
+      </label>
+
+      <p class="file-validation-error" *ngIf="respaldoValidationError" role="alert">
+        <app-icon name="error_outline" />
+        {{ respaldoValidationError }}
+      </p>
+
+      <p class="selected-file" [class.has-file]="!!respaldoFile">
+        <app-icon [name]="respaldoFile ? 'check_circle' : 'info'" />
+        <span *ngIf="respaldoFile">{{ respaldoFile.name }} · {{ formatFileSize(respaldoFile.size) }}</span>
+        <span *ngIf="!respaldoFile">Ningún archivo seleccionado</span>
+      </p>
+
+      <p class="upload-error" *ngIf="errorMessage" role="alert">
+        <app-icon name="error" />
+        {{ errorMessage }}
+      </p>
+
+      <footer class="modal-footer step2-footer">
+        <button type="button" app-button variant="light" (click)="prevStep()" [disabled]="isSubmitting">
+          <app-icon name="arrow_back" /> Anterior
+        </button>
+        <div class="step2-ctas">
+          <button type="button" app-button variant="secondary" (click)="nextStep()" [disabled]="isSubmitting">
+            Omitir <app-icon name="skip_next" />
+          </button>
+          <button type="button" app-button variant="primary" (click)="nextStep()" [disabled]="isSubmitting">
+            Continuar <app-icon name="arrow_forward" />
+          </button>
         </div>
+      </footer>
+    </section>
 
-        <!-- Lista de filas de adjuntos -->
-        <div class="adj-list" *ngIf="!loadingCategorias">
+    <!-- ════════════════════════════════════════════════════════
+         PASO 3 — Documentación Adjunta
+    ════════════════════════════════════════════════════════ -->
+    <section class="tab-content" *ngIf="manualStep === 3"
+      id="wizard-panel-3" role="tabpanel" aria-labelledby="step-label-3">
 
-          <div
-            class="adj-row"
-            *ngFor="let adj of adjuntos; trackBy: trackByRowId"
-            [class.adj-row--uploading]="adj.status === 'uploading'"
-            [class.adj-row--success]="adj.status === 'success'"
-            [class.adj-row--error]="adj.status === 'error'">
+      <p class="modal-hint">
+        Adjuntos <strong>opcionales</strong>. Cada categoría admite un archivo.
+        Los archivos se suben automáticamente al seleccionarlos.
+      </p>
 
-            <!-- Selector de categoría -->
-            <div class="adj-cell adj-cell--category">
-              <label class="adj-label" [for]="'cat-' + adj.rowId">Tipo de documento</label>
-              <select
-                [id]="'cat-' + adj.rowId"
-                class="adj-select"
-                [value]="adj.categoriaId"
-                [disabled]="adj.status === 'uploading' || adj.status === 'success'"
-                (change)="onCategoriaCambiada(adj.rowId, $any($event.target).value)">
-                <option value="" disabled>Selecciona una categoría</option>
-                <option
-                  *ngFor="let cat of categoriasDisponibles(adj.rowId)"
-                  [value]="cat.id">
-                  {{ cat.nombre }}
-                </option>
-              </select>
-            </div>
+      <!-- Estado de carga de categorías -->
+      <div class="adj-loading" *ngIf="loadingCategorias" aria-live="polite">
+        <app-icon class="spinning" name="sync" />
+        Cargando tipos de documentos disponibles...
+      </div>
 
-            <!-- Dropzone individual -->
-            <div class="adj-cell adj-cell--dropzone">
-              <label
-                class="adj-dropzone"
-                [class.adj-dragging]="adj.isDragging"
-                [class.adj-pending]="adj.status === 'pending'"
-                (dragover)="onAdjuntoDragOver($event, adj.rowId)"
-                (dragleave)="onAdjuntoDragLeave($event, adj.rowId)"
-                (drop)="onAdjuntoDrop($event, adj.rowId)">
+      <!-- Lista de filas de adjuntos -->
+      <div class="adj-list" *ngIf="!loadingCategorias">
 
-                <!-- Sin archivo (idle) -->
-                <ng-container *ngIf="adj.status === 'idle'">
-                  <app-icon class="adj-dropzone-icon" name="cloud_upload" />
-                  <span class="adj-dropzone-label">Arrastra aquí o haz clic</span>
-                  <span class="adj-dropzone-hint">PDF, JPEG, PNG, WEBP · Máx. {{ maxFileSizeMb }} MB</span>
-                </ng-container>
+        <div
+          class="adj-row"
+          *ngFor="let adj of adjuntos; trackBy: trackByRowId"
+          [class.adj-row--uploading]="adj.status === 'uploading'"
+          [class.adj-row--success]="adj.status === 'success'"
+          [class.adj-row--error]="adj.status === 'error'">
 
-                <!-- Archivo seleccionado y válido (pending — se subirá al crear la factura) -->
-                <ng-container *ngIf="adj.status === 'pending'">
-                  <app-icon class="adj-success-icon" name="check_circle_outline" />
-                  <span class="adj-dropzone-label">{{ adj.file?.name }}</span>
-                  <span class="adj-dropzone-hint">Listo · se subirá al publicar la factura</span>
-                </ng-container>
+          <!-- Selector de categoría -->
+          <div class="adj-cell adj-cell--category">
+            <label class="adj-label" [for]="'cat-' + adj.rowId">Tipo de documento</label>
+            <select
+              [id]="'cat-' + adj.rowId"
+              class="adj-select"
+              [value]="adj.categoriaId"
+              [disabled]="adj.status === 'uploading' || adj.status === 'success'"
+              (change)="onCategoriaCambiada(adj.rowId, $any($event.target).value)">
+              <option value="" disabled>Selecciona una categoría</option>
+              <option
+                *ngFor="let cat of categoriasDisponibles(adj.rowId)"
+                [value]="cat.id">
+                {{ cat.nombre }}
+              </option>
+            </select>
+          </div>
 
-                <!-- Error de validación -->
-                <ng-container *ngIf="adj.status === 'error'">
-                  <app-icon class="adj-error-icon" name="error_outline" />
-                  <span class="adj-dropzone-label">Archivo rechazado</span>
-                  <span class="adj-dropzone-hint">{{ adj.uploadError }}</span>
-                </ng-container>
+          <!-- Dropzone individual -->
+          <div class="adj-cell adj-cell--dropzone">
+            <label
+              class="adj-dropzone"
+              [class.adj-dragging]="adj.isDragging"
+              [class.adj-pending]="adj.status === 'pending'"
+              (dragover)="onAdjuntoDragOver($event, adj.rowId)"
+              (dragleave)="onAdjuntoDragLeave($event, adj.rowId)"
+              (drop)="onAdjuntoDrop($event, adj.rowId)">
 
-                <input
-                  type="file"
-                  accept="application/pdf,image/jpeg,image/png,image/webp"
-                  hidden
-                  (change)="onAdjuntoFileSelected($event, adj.rowId)" />
-              </label>
+              <!-- Sin archivo (idle) -->
+              <ng-container *ngIf="adj.status === 'idle'">
+                <app-icon class="adj-dropzone-icon" name="cloud_upload" />
+                <span class="adj-dropzone-label">Arrastra aquí o haz clic</span>
+                <span class="adj-dropzone-hint">PDF, JPEG, PNG, WEBP · Máx. {{ maxFileSizeMb }} MB</span>
+              </ng-container>
 
-              <!-- Error de validación local -->
-              <small class="file-validation-error adj-validation-error" *ngIf="adj.validationError" role="alert">
-                <app-icon name="error_outline" />
-                {{ adj.validationError }}
-              </small>
-            </div>
+              <!-- Archivo seleccionado y válido (pending — se subirá al crear la factura) -->
+              <ng-container *ngIf="adj.status === 'pending'">
+                <app-icon class="adj-success-icon" name="check_circle_outline" />
+                <span class="adj-dropzone-label">{{ adj.file?.name }}</span>
+                <span class="adj-dropzone-hint">Listo · se subirá al publicar la factura</span>
+              </ng-container>
 
-            <!-- Eliminar fila -->
-            <button
-              type="button"
-              class="adj-remove-btn"
-              [disabled]="isSubmitting"
-              (click)="eliminarFilaAdjunto(adj.rowId)"
-              [attr.aria-label]="'Eliminar adjunto ' + adj.categoriaId">
-              <app-icon name="delete_outline" />
-            </button>
+              <!-- Error de validación -->
+              <ng-container *ngIf="adj.status === 'error'">
+                <app-icon class="adj-error-icon" name="error_outline" />
+                <span class="adj-dropzone-label">Archivo rechazado</span>
+                <span class="adj-dropzone-hint">{{ adj.uploadError }}</span>
+              </ng-container>
 
-          </div><!-- /adj-row -->
+              <input
+                type="file"
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                hidden
+                (change)="onAdjuntoFileSelected($event, adj.rowId)" />
+            </label>
 
-          <!-- Botón para añadir fila -->
+            <!-- Error de validación local -->
+            <small class="file-validation-error adj-validation-error" *ngIf="adj.validationError" role="alert">
+              <app-icon name="error_outline" />
+              {{ adj.validationError }}
+            </small>
+          </div>
+
+          <!-- Eliminar fila -->
           <button
             type="button"
-            class="adj-add-btn"
-            *ngIf="puedeAgregarAdjunto"
-            (click)="agregarFilaAdjunto()">
-            <app-icon name="add" />
-            Agregar documento adjunto
+            class="adj-remove-btn"
+            [disabled]="isSubmitting"
+            (click)="eliminarFilaAdjunto(adj.rowId)"
+            [attr.aria-label]="'Eliminar adjunto ' + adj.categoriaId">
+            <app-icon name="delete_outline" />
           </button>
 
-          <!-- Mensaje cuando no hay categorías disponibles -->
-          <p class="adj-empty-hint" *ngIf="!puedeAgregarAdjunto && adjuntos.length === categorias.length && categorias.length > 0">
-            <app-icon name="info" />
-            Se han añadido todas las categorías disponibles.
-          </p>
+        </div><!-- /adj-row -->
 
-          <!-- Mensaje cuando no hay categorías del backend -->
-          <p class="adj-empty-hint" *ngIf="categorias.length === 0">
-            <app-icon name="info" />
-            No hay categorías de adjuntos disponibles por el momento.
-          </p>
+        <!-- Botón para añadir fila -->
+        <button
+          type="button"
+          class="adj-add-btn"
+          *ngIf="puedeAgregarAdjunto"
+          (click)="agregarFilaAdjunto()">
+          <app-icon name="add" />
+          Agregar documento adjunto
+        </button>
 
-        </div><!-- /adj-list -->
+        <!-- Mensaje cuando no hay categorías disponibles -->
+        <p class="adj-empty-hint" *ngIf="!puedeAgregarAdjunto && adjuntos.length === categorias.length && categorias.length > 0">
+          <app-icon name="info" />
+          Se han añadido todas las categorías disponibles.
+        </p>
 
-        <footer class="modal-footer step2-footer">
-          <button type="button" class="btn-light" (click)="prevStep()" [disabled]="isSubmitting">
-            <app-icon name="arrow_back" /> Anterior
+        <!-- Mensaje cuando no hay categorías del backend -->
+        <p class="adj-empty-hint" *ngIf="categorias.length === 0">
+          <app-icon name="info" />
+          No hay categorías de adjuntos disponibles por el momento.
+        </p>
+
+      </div><!-- /adj-list -->
+
+      <footer class="modal-footer step2-footer">
+        <button type="button" app-button variant="light" (click)="prevStep()" [disabled]="isSubmitting">
+          <app-icon name="arrow_back" /> Anterior
+        </button>
+        <div class="step2-ctas">
+          <button type="button" app-button variant="secondary"
+            (click)="submitWithoutRespaldo()"
+            [disabled]="isSubmitting || !adjuntosListos">
+            <app-icon *ngIf="isSubmitting" class="spinning" name="sync" />
+            {{ isSubmitting ? 'Publicando...' : 'Publicar sin respaldo' }}
           </button>
-          <div class="step2-ctas">
-            <button type="button" class="btn-secondary"
-              (click)="submitWithoutRespaldo()"
-              [disabled]="isSubmitting || !adjuntosListos">
-              <app-icon *ngIf="isSubmitting" class="spinning" name="sync" />
-              {{ isSubmitting ? 'Publicando...' : 'Publicar sin respaldo' }}
-            </button>
-            <button type="button" class="btn-primary"
-              [disabled]="!respaldoFile || !!respaldoValidationError || isSubmitting || !adjuntosListos"
-              (click)="submitWithRespaldo()">
-              <app-icon *ngIf="isSubmitting" class="spinning" name="sync" />
-              {{ isSubmitting ? 'Publicando...' : 'Publicar con respaldo' }}
-            </button>
-          </div>
-        </footer>
+          <button type="button" app-button variant="primary"
+            [disabled]="!respaldoFile || !!respaldoValidationError || isSubmitting || !adjuntosListos"
+            (click)="submitWithRespaldo()">
+            <app-icon *ngIf="isSubmitting" class="spinning" name="sync" />
+            {{ isSubmitting ? 'Publicando...' : 'Publicar con respaldo' }}
+          </button>
+        </div>
+      </footer>
 
-      </section>
+    </section>
 
-    </ng-container>
+  </div>
+</app-modal>
 
-  </section>
-</div>
+<!-- Confirmación de abandono. Antes era un bloque que reemplazaba el cuerpo del
+     wizard; ahora es un diálogo propio encima, y el wizard queda visible detrás.
+     Va como hermano (no anidado) para que su position:fixed no dependa del
+     containing block que crea el backdrop-filter de app-modal. -->
+<app-confirm-dialog
+  [open]="showCloseConfirm"
+  title="¿Abandonar la factura?"
+  message="Los datos no se guardarán."
+  cancelLabel="Continuar editando"
+  confirmLabel="Sí, abandonar"
+  [danger]="true"
+  (confirmed)="confirmClose()"
+  (cancelled)="cancelClose()">
+</app-confirm-dialog>
 
