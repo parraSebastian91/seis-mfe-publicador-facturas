@@ -1,6 +1,9 @@
 import { NgModule, LOCALE_ID } from '@angular/core';
 import { CommonModule, registerLocaleData } from '@angular/common';
-import localeEsCl from '@angular/common/locales/es-CL';
+// Copia local de los datos de locale: el bare specifier de
+// '@angular/common/locales/es-CL' no lo resuelve ningún import map de
+// native-federation y hacía que el MFE no cargara. Ver locale-es-CL.ts.
+import localeEsCl from './locale-es-CL';
 import { FormsModule } from '@angular/forms';
 
 import { PublicadorFacturasRoutingModule } from './publicador-facturas-routing.module';

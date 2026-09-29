@@ -1,8 +1,7 @@
 import { Component, computed, EffectRef, Injector, NgZone, OnDestroy, OnInit, Signal, effect, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Subscription, firstValueFrom } from 'rxjs';
-import { AutorizacionPublicacionDto, createdBy, FacturaCreateRequestDto, facturaEstado, FacturaResponseUpdateDTO, FacturaType, NotificationSocketService, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos } from 'shared-utils';
-import { FacturasService } from '../../../../../shared-utils/src/lib/services/facturas/factura.service';
+import { AutorizacionPublicacionDto, FacturaCreateRequestDto, FacturaResponseUpdateDTO, FacturaType, FacturasService, NotificationSocketService, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos, createdBy, facturaEstado } from 'shared-utils';
 import { FacturaData, FacturaFormularioPublicacion, ModalPublishMetadata, AdjuntoParaSubir } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
 import { FacturaConfirmRequestEvent, FacturaRespaldoRequestEvent } from '../component/factura-view/factura-view.component';

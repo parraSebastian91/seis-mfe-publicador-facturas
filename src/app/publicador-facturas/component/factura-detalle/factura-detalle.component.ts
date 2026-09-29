@@ -1,7 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { FacturasService } from '../../../../../../shared-utils/src/lib/services/facturas/factura.service';
-import { facturaEstado, FacturaType, OfertaDetalleType, ofertaEstado } from 'shared-utils';
+import { FacturaType, FacturasService, OfertaDetalleType, facturaEstado, ofertaEstado } from 'shared-utils';
 
 @Component({
   selector: 'app-factura-detalle',
