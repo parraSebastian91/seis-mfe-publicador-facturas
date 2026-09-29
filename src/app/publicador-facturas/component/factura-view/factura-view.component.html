@@ -30,7 +30,7 @@
         <!-- Indicador visual de notificaciones/ofertas (sin click para evitar UX confusa) -->
         <span class="notif-indicator" [class.notif-indicator--active]="ofertasCount() > 0"
           [attr.aria-label]="ofertasCount() > 0 ? ofertasCount() + ' ofertas activas' : undefined">
-          <app-icon aria-hidden="true" [name]="ofertasCount() > 0 ? 'notifications_active' : 'notifications_none'" />
+          <app-icon aria-hidden="true" [name]="ofertasCount() > 0 ? 'notifications_active' : 'notifications'" />
           <span class="notif-badge" *ngIf="ofertasCount() > 0" aria-hidden="true">
             {{ ofertasCount() }}
           </span>
