@@ -12,7 +12,7 @@ import { CommonModule } from '@angular/common';
 import {
   BadgeComponent, BadgeVariant, ButtonComponent, DatepickerComponent,
   DrawerContent, DrawerService, FormFieldComponent, IconComponent,
-  InputComponent, RutInputComponent,
+  InputComponent, PasoStepper, RutInputComponent, StepperComponent,
 } from 'shared-utils';
 
 import { ZipService } from '../../service/zip.service';
@@ -57,6 +57,7 @@ export type EventoPublicacion =
   imports: [
     CommonModule, BadgeComponent, ButtonComponent, DatepickerComponent,
     FormFieldComponent, IconComponent, InputComponent, RutInputComponent,
+    StepperComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './publicacion-drawer.component.html',
@@ -96,6 +97,41 @@ export class PublicacionDrawerComponent
   readonly enviando = signal(false);
 
   readonly maxArchivos = 50;
+
+  // ── Pasos ────────────────────────────────────────────────────────────────
+  //
+  // El orden es el inverso al del wizard anterior, y es el punto: antes se
+  // tipeaban los datos y RECIÉN DESPUÉS se subía el documento. Si el documento
+  // trae los datos, pedirlos primero es pedirle al cedente que transcriba lo
+  // que el sistema puede leer.
+
+  /** 0 = subir, 1 = revisar, 2 = enviar. */
+  readonly paso = signal(0);
+
+  readonly pasos = computed<PasoStepper[]>(() => [
+    { etiqueta: 'Subir facturas' },
+    { etiqueta: 'Revisar', habilitado: this.entradas().length > 0 },
+    { etiqueta: 'Enviar', habilitado: this.enviables().length > 0 || this.yaSeEnvio() },
+  ]);
+
+  /** `true` una vez que la tanda salió: el paso 3 deja de ser alcanzable hacia atrás. */
+  readonly yaSeEnvio = computed(() => this.enviadas().length > 0 || this.conError().length > 0);
+
+  irAPaso(indice: number): void {
+    // No se vuelve atrás una vez enviada la tanda: los archivos ya salieron y
+    // "editar" lo que está procesándose del otro lado sería una mentira.
+    if (this.yaSeEnvio() && indice < 2) return;
+    this.paso.set(indice);
+  }
+
+  siguiente(): void {
+    if (this.paso() === 0 && this.entradas().length) this.paso.set(1);
+    else if (this.paso() === 1 && this.enviables().length) this.paso.set(2);
+  }
+
+  anterior(): void {
+    if (this.paso() > 0 && !this.yaSeEnvio()) this.paso.update((p) => p - 1);
+  }
 
   /** Hoy, en ISO, para acotar los calendarios. */
   readonly hoyIso = new Date().toISOString().slice(0, 10);
@@ -193,6 +229,7 @@ export class PublicacionDrawerComponent
     if (this.entradas().length === 1) {
       this.expandida.set(this.entradas()[0].id);
     }
+    if (nuevas.length) this.paso.set(1);     // ya hay qué revisar
     this.cdr.markForCheck();
   }
 
@@ -239,6 +276,7 @@ export class PublicacionDrawerComponent
     };
     this.entradas.update((prev) => [...prev, entrada]);
     this.expandida.set(entrada.id);
+    this.paso.set(1);
     this.cdr.markForCheck();
   }
 

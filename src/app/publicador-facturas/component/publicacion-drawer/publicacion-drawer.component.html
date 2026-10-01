@@ -1,6 +1,10 @@
 <div class="pub" [class.pub--masivo]="modo() === 'masivo'">
 
-  <!-- ── Zona de entrada ──────────────────────────────────────────────── -->
+  <app-stepper class="pub__stepper" [pasos]="pasos()" [actual]="paso()"
+               ariaLabel="Progreso de la publicación" (irA)="irAPaso($event)" />
+
+  <!-- ── Paso 1 · Subir ───────────────────────────────────────────────── -->
+  @if (paso() === 0) {
   <section
     class="pub__dropzone"
     [class.pub__dropzone--activa]="arrastrando()"
@@ -33,8 +37,7 @@
     </p>
   }
 
-  <!-- ── Sin archivos: los otros caminos ──────────────────────────────── -->
-  @if (modo() === 'vacio') {
+  <!-- Los otros caminos de entrada -->
     <div class="pub__escapes">
       <button type="button" class="pub__escape" (click)="sinRespaldo()">
         <app-icon name="edit" />
@@ -52,10 +55,35 @@
         </span>
       </button>
     </div>
+
+    @if (entradas().length) {
+      <footer class="pub__pie">
+        <span class="pub__pie-info">{{ entradas().length }} cargada(s)</span>
+        <button type="button" app-button variant="primary" (click)="siguiente()">
+          Revisar <app-icon name="arrow_forward" />
+        </button>
+      </footer>
+    }
   }
 
-  <!-- ── Consolidado ──────────────────────────────────────────────────── -->
-  @if (modo() !== 'vacio') {
+  <!-- ── Paso 2 · Revisar ─────────────────────────────────────────────── -->
+  @if (paso() === 1) {
+    <section class="pub__dropzone pub__dropzone--compacta"
+             [class.pub__dropzone--activa]="arrastrando()"
+             (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)"
+             (drop)="onDrop($event)">
+      <label class="pub__drop-label">
+        <input type="file" accept="application/pdf,.pdf,.zip,application/zip"
+               multiple hidden (change)="onSeleccion($event)" />
+        <app-icon class="pub__drop-icon" [name]="leyendoZip() ? 'sync' : 'cloud_upload'"
+                  [class.pub__girando]="leyendoZip()" />
+        <span class="pub__drop-titulo">Agregar más facturas</span>
+      </label>
+    </section>
+  }
+
+  <!-- ── Consolidado: se ve en revisar y en enviar ────────────────────── -->
+  @if (paso() > 0 && modo() !== 'vacio') {
     <section class="pub__lista" aria-label="Facturas a publicar">
 
       @if (modo() === 'masivo') {
@@ -236,20 +264,43 @@
 
     <!-- ── Pie ──────────────────────────────────────────────────────── -->
     <footer class="pub__pie">
-      <button type="button" app-button variant="light" (click)="cerrar()"
-              [disabled]="enviando()">
-        {{ enviadas().length ? 'Listo' : 'Cancelar' }}
-      </button>
-      <button type="button" app-button variant="primary"
-              [disabled]="!enviables().length || enviando()" (click)="publicar()">
-        @if (enviando()) {
-          <app-icon name="sync" class="pub__girando" /> Enviando…
-        } @else if (modo() === 'masivo') {
-          Enviar {{ enviables().length }} facturas
-        } @else {
-          Enviar factura
+      @if (paso() === 1) {
+        <button type="button" app-button variant="light" (click)="anterior()">
+          <app-icon name="arrow_back" /> Atrás
+        </button>
+        <span class="pub__pie-info">
+          @if (enviables().length) {
+            {{ enviables().length }} lista(s) para enviar
+          } @else {
+            Completá los datos para poder continuar
+          }
+        </span>
+        <button type="button" app-button variant="primary"
+                [disabled]="!enviables().length" (click)="siguiente()">
+          Continuar <app-icon name="arrow_forward" />
+        </button>
+      } @else {
+        <button type="button" app-button variant="light" (click)="cerrar()"
+                [disabled]="enviando()">
+          {{ yaSeEnvio() ? 'Listo' : 'Cancelar' }}
+        </button>
+        @if (!yaSeEnvio()) {
+          <button type="button" app-button variant="light" (click)="anterior()"
+                  [disabled]="enviando()">
+            <app-icon name="arrow_back" /> Atrás
+          </button>
         }
-      </button>
+        <button type="button" app-button variant="primary"
+                [disabled]="!enviables().length || enviando()" (click)="publicar()">
+          @if (enviando()) {
+            <app-icon name="sync" class="pub__girando" /> Enviando…
+          } @else if (modo() === 'masivo') {
+            Enviar {{ enviables().length }} facturas
+          } @else {
+            Enviar factura
+          }
+        </button>
+      }
     </footer>
   }
 </div>
