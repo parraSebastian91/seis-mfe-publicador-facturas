@@ -10,6 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import {
   BadgeComponent, BadgeVariant, ButtonComponent, DatepickerComponent,
   DrawerContent, DrawerService, FormFieldComponent, IconComponent,
@@ -35,12 +36,18 @@ export interface PublicacionDrawerInputs {
   readonly enviarUna?: (entrada: EntradaPublicacion) => Promise<ResultadoEntrada>;
   /**
    * Busca, entre las facturas que la página ya tiene en memoria, la que el
-   * pipeline creó a partir de este archivo. `undefined` mientras no aparezca.
+   * pipeline creó a partir de esta subida. `undefined` mientras no aparezca.
+   *
+   * Se identifica por `correlationId`, que es el que viajó con el archivo por
+   * todo el pipeline. El nombre va solo como respaldo para lo que se haya
+   * subido antes de que esto existiera.
    *
    * Se consulta en memoria, sin red: la página mantiene su listado al día por
    * el socket de notificaciones, así que sondear es gratis.
    */
-  readonly buscarPorArchivo?: (nombreArchivo: string) => DatosLeidos | undefined;
+  readonly buscarFactura?: (
+    pistas: { correlationId?: string; nombreArchivo: string },
+  ) => DatosLeidos | undefined;
 }
 
 /** Lo que el pipeline terminó leyendo del documento. */
@@ -76,7 +83,7 @@ export type EventoPublicacion =
   selector: 'app-publicacion-drawer',
   standalone: true,
   imports: [
-    CommonModule, BadgeComponent, ButtonComponent, DatepickerComponent,
+    CommonModule, FormsModule, BadgeComponent, ButtonComponent, DatepickerComponent,
     FormFieldComponent, IconComponent, InputComponent, RutInputComponent,
     SkeletonComponent, StepperComponent,
   ],
@@ -166,11 +173,6 @@ export class PublicacionDrawerComponent
   sePuedeEnviarEntrada = sePuedeEnviar;
 
   // ── Edición de los datos declarados ──────────────────────────────────────
-
-  /** Desde un `<input>`: toma el valor del evento. */
-  editar(id: string, campo: keyof DatosFactura, event: Event): void {
-    this.editarValor(id, campo, (event.target as HTMLInputElement).value);
-  }
 
   /** El rut-input avisa si el dígito verificador cuadra. */
   marcarRutValido(id: string, valido: boolean): void {
@@ -324,7 +326,12 @@ export class PublicacionDrawerComponent
       try {
         const r = await enviar(entrada);
         this.#actualizar(entrada.id, r.ok
-          ? { estado: 'procesando', detalle: undefined, subidaEn: performance.now() }
+          ? {
+              estado: 'procesando',
+              detalle: undefined,
+              subidaEn: performance.now(),
+              correlationId: r.correlationId,
+            }
           : { estado: 'error', detalle: r.mensaje ?? 'No se pudo enviar.' });
       } catch (e) {
         this.#actualizar(entrada.id, {
@@ -375,10 +382,13 @@ export class PublicacionDrawerComponent
       // Se lee en cada vuelta y no una sola vez al arrancar: capturarlo al
       // inicio hacía que, si el caller todavía no lo había provisto, no se
       // usara nunca aunque apareciera después.
-      const buscar = this.drawerInputs.buscarPorArchivo;
+      const buscar = this.drawerInputs.buscarFactura;
 
       for (const entrada of pendientes) {
-        const leido = buscar?.(entrada.nombre);
+        const leido = buscar?.({
+          correlationId: entrada.correlationId,
+          nombreArchivo: entrada.nombre,
+        });
         if (leido) {
           this.#actualizar(entrada.id, {
             estado: 'procesada',

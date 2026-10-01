@@ -167,7 +167,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
         // le inyecta desde acá, que es donde viven los servicios.
         inputs: {
           enviarUna: (entrada) => this.enviarEntrada(entrada),
-          buscarPorArchivo: (nombre) => this.buscarFacturaPorArchivo(nombre),
+          buscarFactura: (pistas) => this.buscarFacturaDeLaSubida(pistas),
         },
         width: '880px',
       })
@@ -207,12 +207,20 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
    * La solución de fondo es que la subida devuelva un identificador que el
    * pipeline propague hasta la factura. Queda anotado.
    */
-  private buscarFacturaPorArchivo(nombreArchivo: string): DatosLeidos | undefined {
-    const base = nombreArchivo.replace(/\.[^.]+$/, '').replace(/\s+/g, '_').toLowerCase();
-    if (!base) return undefined;
-
+  private buscarFacturaDeLaSubida(
+    pistas: { correlationId?: string; nombreArchivo: string },
+  ): DatosLeidos | undefined {
     const factura = this.facturas.find((f) =>
-      (f.url_factura ?? '').toLowerCase().includes(base));
+      // Lo bueno: el correlationId viajó con el archivo por todo el pipeline
+      // (BFF → orquestador → worker → ms-core) y termina en la factura, así que
+      // la identificación es exacta.
+      (!!pistas.correlationId && f.correlationId === pistas.correlationId)
+      // Respaldo, para lo subido antes de que el correlationId se eligiera
+      // desde acá: el worker nombra la variante a partir del archivo. Es
+      // heurístico —dos archivos con el mismo nombre no se distinguen— y por
+      // eso es lo segundo que se prueba, no lo primero.
+      || this.coincidePorNombre(f, pistas.nombreArchivo));
+
     if (!factura) return undefined;
 
     return {
@@ -221,23 +229,32 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       rutDeudor: factura.deudorRut,
       nombreRazonSocialDeudor: factura.deudorNombre,
       montoTotal: factura.montoTotal,
-      // `FacturaType` no expone fecha de emisión; el vencimiento sí.
       fechaVencimiento: factura.fechaVencimiento
         ? String(factura.fechaVencimiento).slice(0, 10) : undefined,
     };
+  }
+
+  private coincidePorNombre(factura: FacturaType, nombreArchivo: string): boolean {
+    const base = nombreArchivo.replace(/\.[^.]+$/, '').replace(/\s+/g, '_').toLowerCase();
+    return !!base && (factura.url_factura ?? '').toLowerCase().includes(base);
   }
 
   private async enviarEntrada(entrada: EntradaPublicacion): Promise<ResultadoEntrada> {
     try {
       if (entrada.archivo) {
         const { uuid } = await this.resolveCurrentUserName();
+        // Se elige el correlationId acá para poder reconocer después la factura
+        // que nazca de este archivo. Sin esto, el interceptor genera uno al
+        // vuelo y quien subió nunca se entera de cuál fue.
+        const correlationId = crypto.randomUUID();
         const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(
           this.apiBase, PATH_TYPES.DOCUMENT, entrada.archivo, uuid, this.orgSelected(),
+          undefined, correlationId,
         );
         if (!respuesta?.objectUrl) {
           return { ok: false, mensaje: 'El storage no devolvió una URL de subida.' };
         }
-        return { ok: true };
+        return { ok: true, correlationId: respuesta.correlationId };
       }
 
       // El formulario declara el monto como texto (con separadores de miles);

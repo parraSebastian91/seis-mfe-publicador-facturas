@@ -53,6 +53,12 @@ export interface EntradaPublicacion {
   detalle?: string;
   /** Id de la factura que el pipeline creó, cuando ya se la pudo identificar. */
   facturaId?: string;
+  /**
+   * Identificador con el que esta subida viajó por el pipeline. Es lo que ata
+   * el archivo con la factura que nazca de él: va en `X-Correlation-Id` y
+   * termina en `factura.correlation_id`.
+   */
+  correlationId?: string;
   /** `performance.now()` del momento en que se subió, para saber cuánto esperar. */
   subidaEn?: number;
   /** Los datos que el cedente declara. Vacíos cuando los va a poner el documento. */
@@ -96,6 +102,8 @@ export const INTERVALO_SONDEO_MS = 2_000;
 export interface ResultadoEntrada {
   readonly ok: boolean;
   readonly mensaje?: string;
+  /** Con el que viajó la subida, para reconocer después lo que el pipeline cree. */
+  readonly correlationId?: string;
 }
 
 /** Campos que el cedente tiene que declarar cuando no hay documento que leer. */

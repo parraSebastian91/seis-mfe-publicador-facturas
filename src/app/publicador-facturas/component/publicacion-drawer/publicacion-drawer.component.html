@@ -165,10 +165,11 @@
                 <div class="pub__form">
                   <app-form-field label="N° de factura"
                                   [required]="entrada.origen === 'manual'">
-                    <input app-input type="text" inputmode="numeric"
-                           [value]="entrada.datos.numeroFactura"
-                           (input)="editar(entrada.id, 'numeroFactura', $event)"
-                           placeholder="Ej: 123456" />
+                    <app-input type="text" inputmode="numeric"
+                               placeholder="Ej: 123456"
+                               [ngModel]="entrada.datos.numeroFactura"
+                               [ngModelOptions]="{ standalone: true }"
+                               (ngModelChange)="editarValor(entrada.id, 'numeroFactura', $event)" />
                   </app-form-field>
 
                   <app-form-field label="RUT del deudor"
@@ -181,18 +182,19 @@
 
                   <app-form-field label="Nombre o razón social del deudor"
                                   [required]="entrada.origen === 'manual'">
-                    <input app-input type="text"
-                           [value]="entrada.datos.nombreRazonSocialDeudor"
-                           (input)="editar(entrada.id, 'nombreRazonSocialDeudor', $event)"
-                           placeholder="Ej: Comercial Acme SpA" />
+                    <app-input type="text" placeholder="Ej: Comercial Acme SpA"
+                               [ngModel]="entrada.datos.nombreRazonSocialDeudor"
+                               [ngModelOptions]="{ standalone: true }"
+                               (ngModelChange)="editarValor(entrada.id, 'nombreRazonSocialDeudor', $event)" />
                   </app-form-field>
 
                   <app-form-field label="Monto total"
                                   [required]="entrada.origen === 'manual'">
-                    <input app-input type="text" inputmode="numeric"
-                           [value]="entrada.datos.montoTotal"
-                           (input)="editar(entrada.id, 'montoTotal', $event)"
-                           placeholder="Ej: 1.250.000" />
+                    <app-input type="text" inputmode="numeric"
+                               placeholder="Ej: 1.250.000"
+                               [ngModel]="entrada.datos.montoTotal"
+                               [ngModelOptions]="{ standalone: true }"
+                               (ngModelChange)="editarValor(entrada.id, 'montoTotal', $event)" />
                   </app-form-field>
 
                   <app-form-field label="Fecha de emisión">
