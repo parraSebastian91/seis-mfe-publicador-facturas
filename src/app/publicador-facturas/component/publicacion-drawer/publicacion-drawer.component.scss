@@ -1,0 +1,235 @@
+// Solo tokens semánticos del design system: cero hex. Ver
+// docs/frontend/seis-app-frontend/findings/design-system-audit/
+
+.pub {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 100%;
+}
+
+// ── Zona de entrada ────────────────────────────────────────────────────
+.pub__dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  transition: border-color 140ms ease, background 140ms ease;
+
+  &--activa {
+    border-color: var(--color-brand-primary);
+    background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+  }
+
+  // Con facturas cargadas el drop sigue disponible pero deja de ser el centro.
+  &--compacta .pub__drop-label {
+    padding: var(--space-3);
+    flex-direction: row;
+    gap: var(--space-2);
+  }
+  &--compacta .pub__drop-icon { font-size: 1.25rem; }
+  &--compacta .pub__drop-titulo { font-size: .875rem; }
+  &--compacta .pub__drop-hint { display: none; }
+}
+
+.pub__drop-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-6) var(--space-4);
+  cursor: pointer;
+  text-align: center;
+}
+
+.pub__drop-icon {
+  font-size: 2.5rem;
+  color: var(--color-brand-primary);
+}
+
+.pub__drop-titulo {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.pub__drop-hint {
+  font-size: .8125rem;
+  color: var(--color-text-secondary);
+}
+
+.pub__girando { animation: pub-girar 1s linear infinite; }
+@keyframes pub-girar { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pub__girando { animation: none; }
+}
+
+.pub__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  color: var(--color-error);
+  font-size: .8125rem;
+}
+
+// ── Los otros caminos de entrada ───────────────────────────────────────
+.pub__escapes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pub__escape {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 140ms ease, background 140ms ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--color-brand-primary);
+    background: var(--color-bg-elevated);
+  }
+
+  span {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  small { color: var(--color-text-secondary); font-size: .75rem; }
+
+  &--inactivo { opacity: .5; cursor: not-allowed; }
+}
+
+// ── Consolidado ────────────────────────────────────────────────────────
+.pub__lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.pub__resumen {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pub__resumen-total {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-right: auto;
+}
+
+.pub__fila {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  overflow: hidden;
+
+  &--abierta { border-color: var(--color-brand-primary); }
+}
+
+.pub__fila-cabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3);
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+
+  &:hover { background: var(--color-bg-surface); }
+}
+
+.pub__fila-estado { flex-shrink: 0; }
+
+.pub__fila-nombre {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  font-size: .875rem;
+  font-weight: 600;
+
+  small {
+    font-weight: 400;
+    font-size: .75rem;
+    color: var(--color-text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.pub__fila-chevron { flex-shrink: 0; color: var(--color-text-secondary); }
+
+.pub__fila-detalle {
+  padding: 0 var(--space-3) var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.pub__fila-aviso {
+  margin: var(--space-3) 0 0;
+  font-size: .8125rem;
+  color: var(--color-text-secondary);
+}
+
+.pub__campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+}
+
+.pub__campo {
+  dt {
+    font-size: .6875rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--color-text-secondary);
+  }
+  dd {
+    margin: 2px 0 0;
+    font-size: .875rem;
+    color: var(--color-text-primary);
+  }
+}
+
+.pub__campo--vacio { color: var(--color-text-disabled); font-style: italic; }
+
+.pub__fila-acciones {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-3);
+}
+
+// ── Pie ────────────────────────────────────────────────────────────────
+.pub__pie {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  margin-top: auto;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+}

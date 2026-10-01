@@ -1,1 +1,9 @@
 <router-outlet />
+
+<!-- Host del drawer.
+     `DrawerService` es un singleton de shared-utils que solo setea una señal: sin
+     un host montado, `open()` no muestra nada y falla en silencio. Dentro del
+     shell lo monta `seis-portal`; acá se monta el propio para que el MFE siga
+     funcionando standalone. Dos hosts no se pisan: el que esté en el DOM del
+     documento activo es el que renderiza. -->
+<app-drawer />

@@ -1,0 +1,141 @@
+<div class="pub" [class.pub--masivo]="modo() === 'masivo'">
+
+  <!-- ── Zona de entrada ──────────────────────────────────────────────── -->
+  <section
+    class="pub__dropzone"
+    [class.pub__dropzone--activa]="arrastrando()"
+    [class.pub__dropzone--compacta]="modo() !== 'vacio'"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)">
+
+    <label class="pub__drop-label">
+      <input type="file" accept="application/pdf,.pdf,.zip,application/zip"
+             multiple hidden (change)="onSeleccion($event)" />
+
+      <app-icon class="pub__drop-icon" [name]="leyendoZip() ? 'sync' : 'cloud_upload'"
+                [class.pub__girando]="leyendoZip()" />
+
+      <span class="pub__drop-titulo">
+        {{ leyendoZip() ? 'Abriendo el ZIP…'
+           : modo() === 'vacio' ? 'Soltá tus facturas acá'
+           : 'Agregar más facturas' }}
+      </span>
+      <span class="pub__drop-hint">
+        PDF sueltos o un ZIP con varios · hasta {{ maxArchivos }} por tanda
+      </span>
+    </label>
+  </section>
+
+  @if (errorCarga()) {
+    <p class="pub__error" role="alert">
+      <app-icon name="error_outline" size="16" /> {{ errorCarga() }}
+    </p>
+  }
+
+  <!-- ── Sin archivos: los otros caminos ──────────────────────────────── -->
+  @if (modo() === 'vacio') {
+    <div class="pub__escapes">
+      <button type="button" class="pub__escape" (click)="sinRespaldo()">
+        <app-icon name="edit" />
+        <span>
+          <strong>No tengo el respaldo ahora</strong>
+          <small>Cargás los datos a mano y subís el PDF después</small>
+        </span>
+      </button>
+
+      <button type="button" class="pub__escape pub__escape--inactivo" disabled>
+        <app-icon name="cloud_download" />
+        <span>
+          <strong>Traer desde el SII</strong>
+          <small>Próximamente</small>
+        </span>
+      </button>
+    </div>
+  }
+
+  <!-- ── Consolidado ──────────────────────────────────────────────────── -->
+  @if (modo() !== 'vacio') {
+    <section class="pub__lista" aria-label="Facturas a publicar">
+
+      @if (modo() === 'masivo') {
+        <header class="pub__resumen">
+          <span class="pub__resumen-total">{{ entradas().length }} facturas</span>
+          @if (publicables().length) {
+            <app-badge variant="success">{{ publicables().length }} listas</app-badge>
+          }
+          @if (requierenAtencion().length) {
+            <app-badge variant="warning">{{ requierenAtencion().length }} a revisar</app-badge>
+          }
+          @if (enCola().length) {
+            <app-badge variant="neutral">{{ enCola().length }} en cola</app-badge>
+          }
+        </header>
+      }
+
+      @for (entrada of entradas(); track trackById($index, entrada)) {
+        <article class="pub__fila" [class.pub__fila--abierta]="expandida() === entrada.id">
+
+          <button type="button" class="pub__fila-cabecera"
+                  (click)="alternarExpandida(entrada.id)"
+                  [attr.aria-expanded]="expandida() === entrada.id">
+            <app-icon class="pub__fila-estado" [name]="iconoEstado(entrada.estado)"
+                      [class.pub__girando]="entrada.estado === 'procesando'" />
+
+            <span class="pub__fila-nombre">
+              {{ entrada.datos.numeroFactura || entrada.nombre }}
+              @if (entrada.datos.nombreRazonSocialDeudor) {
+                <small>{{ entrada.datos.nombreRazonSocialDeudor }}</small>
+              }
+            </span>
+
+            <app-badge [variant]="tonoEstado(entrada.estado)">
+              {{ etiquetaEstado(entrada.estado) }}
+            </app-badge>
+
+            <app-icon class="pub__fila-chevron"
+                      [name]="expandida() === entrada.id ? 'expand_less' : 'expand_more'" />
+          </button>
+
+          @if (expandida() === entrada.id) {
+            <div class="pub__fila-detalle">
+              @if (entrada.detalle) {
+                <p class="pub__fila-aviso">{{ entrada.detalle }}</p>
+              }
+
+              <dl class="pub__campos">
+                @for (campo of campos(entrada.datos); track campo.etiqueta) {
+                  <div class="pub__campo">
+                    <dt>{{ campo.etiqueta }}</dt>
+                    <dd [class.pub__campo--vacio]="!campo.valor">
+                      {{ campo.valor || 'Sin dato' }}
+                    </dd>
+                  </div>
+                }
+              </dl>
+
+              <footer class="pub__fila-acciones">
+                <button type="button" app-button variant="light" (click)="quitar(entrada.id)">
+                  <app-icon name="delete_outline" /> Quitar
+                </button>
+              </footer>
+            </div>
+          }
+        </article>
+      }
+    </section>
+
+    <!-- ── Pie ──────────────────────────────────────────────────────── -->
+    <footer class="pub__pie">
+      <button type="button" app-button variant="light" (click)="cerrar()">Cancelar</button>
+      <button type="button" app-button variant="primary"
+              [disabled]="!publicables().length" (click)="publicar()">
+        @if (modo() === 'masivo') {
+          Publicar las {{ publicables().length }} listas
+        } @else {
+          Publicar factura
+        }
+      </button>
+    </footer>
+  }
+</div>

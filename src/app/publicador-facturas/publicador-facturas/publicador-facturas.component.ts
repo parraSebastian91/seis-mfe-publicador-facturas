@@ -1,6 +1,8 @@
 import { Component, computed, EffectRef, Injector, NgZone, OnDestroy, OnInit, Signal, effect, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Subscription, firstValueFrom } from 'rxjs';
+import { DrawerService } from 'shared-utils';
+import { PublicacionDrawerComponent, EventoPublicacion } from '../component/publicacion-drawer/publicacion-drawer.component';
 import { AutorizacionPublicacionDto, FacturaCreateRequestDto, FacturaResponseUpdateDTO, FacturaType, FacturasService, NotificationSocketService, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos, createdBy, facturaEstado } from 'shared-utils';
 import { FacturaData, FacturaFormularioPublicacion, ModalPublishMetadata, AdjuntoParaSubir } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
@@ -83,6 +85,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   private onTncDismissedCallback?: () => void;
 
   private readonly notificationSocketService = inject(NotificationSocketService);
+  private readonly drawerService = inject(DrawerService);
   private socketEffect?: EffectRef;
 
   constructor(
@@ -137,9 +140,47 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Abre el flujo de publicación en el drawer lateral.
+   *
+   * Reemplaza al wizard modal de 3 pasos: el modal quedaba chico para un
+   * consolidado de varias facturas, y pedía tipear los datos ANTES de subir el
+   * documento —al revés de lo que conviene cuando el documento los trae—.
+   *
+   * El modal viejo sigue en el árbol mientras el flujo nuevo se termina; se
+   * puede volver a él con `usarFlujoLegacy`.
+   */
   openUploadModal(): void {
     this.modalErrorMessage = '';
-    this.isPublicationModalOpen = true;
+
+    if (this.usarFlujoLegacy) {
+      this.isPublicationModalOpen = true;
+      return;
+    }
+
+    this.drawerService
+      .open<unknown, EventoPublicacion>({
+        title: 'Publicar facturas',
+        component: PublicacionDrawerComponent,
+        inputs: {},
+        width: '880px',
+      })
+      .subscribe((evento) => this.manejarEventoPublicacion(evento));
+  }
+
+  /** Escape al wizard anterior mientras el flujo nuevo no cubra todo. */
+  usarFlujoLegacy = false;
+
+  private manejarEventoPublicacion(evento: EventoPublicacion): void {
+    if (evento.tipo === 'cerrar') {
+      return;
+    }
+    if (evento.tipo === 'publicar') {
+      // TODO(publicacion-drawer): conectar con publicarFactura() por cada
+      // entrada. Hoy el drawer solo arma el lote; la publicación real sigue
+      // pasando por el flujo existente.
+      console.info('[publicacion] lote listo para publicar:', evento.entradas.length);
+    }
   }
 
   closePublicationModal(): void {
