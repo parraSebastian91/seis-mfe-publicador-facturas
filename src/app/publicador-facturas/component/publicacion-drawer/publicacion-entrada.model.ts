@@ -4,25 +4,32 @@
  * El modo (individual o masivo) NO lo elige el usuario: se infiere de cuántos
  * archivos entraron. Un ZIP se abre y pasa a ser N archivos, así que deja de ser
  * un caso aparte.
+ *
+ * ⚠️ Sobre los estados: el navegador **no lee el documento**. El PDF se sube por
+ * presigned URL y de ahí lo toma el pipeline (orquestador → worker → ms-core),
+ * que extrae los datos y crea la factura. Entonces acá solo se puede saber si el
+ * archivo se envió, no si se pudo leer: el triage de "esta se leyó bien, esta
+ * hay que revisarla" vive en el listado de facturas y en el mecanismo de notas
+ * OCR que ya existe, con los estados del dominio (PROCESANDO,
+ * PENDIENTE_VALIDACION, PENDIENTE_AUTORIZACION).
+ *
+ * Un modelo que prometiera acá "lista para publicar" estaría inventando una
+ * certeza que este lado no tiene.
  */
 
-/** En qué estado quedó un archivo después de procesarlo. */
+/** En qué estado está un archivo de la tanda. */
 export type EstadoEntrada =
-  /** Todavía no se procesó. */
+  /** Soltado, todavía no se envió. */
   | 'pendiente'
-  /** Se está leyendo el documento. */
-  | 'procesando'
-  /** Se leyó y los datos están completos: se puede publicar. */
-  | 'listo'
-  /** Se leyó pero falta algo o hay algo dudoso: necesita que alguien mire. */
-  | 'revisar'
-  /** No se pudo leer nada del documento. */
-  | 'ilegible'
-  /** Se leyó, pero el tipo de documento no se puede ceder a un factoring. */
-  | 'no_cedible';
+  /** Subiendo al storage. */
+  | 'subiendo'
+  /** Subido: el sistema lo está leyendo para crear la factura. */
+  | 'enviado'
+  /** No se pudo subir. El motivo va en `detalle`. */
+  | 'error';
 
-/** De dónde salieron los datos. Determina cuánta confianza merecen. */
-export type OrigenDatos = 'timbre_verificado' | 'timbre_sin_verificar' | 'ocr' | 'manual';
+/** De dónde van a salir los datos de esta factura. */
+export type OrigenDatos = 'documento' | 'manual';
 
 /** Una factura en curso de publicación. */
 export interface EntradaPublicacion {
@@ -33,10 +40,10 @@ export interface EntradaPublicacion {
   /** Nombre a mostrar: el del archivo, o uno genérico si no hay archivo. */
   readonly nombre: string;
   estado: EstadoEntrada;
-  origen: OrigenDatos | null;
-  /** Qué pasó, en palabras, cuando el estado no es `listo`. */
+  origen: OrigenDatos;
+  /** Qué pasó, en palabras, cuando hace falta explicar algo. */
   detalle?: string;
-  /** Los datos de la factura, se completen por lectura o a mano. */
+  /** Los datos que el cedente declara. Vacíos cuando los va a poner el documento. */
   datos: DatosFactura;
 }
 
@@ -61,8 +68,20 @@ export function datosVacios(): DatosFactura {
   };
 }
 
-/** Estados que permiten publicar sin que nadie intervenga. */
-export const ESTADOS_PUBLICABLES: readonly EstadoEntrada[] = ['listo'];
+/** Lo que la página le responde al drawer por cada entrada enviada. */
+export interface ResultadoEntrada {
+  readonly ok: boolean;
+  readonly mensaje?: string;
+}
 
-/** Estados que piden atención del cedente antes de poder publicar. */
-export const ESTADOS_CON_ATENCION: readonly EstadoEntrada[] = ['revisar', 'ilegible', 'no_cedible'];
+/** Campos que el cedente tiene que declarar cuando no hay documento que leer. */
+export const CAMPOS_REQUERIDOS_SIN_RESPALDO: ReadonlyArray<keyof DatosFactura> = [
+  'numeroFactura', 'rutDeudor', 'nombreRazonSocialDeudor', 'montoTotal', 'fechaVencimiento',
+];
+
+/** `true` si la entrada tiene lo mínimo para poder enviarse. */
+export function sePuedeEnviar(entrada: EntradaPublicacion): boolean {
+  if (entrada.estado !== 'pendiente') return false;
+  if (entrada.archivo) return true;                       // lo lee el servidor
+  return CAMPOS_REQUERIDOS_SIN_RESPALDO.every((c) => entrada.datos[c].trim() !== '');
+}

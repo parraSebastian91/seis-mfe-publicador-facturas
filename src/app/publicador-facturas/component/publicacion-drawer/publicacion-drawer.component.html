@@ -61,14 +61,14 @@
       @if (modo() === 'masivo') {
         <header class="pub__resumen">
           <span class="pub__resumen-total">{{ entradas().length }} facturas</span>
-          @if (publicables().length) {
-            <app-badge variant="success">{{ publicables().length }} listas</app-badge>
+          @if (enviables().length) {
+            <app-badge variant="neutral">{{ enviables().length }} por enviar</app-badge>
           }
-          @if (requierenAtencion().length) {
-            <app-badge variant="warning">{{ requierenAtencion().length }} a revisar</app-badge>
+          @if (enviadas().length) {
+            <app-badge variant="success">{{ enviadas().length }} enviadas</app-badge>
           }
-          @if (enCola().length) {
-            <app-badge variant="neutral">{{ enCola().length }} en cola</app-badge>
+          @if (conError().length) {
+            <app-badge variant="error">{{ conError().length }} con error</app-badge>
           }
         </header>
       }
@@ -80,7 +80,7 @@
                   (click)="alternarExpandida(entrada.id)"
                   [attr.aria-expanded]="expandida() === entrada.id">
             <app-icon class="pub__fila-estado" [name]="iconoEstado(entrada.estado)"
-                      [class.pub__girando]="entrada.estado === 'procesando'" />
+                      [class.pub__girando]="entrada.estado === 'subiendo'" />
 
             <span class="pub__fila-nombre">
               {{ entrada.datos.numeroFactura || entrada.nombre }}
@@ -92,6 +92,13 @@
             <app-badge [variant]="tonoEstado(entrada.estado)">
               {{ etiquetaEstado(entrada.estado) }}
             </app-badge>
+
+            @if (entrada.estado === 'error') {
+              <button type="button" class="pub__reintentar" title="Reintentar"
+                      (click)="$event.stopPropagation(); reintentar(entrada.id)">
+                <app-icon name="sync" size="18" />
+              </button>
+            }
 
             <app-icon class="pub__fila-chevron"
                       [name]="expandida() === entrada.id ? 'expand_less' : 'expand_more'" />
@@ -114,26 +121,47 @@
                 }
               </dl>
 
-              <footer class="pub__fila-acciones">
-                <button type="button" app-button variant="light" (click)="quitar(entrada.id)">
-                  <app-icon name="delete_outline" /> Quitar
-                </button>
-              </footer>
+              @if (entrada.estado === 'pendiente' || entrada.estado === 'error') {
+                <footer class="pub__fila-acciones">
+                  @if (entrada.estado === 'error') {
+                    <button type="button" app-button variant="secondary"
+                            (click)="reintentar(entrada.id)">
+                      <app-icon name="sync" /> Reintentar
+                    </button>
+                  }
+                  <button type="button" app-button variant="light" (click)="quitar(entrada.id)">
+                    <app-icon name="delete_outline" /> Quitar
+                  </button>
+                </footer>
+              }
             </div>
           }
         </article>
       }
     </section>
 
+    @if (enviadas().length && !enviando()) {
+      <p class="pub__nota" role="status">
+        <app-icon name="info" size="16" />
+        El sistema está leyendo los documentos. Las facturas van a aparecer en el
+        listado a medida que se procesen, y ahí vas a poder revisar lo que extrajo.
+      </p>
+    }
+
     <!-- ── Pie ──────────────────────────────────────────────────────── -->
     <footer class="pub__pie">
-      <button type="button" app-button variant="light" (click)="cerrar()">Cancelar</button>
+      <button type="button" app-button variant="light" (click)="cerrar()"
+              [disabled]="enviando()">
+        {{ enviadas().length ? 'Listo' : 'Cancelar' }}
+      </button>
       <button type="button" app-button variant="primary"
-              [disabled]="!publicables().length" (click)="publicar()">
-        @if (modo() === 'masivo') {
-          Publicar las {{ publicables().length }} listas
+              [disabled]="!enviables().length || enviando()" (click)="publicar()">
+        @if (enviando()) {
+          <app-icon name="sync" class="pub__girando" /> Enviando…
+        } @else if (modo() === 'masivo') {
+          Enviar {{ enviables().length }} facturas
         } @else {
-          Publicar factura
+          Enviar factura
         }
       </button>
     </footer>

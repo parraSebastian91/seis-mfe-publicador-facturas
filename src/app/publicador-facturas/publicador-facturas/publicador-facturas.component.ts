@@ -2,7 +2,8 @@ import { Component, computed, EffectRef, Injector, NgZone, OnDestroy, OnInit, Si
 import { HttpClient } from '@angular/common/http';
 import { Subscription, firstValueFrom } from 'rxjs';
 import { DrawerService } from 'shared-utils';
-import { PublicacionDrawerComponent, EventoPublicacion } from '../component/publicacion-drawer/publicacion-drawer.component';
+import { PublicacionDrawerComponent, EventoPublicacion, PublicacionDrawerInputs } from '../component/publicacion-drawer/publicacion-drawer.component';
+import { EntradaPublicacion, ResultadoEntrada } from '../component/publicacion-drawer/publicacion-entrada.model';
 import { AutorizacionPublicacionDto, FacturaCreateRequestDto, FacturaResponseUpdateDTO, FacturaType, FacturasService, NotificationSocketService, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos, createdBy, facturaEstado } from 'shared-utils';
 import { FacturaData, FacturaFormularioPublicacion, ModalPublishMetadata, AdjuntoParaSubir } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
@@ -159,10 +160,12 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     }
 
     this.drawerService
-      .open<unknown, EventoPublicacion>({
+      .open<PublicacionDrawerInputs, EventoPublicacion>({
         title: 'Publicar facturas',
         component: PublicacionDrawerComponent,
-        inputs: {},
+        // El drawer maneja la tanda y su progreso; la capacidad de publicar se
+        // le inyecta desde acá, que es donde viven los servicios.
+        inputs: { enviarUna: (entrada) => this.enviarEntrada(entrada) },
         width: '880px',
       })
       .subscribe((evento) => this.manejarEventoPublicacion(evento));
@@ -171,17 +174,65 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
   /** Escape al wizard anterior mientras el flujo nuevo no cubra todo. */
   usarFlujoLegacy = false;
 
-  private manejarEventoPublicacion(evento: EventoPublicacion): void {
-    if (evento.tipo === 'cerrar') {
-      return;
-    }
-    if (evento.tipo === 'publicar') {
-      // TODO(publicacion-drawer): conectar con publicarFactura() por cada
-      // entrada. Hoy el drawer solo arma el lote; la publicación real sigue
-      // pasando por el flujo existente.
-      console.info('[publicacion] lote listo para publicar:', evento.entradas.length);
+  /**
+   * Publica una entrada de la tanda.
+   *
+   * Con documento: se sube por presigned URL y el pipeline del servidor
+   * (orquestador → worker → ms-core) extrae los datos y crea la factura. El
+   * navegador no lee el PDF.
+   *
+   * Sin documento ("no tengo el respaldo ahora"): se crea con lo declarado, y
+   * el respaldo se sube después — ahí el cotejo contra el documento es el mismo
+   * mecanismo de notas que ya existe, disparado más tarde.
+   */
+  private async enviarEntrada(entrada: EntradaPublicacion): Promise<ResultadoEntrada> {
+    try {
+      if (entrada.archivo) {
+        const { uuid } = await this.resolveCurrentUserName();
+        const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(
+          this.apiBase, PATH_TYPES.DOCUMENT, entrada.archivo, uuid, this.orgSelected(),
+        );
+        if (!respuesta?.objectUrl) {
+          return { ok: false, mensaje: 'El storage no devolvió una URL de subida.' };
+        }
+        return { ok: true };
+      }
+
+      // El formulario declara el monto como texto (con separadores de miles);
+      // `FacturaData` lo quiere numérico.
+      const monto = Number(entrada.datos.montoTotal.replace(/[^\d]/g, ''));
+      if (!Number.isFinite(monto) || monto <= 0) {
+        return { ok: false, mensaje: 'El monto declarado no es un número válido.' };
+      }
+
+      const { errorMsg } = await this.handleManualFormPublish(
+        {
+          numeroFactura: entrada.datos.numeroFactura,
+          rutDeudor: entrada.datos.rutDeudor,
+          nombreRazonSocialDeudor: entrada.datos.nombreRazonSocialDeudor,
+          montoTotal: monto,
+          fechaEmision: entrada.datos.fechaEmision,
+          fechaVencimiento: entrada.datos.fechaVencimiento,
+        },
+        crypto.randomUUID(),
+      );
+      return errorMsg ? { ok: false, mensaje: errorMsg } : { ok: true };
+    } catch (e) {
+      return {
+        ok: false,
+        mensaje: e instanceof Error ? e.message : 'Error desconocido al enviar.',
+      };
     }
   }
+
+  private manejarEventoPublicacion(evento: EventoPublicacion): void {
+    if (evento.tipo === 'enviadas' && evento.enviadas > 0) {
+      // Las facturas se van creando del lado del servidor a medida que el
+      // pipeline procesa cada documento; el socket ya avisa y recarga el listado.
+      void this.loadFacturas(this.orgSelected());
+    }
+  }
+
 
   closePublicationModal(): void {
     if (this.isPublishing) {

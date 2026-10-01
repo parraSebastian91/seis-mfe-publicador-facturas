@@ -16,19 +16,26 @@ import {
 
 import { ZipService } from '../../service/zip.service';
 import {
-  DatosFactura, ESTADOS_CON_ATENCION, EntradaPublicacion, EstadoEntrada, datosVacios,
+  DatosFactura, EntradaPublicacion, EstadoEntrada, ResultadoEntrada,
+  datosVacios, sePuedeEnviar,
 } from './publicacion-entrada.model';
 
-/** Lo que el caller le pasa al drawer. Hoy no necesita nada. */
+/**
+ * Lo que el caller le pasa al drawer.
+ *
+ * `enviarUna` es una capacidad inyectada, no un evento: el drawer sabe de UI y
+ * de orden, pero no de servicios ni de contratos del backend. Así la lógica de
+ * publicación se queda en la página —que ya la tiene— y acá queda solo el
+ * manejo de la tanda y su progreso.
+ */
 export interface PublicacionDrawerInputs {
-  /** Reservado: por ejemplo, precargar una factura concreta. */
-  readonly facturaId?: string;
+  readonly enviarUna?: (entrada: EntradaPublicacion) => Promise<ResultadoEntrada>;
 }
 
 /** Lo que el drawer le devuelve al que lo abrió. */
 export type EventoPublicacion =
-  | { tipo: 'publicar'; entradas: EntradaPublicacion[] }
-  | { tipo: 'sin-respaldo' }
+  /** Terminó de enviarse la tanda. */
+  | { tipo: 'enviadas'; enviadas: number; conError: number }
   | { tipo: 'cerrar' };
 
 /**
@@ -78,22 +85,11 @@ export class PublicacionDrawerComponent
     return n === 0 ? 'vacio' : n === 1 ? 'individual' : 'masivo';
   });
 
-  readonly publicables = computed(() =>
-    this.entradas().filter((e) => e.estado === 'listo'),
-  );
-  /**
-   * Las que necesitan que alguien mire. `pendiente` y `procesando` NO cuentan:
-   * todavía no se sabe nada de ellas, y mostrarlas como "a revisar" asusta sin
-   * motivo apenas se sueltan los archivos.
-   */
-  readonly requierenAtencion = computed(() =>
-    this.entradas().filter((e) => ESTADOS_CON_ATENCION.includes(e.estado)),
-  );
-
-  /** Las que todavía no se procesaron. */
-  readonly enCola = computed(() =>
-    this.entradas().filter((e) => e.estado === 'pendiente' || e.estado === 'procesando'),
-  );
+  /** Las que tienen lo mínimo para enviarse. */
+  readonly enviables = computed(() => this.entradas().filter(sePuedeEnviar));
+  readonly enviadas = computed(() => this.entradas().filter((e) => e.estado === 'enviado'));
+  readonly conError = computed(() => this.entradas().filter((e) => e.estado === 'error'));
+  readonly enviando = signal(false);
 
   readonly maxArchivos = 50;
 
@@ -175,7 +171,7 @@ export class PublicacionDrawerComponent
       archivo,
       nombre: archivo.name,
       estado: 'pendiente',
-      origen: null,
+      origen: 'documento',
       datos: datosVacios(),
     };
   }
@@ -202,9 +198,10 @@ export class PublicacionDrawerComponent
       id: `manual-${Date.now()}`,
       archivo: null,
       nombre: 'Factura sin respaldo',
-      estado: 'revisar',
+      estado: 'pendiente',
       origen: 'manual',
-      detalle: 'Vas a cargar los datos a mano. El respaldo se puede subir después.',
+      detalle: 'Cargá los datos a mano. El respaldo se puede subir después y el '
+             + 'sistema va a cotejarlo contra lo que declaraste.',
       datos: datosVacios(),
     };
     this.entradas.update((prev) => [...prev, entrada]);
@@ -212,10 +209,56 @@ export class PublicacionDrawerComponent
     this.cdr.markForCheck();
   }
 
-  publicar(): void {
-    const listas = this.publicables();
-    if (!listas.length) return;
-    this.drawer.emit({ tipo: 'publicar', entradas: listas } satisfies EventoPublicacion);
+  /**
+   * Envía la tanda, de a una.
+   *
+   * Secuencial a propósito: cada envío sube un PDF por presigned URL y dispara
+   * el pipeline de extracción del lado del servidor. Mandar veinte en paralelo
+   * no acelera nada aguas abajo y hace que un error se pierda entre los demás.
+   */
+  async publicar(): Promise<void> {
+    const pendientes = this.enviables();
+    const enviar = this.drawerInputs.enviarUna;
+    if (!pendientes.length || !enviar || this.enviando()) return;
+
+    this.enviando.set(true);
+    for (const entrada of pendientes) {
+      this.#actualizar(entrada.id, { estado: 'subiendo', detalle: undefined });
+      try {
+        const r = await enviar(entrada);
+        this.#actualizar(entrada.id, r.ok
+          ? { estado: 'enviado', detalle: 'El sistema está leyendo el documento.' }
+          : { estado: 'error', detalle: r.mensaje ?? 'No se pudo enviar.' });
+      } catch (e) {
+        this.#actualizar(entrada.id, {
+          estado: 'error',
+          detalle: e instanceof Error ? e.message : 'No se pudo enviar.',
+        });
+      }
+    }
+    this.enviando.set(false);
+    this.drawer.emit({
+      tipo: 'enviadas',
+      enviadas: this.enviadas().length,
+      conError: this.conError().length,
+    } satisfies EventoPublicacion);
+  }
+
+  /**
+   * Devuelve una entrada fallida a la cola para volver a intentarla.
+   *
+   * Sin esto, un error de red en una de veinte deja esa factura sin camino: el
+   * botón de enviar queda deshabilitado porque no hay nada "pendiente", y la
+   * única salida sería cerrar y rehacer la tanda entera.
+   */
+  reintentar(id: string): void {
+    this.#actualizar(id, { estado: 'pendiente', detalle: undefined });
+  }
+
+  #actualizar(id: string, cambios: Partial<EntradaPublicacion>): void {
+    this.entradas.update((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, ...cambios } : e)));
+    this.cdr.markForCheck();
   }
 
   cerrar(): void {
@@ -229,30 +272,28 @@ export class PublicacionDrawerComponent
 
   etiquetaEstado(estado: EstadoEntrada): string {
     return {
-      pendiente: 'En cola',
-      procesando: 'Leyendo…',
-      listo: 'Lista para publicar',
-      revisar: 'Revisar',
-      ilegible: 'No se pudo leer',
-      no_cedible: 'No es cedible',
+      pendiente: 'Lista para enviar',
+      subiendo: 'Enviando…',
+      enviado: 'Enviada · leyendo',
+      error: 'No se pudo enviar',
     }[estado];
   }
 
   tonoEstado(estado: EstadoEntrada): BadgeVariant {
-    if (estado === 'listo') return 'success';
-    if (estado === 'revisar') return 'warning';
-    if (estado === 'ilegible' || estado === 'no_cedible') return 'error';
-    return 'neutral';
+    return {
+      pendiente: 'neutral' as BadgeVariant,
+      subiendo: 'info' as BadgeVariant,
+      enviado: 'success' as BadgeVariant,
+      error: 'error' as BadgeVariant,
+    }[estado];
   }
 
   iconoEstado(estado: EstadoEntrada): string {
     return {
-      pendiente: 'schedule',
-      procesando: 'sync',
-      listo: 'check_circle_outline',
-      revisar: 'error_outline',
-      ilegible: 'visibility_off',
-      no_cedible: 'block',
+      pendiente: 'description',
+      subiendo: 'sync',
+      enviado: 'check_circle_outline',
+      error: 'error_outline',
     }[estado];
   }
 
