@@ -111,9 +111,19 @@
                       [class.pub__girando]="entrada.estado === 'subiendo'" />
 
             <span class="pub__fila-nombre">
-              {{ entrada.datos.numeroFactura || entrada.nombre }}
-              @if (entrada.datos.nombreRazonSocialDeudor) {
-                <small>{{ entrada.datos.nombreRazonSocialDeudor }}</small>
+              @if (entrada.estado === 'subiendo' || entrada.estado === 'procesando') {
+                <!-- Mientras el pipeline lee el documento no hay datos que
+                     mostrar: el esqueleto ocupa el lugar exacto donde van a
+                     aparecer, para que la fila no salte cuando lleguen. -->
+                <app-skeleton width="45%" />
+                <app-skeleton width="70%" height="10px" />
+              } @else {
+                {{ entrada.datos.numeroFactura || entrada.nombre }}
+                @if (entrada.datos.nombreRazonSocialDeudor) {
+                  <small>{{ entrada.datos.nombreRazonSocialDeudor }}</small>
+                } @else if (entrada.estado === 'procesada' || entrada.estado === 'demorada') {
+                  <small>{{ entrada.nombre }}</small>
+                }
               }
             </span>
 
@@ -222,6 +232,15 @@
                     }
                   </p>
                 }
+              } @else if (entrada.estado === 'subiendo' || entrada.estado === 'procesando') {
+                <dl class="pub__campos">
+                  @for (campo of campos(entrada.datos); track campo.etiqueta) {
+                    <div class="pub__campo">
+                      <dt>{{ campo.etiqueta }}</dt>
+                      <dd><app-skeleton width="80%" /></dd>
+                    </div>
+                  }
+                </dl>
               } @else {
                 <dl class="pub__campos">
                   @for (campo of campos(entrada.datos); track campo.etiqueta) {

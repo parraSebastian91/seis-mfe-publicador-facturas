@@ -4,6 +4,7 @@ import {
   Component,
   EventEmitter,
   Input,
+  OnDestroy,
   computed,
   inject,
   signal,
@@ -12,13 +13,14 @@ import { CommonModule } from '@angular/common';
 import {
   BadgeComponent, BadgeVariant, ButtonComponent, DatepickerComponent,
   DrawerContent, DrawerService, FormFieldComponent, IconComponent,
-  InputComponent, PasoStepper, RutInputComponent, StepperComponent,
+  InputComponent, PasoStepper, RutInputComponent, SkeletonComponent,
+  StepperComponent,
 } from 'shared-utils';
 
 import { ZipService } from '../../service/zip.service';
 import {
-  DatosFactura, EntradaPublicacion, EstadoEntrada, ResultadoEntrada,
-  datosVacios, sePuedeEnviar,
+  DatosFactura, ESPERA_MAX_MS, EntradaPublicacion, EstadoEntrada,
+  INTERVALO_SONDEO_MS, ResultadoEntrada, datosVacios, sePuedeEnviar,
 } from './publicacion-entrada.model';
 
 /**
@@ -31,6 +33,25 @@ import {
  */
 export interface PublicacionDrawerInputs {
   readonly enviarUna?: (entrada: EntradaPublicacion) => Promise<ResultadoEntrada>;
+  /**
+   * Busca, entre las facturas que la página ya tiene en memoria, la que el
+   * pipeline creó a partir de este archivo. `undefined` mientras no aparezca.
+   *
+   * Se consulta en memoria, sin red: la página mantiene su listado al día por
+   * el socket de notificaciones, así que sondear es gratis.
+   */
+  readonly buscarPorArchivo?: (nombreArchivo: string) => DatosLeidos | undefined;
+}
+
+/** Lo que el pipeline terminó leyendo del documento. */
+export interface DatosLeidos {
+  readonly facturaId: string;
+  readonly numeroFactura?: string;
+  readonly rutDeudor?: string;
+  readonly nombreRazonSocialDeudor?: string;
+  readonly montoTotal?: string | number;
+  readonly fechaEmision?: string;
+  readonly fechaVencimiento?: string;
 }
 
 /** Lo que el drawer le devuelve al que lo abrió. */
@@ -57,14 +78,14 @@ export type EventoPublicacion =
   imports: [
     CommonModule, BadgeComponent, ButtonComponent, DatepickerComponent,
     FormFieldComponent, IconComponent, InputComponent, RutInputComponent,
-    StepperComponent,
+    SkeletonComponent, StepperComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './publicacion-drawer.component.html',
   styleUrl: './publicacion-drawer.component.scss',
 })
 export class PublicacionDrawerComponent
-  implements DrawerContent<PublicacionDrawerInputs, EventoPublicacion> {
+  implements DrawerContent<PublicacionDrawerInputs, EventoPublicacion>, OnDestroy {
   private readonly drawer = inject(DrawerService);
   private readonly zip = inject(ZipService);
   private readonly cdr = inject(ChangeDetectorRef);
@@ -92,9 +113,14 @@ export class PublicacionDrawerComponent
 
   /** Las que tienen lo mínimo para enviarse. */
   readonly enviables = computed(() => this.entradas().filter(sePuedeEnviar));
-  readonly enviadas = computed(() => this.entradas().filter((e) => e.estado === 'enviado'));
+  readonly enviadas = computed(() =>
+    this.entradas().filter((e) => e.estado === 'procesando' || e.estado === 'procesada'
+                               || e.estado === 'demorada'));
+  readonly esperando = computed(() =>
+    this.entradas().filter((e) => e.estado === 'subiendo' || e.estado === 'procesando'));
   readonly conError = computed(() => this.entradas().filter((e) => e.estado === 'error'));
   readonly enviando = signal(false);
+  #sondeo?: ReturnType<typeof setInterval>;
 
   readonly maxArchivos = 50;
 
@@ -298,7 +324,7 @@ export class PublicacionDrawerComponent
       try {
         const r = await enviar(entrada);
         this.#actualizar(entrada.id, r.ok
-          ? { estado: 'enviado', detalle: 'El sistema está leyendo el documento.' }
+          ? { estado: 'procesando', detalle: undefined, subidaEn: performance.now() }
           : { estado: 'error', detalle: r.mensaje ?? 'No se pudo enviar.' });
       } catch (e) {
         this.#actualizar(entrada.id, {
@@ -308,6 +334,7 @@ export class PublicacionDrawerComponent
       }
     }
     this.enviando.set(false);
+    this.#vigilarProcesamiento();
     this.drawer.emit({
       tipo: 'enviadas',
       enviadas: this.enviadas().length,
@@ -324,6 +351,72 @@ export class PublicacionDrawerComponent
    */
   reintentar(id: string): void {
     this.#actualizar(id, { estado: 'pendiente', detalle: undefined });
+  }
+
+  /**
+   * Espera a que el pipeline termine cada documento y completa la fila.
+   *
+   * Sondea el listado que la página tiene en memoria —no hace red— porque el
+   * socket de notificaciones ya lo mantiene al día. Si pasa demasiado tiempo la
+   * fila queda como `demorada`: el pipeline puede seguir trabajando, lo que se
+   * acabó es la espera de esta pantalla, y dejar un esqueleto girando para
+   * siempre sería peor que decirlo.
+   */
+  #vigilarProcesamiento(): void {
+    if (this.#sondeo) return;
+
+    this.#sondeo = setInterval(() => {
+      const pendientes = this.entradas().filter((e) => e.estado === 'procesando');
+      if (!pendientes.length) {
+        this.#detenerSondeo();
+        return;
+      }
+
+      // Se lee en cada vuelta y no una sola vez al arrancar: capturarlo al
+      // inicio hacía que, si el caller todavía no lo había provisto, no se
+      // usara nunca aunque apareciera después.
+      const buscar = this.drawerInputs.buscarPorArchivo;
+
+      for (const entrada of pendientes) {
+        const leido = buscar?.(entrada.nombre);
+        if (leido) {
+          this.#actualizar(entrada.id, {
+            estado: 'procesada',
+            facturaId: leido.facturaId,
+            detalle: undefined,
+            datos: {
+              ...entrada.datos,
+              numeroFactura: leido.numeroFactura ?? entrada.datos.numeroFactura,
+              rutDeudor: leido.rutDeudor ?? entrada.datos.rutDeudor,
+              nombreRazonSocialDeudor:
+                leido.nombreRazonSocialDeudor ?? entrada.datos.nombreRazonSocialDeudor,
+              montoTotal: String(leido.montoTotal ?? entrada.datos.montoTotal),
+              fechaEmision: leido.fechaEmision ?? entrada.datos.fechaEmision,
+              fechaVencimiento: leido.fechaVencimiento ?? entrada.datos.fechaVencimiento,
+            },
+          });
+          continue;
+        }
+        if (performance.now() - (entrada.subidaEn ?? 0) > ESPERA_MAX_MS) {
+          this.#actualizar(entrada.id, {
+            estado: 'demorada',
+            detalle: 'Está tardando más de lo habitual. El documento se subió bien: '
+                   + 'la factura va a aparecer en el listado cuando termine.',
+          });
+        }
+      }
+    }, INTERVALO_SONDEO_MS);
+  }
+
+  #detenerSondeo(): void {
+    if (this.#sondeo) {
+      clearInterval(this.#sondeo);
+      this.#sondeo = undefined;
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.#detenerSondeo();
   }
 
   #actualizar(id: string, cambios: Partial<EntradaPublicacion>): void {
@@ -344,8 +437,10 @@ export class PublicacionDrawerComponent
   etiquetaEstado(estado: EstadoEntrada): string {
     return {
       pendiente: 'Lista para enviar',
-      subiendo: 'Enviando…',
-      enviado: 'Enviada · leyendo',
+      subiendo: 'Subiendo…',
+      procesando: 'Leyendo el documento…',
+      procesada: 'Lista',
+      demorada: 'Tardando',
       error: 'No se pudo enviar',
     }[estado];
   }
@@ -354,7 +449,9 @@ export class PublicacionDrawerComponent
     return {
       pendiente: 'neutral' as BadgeVariant,
       subiendo: 'info' as BadgeVariant,
-      enviado: 'success' as BadgeVariant,
+      procesando: 'info' as BadgeVariant,
+      procesada: 'success' as BadgeVariant,
+      demorada: 'warning' as BadgeVariant,
       error: 'error' as BadgeVariant,
     }[estado];
   }
@@ -363,7 +460,9 @@ export class PublicacionDrawerComponent
     return {
       pendiente: 'description',
       subiendo: 'sync',
-      enviado: 'check_circle_outline',
+      procesando: 'sync',
+      procesada: 'check_circle_outline',
+      demorada: 'schedule',
       error: 'error_outline',
     }[estado];
   }

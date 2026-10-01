@@ -23,8 +23,16 @@ export type EstadoEntrada =
   | 'pendiente'
   /** Subiendo al storage. */
   | 'subiendo'
-  /** Subido: el sistema lo está leyendo para crear la factura. */
-  | 'enviado'
+  /** Subido: el pipeline lo está leyendo para crear la factura. */
+  | 'procesando'
+  /** El pipeline terminó y la factura ya existe, con sus datos. */
+  | 'procesada'
+  /**
+   * Se subió, pero la factura no apareció en el tiempo esperado. NO es un
+   * error: el pipeline puede seguir trabajando. Lo que se acabó es la paciencia
+   * de esta pantalla, y conviene decirlo en vez de dejar un spinner eterno.
+   */
+  | 'demorada'
   /** No se pudo subir. El motivo va en `detalle`. */
   | 'error';
 
@@ -43,6 +51,10 @@ export interface EntradaPublicacion {
   origen: OrigenDatos;
   /** Qué pasó, en palabras, cuando hace falta explicar algo. */
   detalle?: string;
+  /** Id de la factura que el pipeline creó, cuando ya se la pudo identificar. */
+  facturaId?: string;
+  /** `performance.now()` del momento en que se subió, para saber cuánto esperar. */
+  subidaEn?: number;
   /** Los datos que el cedente declara. Vacíos cuando los va a poner el documento. */
   datos: DatosFactura;
   /**
@@ -74,6 +86,11 @@ export function datosVacios(): DatosFactura {
     fechaVencimiento: '',
   };
 }
+
+/** Cuánto espera la pantalla a que el pipeline termine, antes de soltar. */
+export const ESPERA_MAX_MS = 90_000;
+/** Cada cuánto se vuelve a mirar si la factura ya apareció. */
+export const INTERVALO_SONDEO_MS = 2_000;
 
 /** Lo que la página le responde al drawer por cada entrada enviada. */
 export interface ResultadoEntrada {

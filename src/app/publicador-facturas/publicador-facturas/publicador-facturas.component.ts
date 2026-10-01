@@ -2,7 +2,7 @@ import { Component, computed, EffectRef, Injector, NgZone, OnDestroy, OnInit, Si
 import { HttpClient } from '@angular/common/http';
 import { Subscription, firstValueFrom } from 'rxjs';
 import { DrawerService } from 'shared-utils';
-import { PublicacionDrawerComponent, EventoPublicacion, PublicacionDrawerInputs } from '../component/publicacion-drawer/publicacion-drawer.component';
+import { PublicacionDrawerComponent, DatosLeidos, EventoPublicacion, PublicacionDrawerInputs } from '../component/publicacion-drawer/publicacion-drawer.component';
 import { EntradaPublicacion, ResultadoEntrada } from '../component/publicacion-drawer/publicacion-entrada.model';
 import { AutorizacionPublicacionDto, FacturaCreateRequestDto, FacturaResponseUpdateDTO, FacturaType, FacturasService, NotificationSocketService, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos, createdBy, facturaEstado } from 'shared-utils';
 import { FacturaData, FacturaFormularioPublicacion, ModalPublishMetadata, AdjuntoParaSubir } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
@@ -165,7 +165,10 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
         component: PublicacionDrawerComponent,
         // El drawer maneja la tanda y su progreso; la capacidad de publicar se
         // le inyecta desde acá, que es donde viven los servicios.
-        inputs: { enviarUna: (entrada) => this.enviarEntrada(entrada) },
+        inputs: {
+          enviarUna: (entrada) => this.enviarEntrada(entrada),
+          buscarPorArchivo: (nombre) => this.buscarFacturaPorArchivo(nombre),
+        },
         width: '880px',
       })
       .subscribe((evento) => this.manejarEventoPublicacion(evento));
@@ -185,6 +188,45 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
    * el respaldo se sube después — ahí el cotejo contra el documento es el mismo
    * mecanismo de notas que ya existe, disparado más tarde.
    */
+  /**
+   * Busca, entre las facturas que ya están en memoria, la que el pipeline creó
+   * a partir de un archivo subido.
+   *
+   * ⚠️ Correlación por NOMBRE DE ARCHIVO, y conviene saber por qué y qué
+   * implica. La subida por presigned URL devuelve una `key` de storage, pero el
+   * pipeline crea la factura de forma asíncrona y no hay un identificador que
+   * viaje de punta a punta: el worker nombra la variante a partir del archivo
+   * (`name_file.replace(' ', '_')`), y eso es lo único que ata una cosa con la
+   * otra.
+   *
+   * Consecuencias: dos archivos con el mismo nombre en una tanda no se pueden
+   * distinguir, y si el worker cambiara ese naming esto deja de encontrar nada.
+   * Por eso la espera tiene corte y la fila queda "tardando" en vez de colgada:
+   * fallar acá no pierde la factura, solo deja de mostrarla en esta pantalla.
+   *
+   * La solución de fondo es que la subida devuelva un identificador que el
+   * pipeline propague hasta la factura. Queda anotado.
+   */
+  private buscarFacturaPorArchivo(nombreArchivo: string): DatosLeidos | undefined {
+    const base = nombreArchivo.replace(/\.[^.]+$/, '').replace(/\s+/g, '_').toLowerCase();
+    if (!base) return undefined;
+
+    const factura = this.facturas.find((f) =>
+      (f.url_factura ?? '').toLowerCase().includes(base));
+    if (!factura) return undefined;
+
+    return {
+      facturaId: factura.facturaId,
+      numeroFactura: factura.facturaNumero,
+      rutDeudor: factura.deudorRut,
+      nombreRazonSocialDeudor: factura.deudorNombre,
+      montoTotal: factura.montoTotal,
+      // `FacturaType` no expone fecha de emisión; el vencimiento sí.
+      fechaVencimiento: factura.fechaVencimiento
+        ? String(factura.fechaVencimiento).slice(0, 10) : undefined,
+    };
+  }
+
   private async enviarEntrada(entrada: EntradaPublicacion): Promise<ResultadoEntrada> {
     try {
       if (entrada.archivo) {
