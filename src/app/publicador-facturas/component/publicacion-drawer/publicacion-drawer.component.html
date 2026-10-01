@@ -110,16 +110,102 @@
                 <p class="pub__fila-aviso">{{ entrada.detalle }}</p>
               }
 
-              <dl class="pub__campos">
-                @for (campo of campos(entrada.datos); track campo.etiqueta) {
-                  <div class="pub__campo">
-                    <dt>{{ campo.etiqueta }}</dt>
-                    <dd [class.pub__campo--vacio]="!campo.valor">
-                      {{ campo.valor || 'Sin dato' }}
-                    </dd>
-                  </div>
+              @if (entrada.estado === 'pendiente') {
+                <!-- Con documento los datos son OPCIONALES: los va a leer el
+                     sistema, y si además se declaran, sirven para contrastar.
+                     Sin documento son obligatorios, porque no hay de dónde
+                     sacarlos. -->
+                <p class="pub__campos-nota">
+                  @if (entrada.origen === 'documento') {
+                    Opcional: si declarás algún dato, el sistema lo va a
+                    contrastar con lo que lea del documento.
+                  } @else {
+                    Todos los campos marcados son obligatorios.
+                  }
+                </p>
+
+                <div class="pub__form">
+                  <app-form-field label="N° de factura"
+                                  [required]="entrada.origen === 'manual'">
+                    <input app-input type="text" inputmode="numeric"
+                           [value]="entrada.datos.numeroFactura"
+                           (input)="editar(entrada.id, 'numeroFactura', $event)"
+                           placeholder="Ej: 123456" />
+                  </app-form-field>
+
+                  <app-form-field label="RUT del deudor"
+                                  [required]="entrada.origen === 'manual'">
+                    <app-rut-input [value]="entrada.datos.rutDeudor"
+                                   (valueChange)="editarValor(entrada.id, 'rutDeudor', $event)"
+                                   (validChange)="marcarRutValido(entrada.id, $event)"
+                                   [inputId]="'rut-' + entrada.id" />
+                  </app-form-field>
+
+                  <app-form-field label="Nombre o razón social del deudor"
+                                  [required]="entrada.origen === 'manual'">
+                    <input app-input type="text"
+                           [value]="entrada.datos.nombreRazonSocialDeudor"
+                           (input)="editar(entrada.id, 'nombreRazonSocialDeudor', $event)"
+                           placeholder="Ej: Comercial Acme SpA" />
+                  </app-form-field>
+
+                  <app-form-field label="Monto total"
+                                  [required]="entrada.origen === 'manual'">
+                    <input app-input type="text" inputmode="numeric"
+                           [value]="entrada.datos.montoTotal"
+                           (input)="editar(entrada.id, 'montoTotal', $event)"
+                           placeholder="Ej: 1.250.000" />
+                  </app-form-field>
+
+                  <app-form-field label="Fecha de emisión">
+                    <app-datepicker [value]="entrada.datos.fechaEmision"
+                                    [maxDate]="hoyIso"
+                                    (valueChange)="editarValor(entrada.id, 'fechaEmision', $event)" />
+                  </app-form-field>
+
+                  <!-- Siempre declarada: el timbre no la trae. Ver la tabla de
+                       decisiones de CLAUDE.md. -->
+                  <app-form-field label="Fecha de vencimiento"
+                                  [required]="entrada.origen === 'manual'">
+                    <app-datepicker [value]="entrada.datos.fechaVencimiento"
+                                    [minDate]="hoyIso"
+                                    (valueChange)="editarValor(entrada.id, 'fechaVencimiento', $event)" />
+                  </app-form-field>
+                </div>
+
+                <!-- Los adjuntos (guía de despacho, orden de compra…) NO se
+                     piden acá a propósito: pedir veinte guías en una sola
+                     pantalla es lo que haría el masivo inservible. Se agregan
+                     por factura desde el listado, donde ya existe la lista de
+                     adjuntos con subida. -->
+                <p class="pub__campos-nota">
+                  <app-icon name="attach_file" size="14" />
+                  Guías de despacho, órdenes de compra y otros respaldos se
+                  agregan después, por factura, desde el listado.
+                </p>
+
+                @if (!sePuedeEnviarEntrada(entrada)) {
+                  <p class="pub__faltan">
+                    <app-icon name="error_outline" size="16" />
+                    @if (entrada.datos.rutDeudor && !entrada.rutValido) {
+                      El RUT del deudor no es válido.
+                    } @else {
+                      Faltan datos obligatorios para poder enviarla.
+                    }
+                  </p>
                 }
-              </dl>
+              } @else {
+                <dl class="pub__campos">
+                  @for (campo of campos(entrada.datos); track campo.etiqueta) {
+                    <div class="pub__campo">
+                      <dt>{{ campo.etiqueta }}</dt>
+                      <dd [class.pub__campo--vacio]="!campo.valor">
+                        {{ campo.valor || 'Lo lee el sistema' }}
+                      </dd>
+                    </div>
+                  }
+                </dl>
+              }
 
               @if (entrada.estado === 'pendiente' || entrada.estado === 'error') {
                 <footer class="pub__fila-acciones">

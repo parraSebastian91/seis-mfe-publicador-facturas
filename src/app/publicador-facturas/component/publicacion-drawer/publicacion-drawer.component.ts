@@ -10,8 +10,9 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
-  BadgeComponent, BadgeVariant, ButtonComponent, DrawerContent, DrawerService,
-  IconComponent,
+  BadgeComponent, BadgeVariant, ButtonComponent, DatepickerComponent,
+  DrawerContent, DrawerService, FormFieldComponent, IconComponent,
+  InputComponent, RutInputComponent,
 } from 'shared-utils';
 
 import { ZipService } from '../../service/zip.service';
@@ -53,7 +54,10 @@ export type EventoPublicacion =
 @Component({
   selector: 'app-publicacion-drawer',
   standalone: true,
-  imports: [CommonModule, ButtonComponent, IconComponent, BadgeComponent],
+  imports: [
+    CommonModule, BadgeComponent, ButtonComponent, DatepickerComponent,
+    FormFieldComponent, IconComponent, InputComponent, RutInputComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './publicacion-drawer.component.html',
   styleUrl: './publicacion-drawer.component.scss',
@@ -92,6 +96,33 @@ export class PublicacionDrawerComponent
   readonly enviando = signal(false);
 
   readonly maxArchivos = 50;
+
+  /** Hoy, en ISO, para acotar los calendarios. */
+  readonly hoyIso = new Date().toISOString().slice(0, 10);
+
+  /** Para que el template pueda preguntar sin importar el helper. */
+  sePuedeEnviarEntrada = sePuedeEnviar;
+
+  // ── Edición de los datos declarados ──────────────────────────────────────
+
+  /** Desde un `<input>`: toma el valor del evento. */
+  editar(id: string, campo: keyof DatosFactura, event: Event): void {
+    this.editarValor(id, campo, (event.target as HTMLInputElement).value);
+  }
+
+  /** El rut-input avisa si el dígito verificador cuadra. */
+  marcarRutValido(id: string, valido: boolean): void {
+    this.entradas.update((prev) => prev.map((e) =>
+      e.id === id ? { ...e, rutValido: valido } : e));
+    this.cdr.markForCheck();
+  }
+
+  /** Desde un componente que emite el valor ya limpio (rut-input, datepicker). */
+  editarValor(id: string, campo: keyof DatosFactura, valor: string): void {
+    this.entradas.update((prev) => prev.map((e) =>
+      e.id === id ? { ...e, datos: { ...e.datos, [campo]: valor } } : e));
+    this.cdr.markForCheck();
+  }
 
   // ── Entrada de archivos ──────────────────────────────────────────────────
 
@@ -173,6 +204,7 @@ export class PublicacionDrawerComponent
       estado: 'pendiente',
       origen: 'documento',
       datos: datosVacios(),
+      rutValido: true,
     };
   }
 
@@ -200,9 +232,10 @@ export class PublicacionDrawerComponent
       nombre: 'Factura sin respaldo',
       estado: 'pendiente',
       origen: 'manual',
-      detalle: 'Cargá los datos a mano. El respaldo se puede subir después y el '
-             + 'sistema va a cotejarlo contra lo que declaraste.',
+      detalle: 'Cargá los datos a mano. El respaldo se puede subir después, y el '
+             + 'sistema lo va a cotejar contra lo que declaraste.',
       datos: datosVacios(),
+      rutValido: true,
     };
     this.entradas.update((prev) => [...prev, entrada]);
     this.expandida.set(entrada.id);

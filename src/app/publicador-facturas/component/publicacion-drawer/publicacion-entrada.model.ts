@@ -45,6 +45,13 @@ export interface EntradaPublicacion {
   detalle?: string;
   /** Los datos que el cedente declara. Vacíos cuando los va a poner el documento. */
   datos: DatosFactura;
+  /**
+   * `false` cuando el RUT declarado no pasa el dígito verificador.
+   *
+   * Sin esto se podía enviar un RUT inválido: el campo lo marcaba en rojo y el
+   * botón seguía habilitado, porque la comprobación era solo "no está vacío".
+   */
+  rutValido: boolean;
 }
 
 export interface DatosFactura {
@@ -82,6 +89,10 @@ export const CAMPOS_REQUERIDOS_SIN_RESPALDO: ReadonlyArray<keyof DatosFactura> =
 /** `true` si la entrada tiene lo mínimo para poder enviarse. */
 export function sePuedeEnviar(entrada: EntradaPublicacion): boolean {
   if (entrada.estado !== 'pendiente') return false;
+  // Un RUT mal escrito no se manda nunca, haya documento o no: si hay documento
+  // el declarado se usa para contrastar, y contrastar contra un RUT inválido no
+  // sirve para nada.
+  if (entrada.datos.rutDeudor.trim() !== '' && !entrada.rutValido) return false;
   if (entrada.archivo) return true;                       // lo lee el servidor
   return CAMPOS_REQUERIDOS_SIN_RESPALDO.every((c) => entrada.datos[c].trim() !== '');
 }
