@@ -299,3 +299,47 @@
   font-size: .8125rem;
   color: var(--color-text-secondary);
 }
+
+// ── Atajos de plazo ────────────────────────────────────────────────────
+.pub__plazos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.pub__plazo-texto {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+  font-size: .75rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.pub__plazo-dias {
+  width: 3.6rem;
+  height: 1.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: .8125rem;
+  text-align: center;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-brand-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+  }
+
+  // Las flechitas del number en un campo tan chico son más estorbo que ayuda.
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

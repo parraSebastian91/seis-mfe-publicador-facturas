@@ -205,11 +205,43 @@
 
                   <!-- Siempre declarada: el timbre no la trae. Ver la tabla de
                        decisiones de CLAUDE.md. -->
+                  <!-- `grupo`: el campo trae el datepicker MÁS los atajos de
+                       plazo. Sin eso el `<label>` de app-form-field reenvía el
+                       click de cualquier chip al datepicker y abre el
+                       calendario en vez de aplicar el plazo. -->
                   <app-form-field label="Fecha de vencimiento"
+                                  [grupo]="true"
                                   [required]="entrada.origen === 'manual'">
                     <app-datepicker [value]="entrada.datos.fechaVencimiento"
                                     [minDate]="hoyIso"
                                     (valueChange)="editarValor(entrada.id, 'fechaVencimiento', $event)" />
+
+                    <!-- Atajos para los plazos habituales, contados desde hoy.
+                         Ninguno viene elegido: el campo arranca vacío. -->
+                    <div class="pub__plazos">
+                      @for (dias of plazos; track dias) {
+                        <app-chip
+                          [clickable]="true"
+                          [variant]="plazoActivo(entrada.datos.fechaVencimiento, dias)
+                                     ? 'brand' : 'neutral'"
+                          (click)="aplicarPlazo(entrada.id, dias)">
+                          {{ dias }} días
+                        </app-chip>
+                      }
+                      <!-- La cantidad de días es editable: los plazos reales
+                           no son solo 30/60/90, y escribir "45" es más directo
+                           que buscar el día en el calendario. -->
+                      <label class="pub__plazo-texto">
+                        Vence en
+                        <input
+                          class="pub__plazo-dias"
+                          type="number" min="0" max="3650" inputmode="numeric"
+                          [value]="diasHasta(entrada.datos.fechaVencimiento) ?? ''"
+                          (input)="aplicarDiasEscritos(entrada.id, $event)"
+                          [attr.aria-label]="'Días hasta el vencimiento'" />
+                        días
+                      </label>
+                    </div>
                   </app-form-field>
                 </div>
 

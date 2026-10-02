@@ -12,7 +12,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
-  BadgeComponent, BadgeVariant, ButtonComponent, DatepickerComponent,
+  BadgeComponent, BadgeVariant, ButtonComponent, ChipComponent, DatepickerComponent,
   DrawerContent, DrawerService, FormFieldComponent, IconComponent,
   InputComponent, PasoStepper, RutInputComponent, SkeletonComponent,
   StepperComponent,
@@ -50,6 +50,18 @@ export interface PublicacionDrawerInputs {
   ) => DatosLeidos | undefined;
 }
 
+/**
+ * Fecha en ISO `YYYY-MM-DD`, en hora LOCAL.
+ *
+ * No se usa `toISOString()`: ese convierte a UTC, y en Chile (UTC-3) a partir
+ * de las 21:00 devuelve el día siguiente. Con eso "hoy" pasaba a ser mañana y
+ * el calendario de emisión dejaba de permitir el día en curso.
+ */
+export function isoLocal(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 /** Lo que el pipeline terminó leyendo del documento. */
 export interface DatosLeidos {
   readonly facturaId: string;
@@ -83,7 +95,8 @@ export type EventoPublicacion =
   selector: 'app-publicacion-drawer',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, BadgeComponent, ButtonComponent, DatepickerComponent,
+    CommonModule, FormsModule, BadgeComponent, ButtonComponent, ChipComponent,
+    DatepickerComponent,
     FormFieldComponent, IconComponent, InputComponent, RutInputComponent,
     SkeletonComponent, StepperComponent,
   ],
@@ -166,8 +179,67 @@ export class PublicacionDrawerComponent
     if (this.paso() > 0 && !this.yaSeEnvio()) this.paso.update((p) => p - 1);
   }
 
-  /** Hoy, en ISO, para acotar los calendarios. */
-  readonly hoyIso = new Date().toISOString().slice(0, 10);
+  /** Hoy, en ISO local, para acotar los calendarios. */
+  readonly hoyIso = isoLocal(new Date());
+
+  /**
+   * Plazos habituales de factoring, contados desde HOY.
+   *
+   * No se calcula ninguno por defecto: el campo arranca vacío y el cedente
+   * elige. Son un atajo para el caso frecuente, no una sugerencia que haya que
+   * desarmar — proponer una fecha que nadie pidió es la clase de "ayuda" que
+   * después aparece publicada sin que nadie la haya mirado.
+   */
+  readonly plazos = [30, 60, 90] as const;
+
+  /** `hoy + dias`, en ISO. El Date nativo ya resuelve fin de mes y bisiestos. */
+  fechaEnDias(dias: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() + dias);
+    return isoLocal(d);
+  }
+
+  aplicarPlazo(id: string, dias: number): void {
+    this.editarValor(id, 'fechaVencimiento', this.fechaEnDias(dias));
+  }
+
+  /**
+   * Cuántos días faltan para una fecha. `null` si no hay fecha o no se entiende.
+   *
+   * Se compara a medianoche local para que no dependa de la hora a la que se
+   * mire: si no, una fecha de mañana puede decir "en 0 días" por la tarde.
+   */
+  diasHasta(iso: string): number | null {
+    if (!iso) return null;
+    const [a, m, d] = iso.split('-').map(Number);
+    if (!a || !m || !d) return null;
+    const objetivo = new Date(a, m - 1, d);
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    objetivo.setHours(0, 0, 0, 0);
+    return Math.round((objetivo.getTime() - hoy.getTime()) / 86_400_000);
+  }
+
+  /**
+   * Fija el vencimiento a partir de una cantidad de días escrita a mano.
+   *
+   * Es la misma operación que los atajos, pero para los plazos que no son 30,
+   * 60 ni 90 — que en factoring son muchos. Vacío no borra la fecha: borrar el
+   * número para escribir otro no debería perder lo que ya estaba.
+   */
+  aplicarDiasEscritos(id: string, event: Event): void {
+    const crudo = (event.target as HTMLInputElement).value.trim();
+    if (crudo === '') return;
+    const dias = Number(crudo);
+    if (!Number.isInteger(dias) || dias < 0 || dias > 3650) return;
+    this.editarValor(id, 'fechaVencimiento', this.fechaEnDias(dias));
+  }
+
+  /** `true` si ese plazo es el que está elegido, para marcarlo. */
+  plazoActivo(iso: string, dias: number): boolean {
+    return !!iso && iso === this.fechaEnDias(dias);
+  }
+
 
   /** Para que el template pueda preguntar sin importar el helper. */
   sePuedeEnviarEntrada = sePuedeEnviar;
