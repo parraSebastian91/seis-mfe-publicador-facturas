@@ -34,7 +34,7 @@ import {
  * manejo de la tanda y su progreso.
  */
 export interface PublicacionDrawerInputs {
-  readonly enviarUna?: (entrada: EntradaPublicacion) => Promise<ResultadoEntrada>;
+  readonly enviarUna?: (entrada: EntradaPublicacion, loteId?: string) => Promise<ResultadoEntrada>;
   /**
    * Busca, entre las facturas que la página ya tiene en memoria, la que el
    * pipeline creó a partir de esta subida. `undefined` mientras no aparezca.
@@ -64,6 +64,16 @@ export interface PublicacionDrawerInputs {
    * campo— a `DatosLeidos` es trabajo de la página.
    */
   readonly procesado$?: Observable<EventoProcesamiento>;
+
+  /**
+   * Abre una tanda y devuelve su id, para que las facturas que salgan de ella
+   * queden agrupadas.
+   *
+   * Se llama una sola vez, al confirmar, y sólo con más de un archivo: una
+   * subida individual no pertenece a ninguna tanda y no hay que inventarle un
+   * lote de uno.
+   */
+  readonly abrirLote?: (cantidad: number) => Promise<string | undefined>;
 }
 
 /** Un documento que el pipeline terminó de leer. */
@@ -427,10 +437,23 @@ export class PublicacionDrawerComponent
     if (!pendientes.length || !enviar || this.enviando()) return;
 
     this.enviando.set(true);
+
+    // La tanda se abre ANTES de la primera subida: su id tiene que viajar con
+    // cada URL firmada. Si falla, se sigue sin agrupar — perder el agrupador es
+    // molesto, perder la publicación sería grave.
+    let loteId: string | undefined;
+    if (pendientes.length > 1 && this.drawerInputs.abrirLote) {
+      try {
+        loteId = await this.drawerInputs.abrirLote(pendientes.length);
+      } catch {
+        loteId = undefined;
+      }
+    }
+
     for (const entrada of pendientes) {
       this.#actualizar(entrada.id, { estado: 'subiendo', detalle: undefined });
       try {
-        const r = await enviar(entrada);
+        const r = await enviar(entrada, loteId);
         this.#actualizar(entrada.id, r.ok
           ? {
               estado: 'procesando',

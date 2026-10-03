@@ -167,7 +167,8 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
         // El drawer maneja la tanda y su progreso; la capacidad de publicar se
         // le inyecta desde acá, que es donde viven los servicios.
         inputs: {
-          enviarUna: (entrada) => this.enviarEntrada(entrada),
+          enviarUna: (entrada, loteId) => this.enviarEntrada(entrada, loteId),
+          abrirLote: (cantidad) => this.abrirLote(cantidad),
           buscarFactura: (pistas) => this.buscarFacturaDeLaSubida(pistas),
           // El pipeline avisando por SSE en vez de que el drawer espere la
           // siguiente vuelta del sondeo. Traducir el contrato del backend es
@@ -307,7 +308,27 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     return !!base && (factura.url_factura ?? '').toLowerCase().includes(base);
   }
 
-  private async enviarEntrada(entrada: EntradaPublicacion): Promise<ResultadoEntrada> {
+  /**
+   * Abre una tanda en el servidor y devuelve su id.
+   *
+   * El nombre lo propone el backend: pedirlo acá agregaría fricción justo
+   * cuando la persona quiere terminar, y se puede renombrar después.
+   */
+  private async abrirLote(cantidad: number): Promise<string | undefined> {
+    try {
+      const r: any = await firstValueFrom(this.http.post(
+        `${this.apiBase}/api/bff/facturas/lote`,
+        { organizacionId: this.orgSelected(), gestorUuid: (await this.resolveCurrentUserName()).uuid, cantidad },
+        { withCredentials: true },
+      ));
+      return r?.data?.id;
+    } catch {
+      // Sin lote se publica igual, sin agrupar.
+      return undefined;
+    }
+  }
+
+  private async enviarEntrada(entrada: EntradaPublicacion, loteId?: string): Promise<ResultadoEntrada> {
     try {
       if (entrada.archivo) {
         const { uuid } = await this.resolveCurrentUserName();
@@ -317,7 +338,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
         const correlationId = crypto.randomUUID();
         const respuesta = await this.objectUploadService.uploadFileUsingPresignedUrl(
           this.apiBase, PATH_TYPES.DOCUMENT, entrada.archivo, uuid, this.orgSelected(),
-          undefined, correlationId,
+          undefined, correlationId, loteId,
         );
         if (!respuesta?.objectUrl) {
           return { ok: false, mensaje: 'El storage no devolvió una URL de subida.' };
