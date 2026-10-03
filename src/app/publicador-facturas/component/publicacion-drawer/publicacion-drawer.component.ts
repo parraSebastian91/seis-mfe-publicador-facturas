@@ -73,6 +73,14 @@ export interface EventoProcesamiento {
   readonly datos?: DatosLeidos;
   /** Por qué falló, cuando falló. */
   readonly detalle?: string;
+  /**
+   * El motivo en forma de código, para decidir qué ofrecer.
+   *
+   * No alcanza con el texto: ante una factura duplicada reintentar no sirve
+   * —ya existe— y lo útil es llevar a la que está. Ante una ilegible, lo útil
+   * es abrir el formulario, porque el documento ya quedó subido.
+   */
+  readonly motivo?: 'duplicada' | 'ilegible' | 'otro';
 }
 
 /**
@@ -552,10 +560,22 @@ export class PublicacionDrawerComponent
           this.#completar(entrada, evento.datos);
           return;
         }
+        // Una factura ilegible NO es un error de envío: el documento se subió
+        // bien y lo único que falta son los datos. Se abre el detalle para que
+        // se puedan tipear, en vez de dejar la fila en rojo sin salida.
+        if (evento.motivo === 'ilegible') {
+          this.#actualizar(entrada.id, {
+            estado: 'procesada',
+            detalle: evento.detalle
+              ?? 'No se pudieron leer los datos. Completalos a mano: el respaldo ya quedó guardado.',
+          });
+          this.expandida.set(entrada.id);
+          return;
+        }
         this.#actualizar(entrada.id, {
           estado: 'error',
           detalle: evento.detalle
-            ?? 'El sistema no pudo leer el documento. Podés completar los datos a mano.',
+            ?? 'El sistema no pudo procesar el documento.',
         });
       },
       // Si el stream se corta, el sondeo sigue: por eso no se propaga ni se

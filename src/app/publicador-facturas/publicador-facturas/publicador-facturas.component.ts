@@ -278,10 +278,17 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     const e = mensaje?.datos;
     const valor = (campo: any): string | undefined => campo?.valor ?? undefined;
 
+    const codigo = String(mensaje?.mensaje?.code ?? '');
+    const motivo: 'duplicada' | 'ilegible' | 'otro' | undefined =
+      codigo === 'FACTURA_DUPLICADA' ? 'duplicada'
+      : codigo === 'FACTURA_ILEGIBLE' || codigo === 'FACTURA_VACIA_PUBLICADA' ? 'ilegible'
+      : codigo ? 'otro' : undefined;
+
     return {
       correlationId: mensaje?.correlationId ?? '',
       ok: ok && !!e,
       detalle: mensaje?.mensaje?.description,
+      motivo,
       datos: ok && e
         ? {
             facturaId: e.facturaId ?? mensaje?.assetId ?? '',
