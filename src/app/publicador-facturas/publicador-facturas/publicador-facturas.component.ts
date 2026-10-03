@@ -315,7 +315,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
         if (!respuesta?.objectUrl) {
           return { ok: false, mensaje: 'El storage no devolvió una URL de subida.' };
         }
-        return { ok: true, correlationId: respuesta.correlationId };
+        return { ok: true, correlationId: respuesta.correlationId, assetId: respuesta.assetId };
       }
 
       // El formulario declara el monto como texto (con separadores de miles);

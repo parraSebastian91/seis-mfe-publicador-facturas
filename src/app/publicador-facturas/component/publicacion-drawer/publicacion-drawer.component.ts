@@ -429,6 +429,7 @@ export class PublicacionDrawerComponent
               detalle: undefined,
               subidaEn: performance.now(),
               correlationId: r.correlationId,
+              assetId: r.assetId,
             }
           : { estado: 'error', detalle: r.mensaje ?? 'No se pudo enviar.' });
       } catch (e) {

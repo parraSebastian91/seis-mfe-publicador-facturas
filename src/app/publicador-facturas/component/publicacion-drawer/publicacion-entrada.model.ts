@@ -53,6 +53,8 @@ export interface EntradaPublicacion {
   detalle?: string;
   /** Id de la factura que el pipeline creó, cuando ya se la pudo identificar. */
   facturaId?: string;
+  /** El archivo en storage. Existe desde la subida, antes que la factura. */
+  assetId?: string;
   /**
    * Identificador con el que esta subida viajó por el pipeline. Es lo que ata
    * el archivo con la factura que nazca de él: va en `X-Correlation-Id` y
@@ -104,6 +106,15 @@ export interface ResultadoEntrada {
   readonly mensaje?: string;
   /** Con el que viajó la subida, para reconocer después lo que el pipeline cree. */
   readonly correlationId?: string;
+  /**
+   * El registro del archivo en storage, que existe desde que se pidió la URL
+   * firmada.
+   *
+   * Es lo único que ata el archivo con su fila mientras la factura todavía no
+   * existe: con este flujo la factura nace recién cuando el worker leyó el
+   * documento y se validó que no sea duplicada.
+   */
+  readonly assetId?: string;
 }
 
 /** Campos que el cedente tiene que declarar cuando no hay documento que leer. */
