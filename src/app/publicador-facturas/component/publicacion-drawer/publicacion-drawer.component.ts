@@ -10,6 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Observable, Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import {
   BadgeComponent, BadgeVariant, ButtonComponent, ChipComponent, DatepickerComponent,
@@ -48,6 +49,30 @@ export interface PublicacionDrawerInputs {
   readonly buscarFactura?: (
     pistas: { correlationId?: string; nombreArchivo: string },
   ) => DatosLeidos | undefined;
+
+  /**
+   * El pipeline avisando que terminó con un documento, empujado por SSE.
+   *
+   * Complementa a `buscarFactura`, no lo reemplaza: el sondeo sigue porque es
+   * quien marca una fila como `demorada` cuando nadie avisa nunca, y porque si
+   * el stream se cae el drawer tiene que seguir completándose igual. Lo que
+   * aporta es que la fila se completa apenas el worker termina, en vez de en la
+   * siguiente vuelta del reloj.
+   *
+   * Llega ya traducido: el drawer no sabe de contratos del backend, igual que
+   * no sabe de servicios. Traducir la extracción —con su procedencia por
+   * campo— a `DatosLeidos` es trabajo de la página.
+   */
+  readonly procesado$?: Observable<EventoProcesamiento>;
+}
+
+/** Un documento que el pipeline terminó de leer. */
+export interface EventoProcesamiento {
+  readonly correlationId: string;
+  readonly ok: boolean;
+  readonly datos?: DatosLeidos;
+  /** Por qué falló, cuando falló. */
+  readonly detalle?: string;
 }
 
 /**
@@ -141,6 +166,7 @@ export class PublicacionDrawerComponent
   readonly conError = computed(() => this.entradas().filter((e) => e.estado === 'error'));
   readonly enviando = signal(false);
   #sondeo?: ReturnType<typeof setInterval>;
+  #escucha?: Subscription;
 
   readonly maxArchivos = 50;
 
@@ -414,6 +440,7 @@ export class PublicacionDrawerComponent
     }
     this.enviando.set(false);
     this.#vigilarProcesamiento();
+    this.#escucharPipeline();
     this.drawer.emit({
       tipo: 'enviadas',
       enviadas: this.enviadas().length,
@@ -462,21 +489,7 @@ export class PublicacionDrawerComponent
           nombreArchivo: entrada.nombre,
         });
         if (leido) {
-          this.#actualizar(entrada.id, {
-            estado: 'procesada',
-            facturaId: leido.facturaId,
-            detalle: undefined,
-            datos: {
-              ...entrada.datos,
-              numeroFactura: leido.numeroFactura ?? entrada.datos.numeroFactura,
-              rutDeudor: leido.rutDeudor ?? entrada.datos.rutDeudor,
-              nombreRazonSocialDeudor:
-                leido.nombreRazonSocialDeudor ?? entrada.datos.nombreRazonSocialDeudor,
-              montoTotal: String(leido.montoTotal ?? entrada.datos.montoTotal),
-              fechaEmision: leido.fechaEmision ?? entrada.datos.fechaEmision,
-              fechaVencimiento: leido.fechaVencimiento ?? entrada.datos.fechaVencimiento,
-            },
-          });
+          this.#completar(entrada, leido);
           continue;
         }
         if (performance.now() - (entrada.subidaEn ?? 0) > ESPERA_MAX_MS) {
@@ -490,6 +503,66 @@ export class PublicacionDrawerComponent
     }, INTERVALO_SONDEO_MS);
   }
 
+  /**
+   * Completa la fila con lo que el pipeline leyó.
+   *
+   * Lo leído NO pisa lo que la persona escribió: cada campo entra sólo si el
+   * pipeline lo trae. Alguien puede haber tipeado el monto mientras el worker
+   * procesaba, y sobrescribirlo por detrás sería lo peor que puede hacer un
+   * formulario.
+   */
+  #completar(entrada: EntradaPublicacion, leido: DatosLeidos): void {
+    this.#actualizar(entrada.id, {
+      estado: 'procesada',
+      facturaId: leido.facturaId,
+      detalle: undefined,
+      datos: {
+        ...entrada.datos,
+        numeroFactura: leido.numeroFactura ?? entrada.datos.numeroFactura,
+        rutDeudor: leido.rutDeudor ?? entrada.datos.rutDeudor,
+        nombreRazonSocialDeudor:
+          leido.nombreRazonSocialDeudor ?? entrada.datos.nombreRazonSocialDeudor,
+        montoTotal: String(leido.montoTotal ?? entrada.datos.montoTotal),
+        fechaEmision: leido.fechaEmision ?? entrada.datos.fechaEmision,
+        fechaVencimiento: leido.fechaVencimiento ?? entrada.datos.fechaVencimiento,
+      },
+    });
+  }
+
+  /**
+   * Escucha al pipeline en vez de esperar la siguiente vuelta del sondeo.
+   *
+   * Se suscribe una sola vez: el drawer vive mientras dura la tanda, y
+   * resuscribirse por cada envío dejaría conexiones colgando.
+   */
+  #escucharPipeline(): void {
+    if (this.#escucha || !this.drawerInputs.procesado$) return;
+
+    this.#escucha = this.drawerInputs.procesado$.subscribe({
+      next: (evento) => {
+        const entrada = this.entradas().find(
+          (e) => e.correlationId && e.correlationId === evento.correlationId,
+        );
+        // Un evento sin fila es lo normal, no un error: el stream es por usuario
+        // y puede traer el resultado de algo subido desde otra pestaña.
+        if (!entrada || entrada.estado !== 'procesando') return;
+
+        if (evento.ok && evento.datos) {
+          this.#completar(entrada, evento.datos);
+          return;
+        }
+        this.#actualizar(entrada.id, {
+          estado: 'error',
+          detalle: evento.detalle
+            ?? 'El sistema no pudo leer el documento. Podés completar los datos a mano.',
+        });
+      },
+      // Si el stream se corta, el sondeo sigue: por eso no se propaga ni se
+      // muestra nada. Perder el empujón degrada la espera, no la rompe.
+      error: () => { this.#escucha = undefined; },
+    });
+  }
+
   #detenerSondeo(): void {
     if (this.#sondeo) {
       clearInterval(this.#sondeo);
@@ -498,6 +571,7 @@ export class PublicacionDrawerComponent
   }
 
   ngOnDestroy(): void {
+    this.#escucha?.unsubscribe();
     this.#detenerSondeo();
   }
 

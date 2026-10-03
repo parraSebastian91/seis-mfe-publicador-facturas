@@ -1,10 +1,10 @@
 import { Component, computed, EffectRef, Injector, NgZone, OnDestroy, OnInit, Signal, effect, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Subscription, firstValueFrom } from 'rxjs';
+import { EMPTY, Observable, Subscription, catchError, firstValueFrom, map } from 'rxjs';
 import { DrawerService } from 'shared-utils';
-import { PublicacionDrawerComponent, DatosLeidos, EventoPublicacion, PublicacionDrawerInputs } from '../component/publicacion-drawer/publicacion-drawer.component';
+import { PublicacionDrawerComponent, DatosLeidos, EventoProcesamiento, EventoPublicacion, PublicacionDrawerInputs } from '../component/publicacion-drawer/publicacion-drawer.component';
 import { EntradaPublicacion, ResultadoEntrada } from '../component/publicacion-drawer/publicacion-entrada.model';
-import { AutorizacionPublicacionDto, FacturaCreateRequestDto, FacturaResponseUpdateDTO, FacturaType, FacturasService, NotificationSocketService, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, UserProfileService, UserStateService, VersionTerminos, createdBy, facturaEstado } from 'shared-utils';
+import { AutorizacionPublicacionDto, FacturaCreateRequestDto, FacturaResponseUpdateDTO, FacturaType, FacturasService, NotificationSocketService, ObjectUploadService, PATH_TYPES, UploadModalService, UserOrgProfileState, SSEService, UserProfileService, UserStateService, VersionTerminos, createdBy, facturaEstado } from 'shared-utils';
 import { FacturaData, FacturaFormularioPublicacion, ModalPublishMetadata, AdjuntoParaSubir } from '../component/modal-publicacion-factura/modal-publicacion-factura.component';
 import { FacturaFilters } from '../component/atomic-factura-filters/atomic-factura-filters.component';
 import { FacturaConfirmRequestEvent, FacturaRespaldoRequestEvent } from '../component/factura-view/factura-view.component';
@@ -96,6 +96,7 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     private readonly objectUploadService: ObjectUploadService,
     private readonly uploadModalService: UploadModalService,
     private readonly userStateService: UserStateService,
+    private readonly sseService: SSEService,
     private readonly userProfileService: UserProfileService,
     private readonly facturasService: FacturasService
   ) {
@@ -168,6 +169,10 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
         inputs: {
           enviarUna: (entrada) => this.enviarEntrada(entrada),
           buscarFactura: (pistas) => this.buscarFacturaDeLaSubida(pistas),
+          // El pipeline avisando por SSE en vez de que el drawer espere la
+          // siguiente vuelta del sondeo. Traducir el contrato del backend es
+          // trabajo de acá: el drawer no sabe de servicios ni de DTOs.
+          procesado$: this.streamDeProcesamiento(),
         },
         width: '880px',
       })
@@ -231,6 +236,62 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
       montoTotal: factura.montoTotal,
       fechaVencimiento: factura.fechaVencimiento
         ? String(factura.fechaVencimiento).slice(0, 10) : undefined,
+    };
+  }
+
+  /**
+   * El pipeline avisando que terminó con un documento.
+   *
+   * Un stream por usuario y no uno por archivo: una tanda sube varias facturas
+   * a la vez, y una conexión por cada una multiplicaría las conexiones justo
+   * cuando más carga hay. Cada mensaje trae su `correlationId` y el drawer
+   * filtra.
+   *
+   * No reemplaza al sondeo: si el stream no está disponible —o se cae— el
+   * drawer se sigue completando igual, sólo que en la siguiente vuelta. Por eso
+   * esto es un empujón y no la única vía.
+   */
+  private streamDeProcesamiento(): Observable<EventoProcesamiento> {
+    const usuario = (this.userStateService.userName() || '').trim();
+    if (!usuario) return EMPTY;
+
+    return this.sseService.getPublicacionStream(this.apiBase, usuario).pipe(
+      map((mensaje: any) => this.traducirProcesamiento(mensaje)),
+      // Un corte del stream no puede romper el drawer: se apaga en silencio y
+      // manda el sondeo.
+      catchError(() => EMPTY),
+    );
+  }
+
+  /**
+   * Del contrato del backend a lo que el drawer entiende.
+   *
+   * El worker manda la extracción con la procedencia de cada campo
+   * (`{valor, origen}`), porque aguas arriba no vale lo mismo un monto que
+   * salió del timbre firmado que uno que salió de la capa de texto. Acá se
+   * aplana a los valores, que es lo que el formulario necesita para
+   * prellenarse; la procedencia se va a usar cuando la pantalla muestre de
+   * dónde viene cada dato.
+   */
+  private traducirProcesamiento(mensaje: any): EventoProcesamiento {
+    const ok = mensaje?.event === 'documento.procesado';
+    const e = mensaje?.datos;
+    const valor = (campo: any): string | undefined => campo?.valor ?? undefined;
+
+    return {
+      correlationId: mensaje?.correlationId ?? '',
+      ok: ok && !!e,
+      detalle: mensaje?.mensaje?.description,
+      datos: ok && e
+        ? {
+            facturaId: e.facturaId ?? mensaje?.assetId ?? '',
+            numeroFactura: valor(e.folio),
+            rutDeudor: valor(e.rut_deudor),
+            nombreRazonSocialDeudor: valor(e.razon_social_deudor),
+            montoTotal: valor(e.monto_total) ? Number(valor(e.monto_total)) : undefined,
+            fechaEmision: valor(e.fecha_emision),
+          }
+        : undefined,
     };
   }
 
