@@ -318,7 +318,9 @@ export class PublicadorFacturasComponent implements OnInit, OnDestroy {
     try {
       const r: any = await firstValueFrom(this.http.post(
         `${this.apiBase}/api/bff/facturas/lote`,
-        { organizacionId: this.orgSelected(), gestorUuid: (await this.resolveCurrentUserName()).uuid, cantidad },
+        // El gestor NO va acá: lo toma el BFF de la sesión. Quién abre la tanda
+        // no es algo que el navegador deba poder declarar.
+        { organizacionId: this.orgSelected(), cantidad },
         { withCredentials: true },
       ));
       return r?.data?.id;
